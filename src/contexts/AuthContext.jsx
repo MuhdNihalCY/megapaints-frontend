@@ -24,6 +24,8 @@ export const AuthProvider = ({ children }) => {
 
       const tryUserMe = async () => {
         const res = await api.get('/auth/me');
+        console.log("/auth/me response");
+        console.log(res);
         if (res?.data?.status) {
           setUser({ username: res.data.user?.username, role: 'user' });
           localStorage.setItem('lastRole', 'user');

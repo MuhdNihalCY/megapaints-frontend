@@ -32,15 +32,6 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [isDark]);
 
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-  };
-
-  const value = {
-    isDark,
-    toggleTheme
-  };
-
   return (
     <ThemeContext.Provider value={value}>
       {children}

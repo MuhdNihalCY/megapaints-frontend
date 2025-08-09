@@ -1,10 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import Login from './components/Login';
-import AdminLogin from './components/AdminLogin';
-import UserDashboard from './components/UserDashboard';
-import AdminDashboard from './components/AdminDashboard';
+import Login from './features/user/Login';
+import AdminLogin from './features/admin/Login';
+import UserDashboard from './features/user/Dashboard';
+import AdminDashboard from './features/admin/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import CreateFormula from './features/user/CreateFormula';
+import Order from './features/user/Order';
+import Orders from './features/user/Orders';
 
 function App() {
   return (
@@ -17,8 +20,10 @@ function App() {
               <Route path="/admin/login" element={<AdminLogin />} />
               
               {/* Protected Routes */}
+              {/* Back-compat: old user path redirects to new clean path */}
+              <Route path="/user/dashboard" element={<Navigate to="/dashboard" replace />} />
               <Route 
-                path="/user/dashboard" 
+                path="/dashboard" 
                 element={
                   <ProtectedRoute requiredRole="user">
                     <UserDashboard />
@@ -31,6 +36,32 @@ function App() {
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* User-only additional routes */}
+              <Route 
+                path="/create-formula" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <CreateFormula />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/order" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <Order />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/orders" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <Orders />
                   </ProtectedRoute>
                 } 
               />
