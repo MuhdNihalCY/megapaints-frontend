@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './features/user/Login';
 import AdminLogin from './features/admin/Login';
 import UserDashboard from './features/user/Dashboard';
@@ -12,9 +13,10 @@ import Orders from './features/user/Orders';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
+      <ThemeProvider>
+        <Router>
+          <div className="App">
+            <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/admin/login" element={<AdminLogin />} />
@@ -72,7 +74,8 @@ function App() {
             </Routes>
           </div>
         </Router>
-      </AuthProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

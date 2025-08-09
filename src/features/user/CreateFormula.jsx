@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Header from './components/Header';
 
 export const CreateFormulaSections = {
   HEADER_CONTROLS: 'header-controls',
@@ -188,9 +189,10 @@ const CreateFormula = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <Header />
+      {/* Page Toolbar */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900">Create Formula</h1>
           <div className="flex space-x-3">
@@ -208,7 +210,7 @@ const CreateFormula = () => {
         <div className="grid grid-cols-12 gap-6">
           {/* Left Sidebar */}
           <div className="col-span-2 space-y-4">
-            <div className="bg-white p-4 rounded shadow">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
@@ -277,7 +279,7 @@ const CreateFormula = () => {
             </div>
 
             {/* Attachments */}
-            <div className="bg-white p-4 rounded shadow">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
               <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
               <div className="border-2 border-dashed border-gray-300 rounded p-6 text-center">
                 <input
@@ -304,7 +306,7 @@ const CreateFormula = () => {
           {/* Main Content */}
           <div className="col-span-10">
             {/* Header Controls */}
-            <div className="bg-white p-4 rounded shadow mb-6">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mb-6">
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -342,7 +344,7 @@ const CreateFormula = () => {
 
             <div className="grid grid-cols-12 gap-6">
               {/* Tints and Quantities Table */}
-              <div className="col-span-8 bg-white rounded shadow overflow-hidden">
+              <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
                 {/* Header */}
                 <div className="bg-gray-600 text-white">
                   <div className="grid grid-cols-12 text-xs font-medium">
@@ -403,7 +405,7 @@ const CreateFormula = () => {
               </div>
 
               {/* Quantity Inputs */}
-              <div className="col-span-4 bg-white rounded shadow p-4">
+              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="text-center text-sm font-medium text-gray-700 mb-3">Quantity</div>
                 <div className="space-y-2">
                   {tints.map((tint) => (
@@ -426,7 +428,7 @@ const CreateFormula = () => {
             {/* Totals, Binders and Remarks Section */}
             <div className="grid grid-cols-12 gap-6 mt-6">
               {/* Totals and Binders */}
-              <div className="col-span-8 bg-white rounded shadow overflow-hidden">
+              <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
                 {/* Total without Additives */}
                 <div className="bg-gray-600 text-white p-3 grid grid-cols-3">
                   <div className="text-sm font-medium">Total without Additives</div>
@@ -487,7 +489,7 @@ const CreateFormula = () => {
               </div>
 
               {/* Remarks */}
-              <div className="col-span-4 bg-white rounded shadow p-4">
+              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-3">Remarks</h3>
                 <textarea
                   value={remarks}
@@ -501,7 +503,7 @@ const CreateFormula = () => {
 
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-6 mt-6">
-              <div className="bg-white rounded shadow p-4">
+              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Solid Content(%):</span>
                   <div className="flex items-center space-x-1">
@@ -514,7 +516,7 @@ const CreateFormula = () => {
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded shadow p-4">
+              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">VOC (g/Ltr):</span>
                   <input
@@ -524,7 +526,7 @@ const CreateFormula = () => {
                   />
                 </div>
               </div>
-              <div className="bg-white rounded shadow p-4">
+              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Density (g/Ltr):</span>
                   <input

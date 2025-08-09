@@ -1,6 +1,31 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
-const ThemeContext = createContext();
+function applyThemeToDom(isDark) {
+  const root = document.documentElement;
+  const body = document.body;
+  if (isDark) {
+    root.classList.add('dark');
+    body.classList.add('dark');
+    root.style.colorScheme = 'dark';
+    body.style.colorScheme = 'dark';
+  } else {
+    root.classList.remove('dark');
+    body.classList.remove('dark');
+    root.style.colorScheme = 'light';
+    body.style.colorScheme = 'light';
+  }
+}
+
+// Apply saved preference ASAP (pre-React) to avoid any mismatch
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('theme');
+    const preferDark = saved ? saved === 'dark' : true;
+    applyThemeToDom(preferDark);
+  } catch {}
+}
+
+const ThemeContext = createContext(null);
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
@@ -12,29 +37,32 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(() => {
-    // Check localStorage for saved theme preference
     const saved = localStorage.getItem('theme');
-    if (saved) {
-      return saved === 'dark';
-    }
-    // Default to dark theme
-    return true;
+    if (saved) return saved === 'dark';
+    return true; // default to dark
   });
 
   useEffect(() => {
-    // Apply theme to document
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    applyThemeToDom(isDark);
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      // Best-effort immediate DOM update for responsiveness
+      try { applyThemeToDom(next); } catch {}
+      return next;
+    });
+  };
+  const setTheme = (theme) => setIsDark(theme === 'dark');
+
+  const value = {
+    isDark,
+    theme: isDark ? 'dark' : 'light',
+    toggleTheme,
+    setTheme,
+  };
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };

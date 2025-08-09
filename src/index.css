@@ -1,1 +1,9 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Make the `dark:` variant use the `.dark` class instead of prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Ensure background/text base colors adapt to theme by default */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
