@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import Header from './components/Header';
 
 export const CreateFormulaSections = {
   HEADER_CONTROLS: 'header-controls',
@@ -22,11 +21,11 @@ function cryptoRandomId() {
   }
 }
 
-const GRAMS_TO_VOLUME_COEFF = 0.918; // approximate conversion; adjust as needed
+const GRAMS_TO_VOLUME_COEFF = 0.918;
 
 const initialTints = [
-  { id: cryptoRandomId(), sl: 1, code: '10009', series: 'PUR 68', name: 'Mipa PUR Mixing Tinter Nr. 68 green', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
-  { id: cryptoRandomId(), sl: 2, code: '10004', series: 'PUR 59', name: 'Mipa PUR Mixing Tinter Nr. 59 magenta', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
+  { id: cryptoRandomId(), sl: 1, code: '10009', series: 'PUR 68', name: 'Mipa PUR Mixing Tinter Nr. 68 green', qty: [34, 324, 43, 42, 2, 423], grams: 868.00, volume: 796.3252 },
+  { id: cryptoRandomId(), sl: 2, code: '10004', series: 'PUR 59', name: 'Mipa PUR Mixing Tinter Nr. 59 magenta', qty: [324, 23, 4, 3, 6, 8], grams: 368.00, volume: 350.4756 },
   { id: cryptoRandomId(), sl: 3, code: '', series: '', name: 'Product ID', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
 ];
 
@@ -40,26 +39,26 @@ const CreateFormula = () => {
   const [gloss, setGloss] = useState(13);
 
   const [meta, setMeta] = useState({
-    date: new Date().toISOString().slice(0, 10),
+    date: '08/09/2025',
     fileNo: '10140',
-    customerName: '',
-    colorCode: '',
-    colorName: '',
-    customerRef: '',
-    projectNo: '',
+    customerName: 'wcpr',
+    colorCode: 'Mipa',
+    colorName: 'qwer',
+    customerRef: 'qew',
+    projectNo: 'qew',
   });
 
   const [tints, setTints] = useState(initialTints);
-
-  // quantities are now managed per-tint row in tints[i].qty[0..5]
 
   const [binders, setBinders] = useState([
     { id: cryptoRandomId(), name: 'Duocryl Profi 1', grams: 608.49, volume: 654.13 },
     { id: cryptoRandomId(), name: 'Duocryl Profi 5', grams: 4335.51, volume: 4608.65 },
   ]);
+  
   const [additives, setAdditives] = useState([
     { id: cryptoRandomId(), name: 'Str-Add fein', percent: 3, grams: 185.4 },
   ]);
+  
   const [remarks, setRemarks] = useState('Rosner Acrylic');
   const [attachment, setAttachment] = useState({ file: null, preview: '' });
 
@@ -67,32 +66,35 @@ const CreateFormula = () => {
     () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
     [tints]
   );
+  
   const bindersTotal = useMemo(
     () => binders.reduce((sum, b) => sum + Number(b.grams || 0), 0),
     [binders]
   );
+  
   const bindersTotalVolume = useMemo(
     () => binders.reduce((sum, b) => sum + Number(b.volume || 0), 0),
     [binders]
   );
+  
   const additivesTotal = useMemo(
     () => additives.reduce((sum, a) => sum + Number(a.grams || 0), 0),
     [additives]
   );
+  
   const grandTotal = totalWithoutAdditives + bindersTotal + additivesTotal;
+  
   const totalWithoutAdditivesVolume = useMemo(
     () => tints.reduce((sum, t) => sum + Number(t.volume || 0), 0),
     [tints]
   );
-  const additivesTotalVolume = 0; // not captured for volume
-  const grandTotalVolume = totalWithoutAdditivesVolume + bindersTotalVolume + additivesTotalVolume;
-
-  // compute grams and volume whenever quantities change is handled inline in updateTintQty
+  
+  const grandTotalVolume = totalWithoutAdditivesVolume + bindersTotalVolume;
 
   const metrics = useMemo(() => {
     const solidContent = Math.max(0, (bindersTotal / Math.max(1, grandTotal)) * 100).toFixed(2);
     const voc = (additivesTotal * 0.47).toFixed(3);
-    const density = (grandTotal / 100).toFixed(3);
+    const density = (grandTotal / 1000).toFixed(3);
     return { solidContent, voc, density };
   }, [bindersTotal, additivesTotal, grandTotal]);
 
@@ -131,7 +133,6 @@ const CreateFormula = () => {
         return { ...t, qty: nextQty, grams, volume };
       });
 
-      // auto-append new row if last row receives any input
       const last = updated[updated.length - 1];
       const hasQtyInput = last.qty.some((v) => Number(v) > 0);
       const hasMeta = Boolean((last.code && last.code.trim()) || (last.series && last.series.trim()) || (last.name && last.name.trim()));
@@ -176,305 +177,369 @@ const CreateFormula = () => {
       meta,
       header: { category, subCategory, gloss },
       tints,
-      qtyCols,
       binders,
       additives,
       totals: { totalWithoutAdditives, bindersTotal, additivesTotal, grandTotal },
       remarks,
       metrics,
     };
-    // eslint-disable-next-line no-console
     console.log('CreateFormula.save', payload);
     alert('Formula saved locally (see console). Hook this up to your backend.');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 w-full">
-      <Header />
-
-      <div className="w-full px-4 sm:px-6 lg:px-8 pt-6 flex justify-end space-x-3" data-section={CreateFormulaSections.ACTIONS}>
-        <button onClick={clearAll} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white">Clear All</button>
-        <button onClick={save} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">Save</button>
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-gray-900">Create Formula</h1>
+          <div className="flex space-x-3">
+            <button onClick={clearAll} className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">
+              Clear All
+            </button>
+            <button onClick={save} className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700">
+              Save
+            </button>
+          </div>
+        </div>
       </div>
 
-      <main className="w-full px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4" data-section={CreateFormulaSections.HEADER_CONTROLS}>
-          <div className="lg:col-span-9 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2">
-                  <option>100 - Paints</option>
-                  <option>200 - Primers</option>
-                </select>
+      <div className="p-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Sidebar */}
+          <div className="col-span-2 space-y-4">
+            <div className="bg-white p-4 rounded shadow">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="text"
+                    value={meta.date}
+                    onChange={(e) => updateMeta('date', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">File no.</label>
+                  <input
+                    type="text"
+                    value={meta.fileNo}
+                    onChange={(e) => updateMeta('fileNo', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-500 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
+                  <input
+                    type="text"
+                    value={meta.customerName}
+                    onChange={(e) => updateMeta('customerName', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Color Code</label>
+                  <input
+                    type="text"
+                    value={meta.colorCode}
+                    onChange={(e) => updateMeta('colorCode', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Color Name</label>
+                  <input
+                    type="text"
+                    value={meta.colorName}
+                    onChange={(e) => updateMeta('colorName', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Customer Ref</label>
+                  <input
+                    type="text"
+                    value={meta.customerRef}
+                    onChange={(e) => updateMeta('customerRef', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Project No</label>
+                  <input
+                    type="text"
+                    value={meta.projectNo}
+                    onChange={(e) => updateMeta('projectNo', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sub-Category</label>
-                <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2">
-                  <option>Rosner_Acrylic</option>
-                  <option>Rosner_PU</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gloss</label>
-                <input type="number" value={gloss} onChange={(e) => setGloss(Number(e.target.value))} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
+            </div>
+
+            {/* Attachments */}
+            <div className="bg-white p-4 rounded shadow">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
+              <div className="border-2 border-dashed border-gray-300 rounded p-6 text-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="attachment"
+                  onChange={(e) => onAttach(e.target.files?.[0] || null)}
+                />
+                <label htmlFor="attachment" className="cursor-pointer">
+                  {attachment.preview ? (
+                    <img src={attachment.preview} alt="preview" className="w-full h-24 object-cover rounded" />
+                  ) : (
+                    <>
+                      <div className="text-2xl text-gray-400 mb-2">📁</div>
+                      <div className="text-xs text-gray-500">Click to upload image</div>
+                    </>
+                  )}
+                </label>
               </div>
             </div>
           </div>
 
-          <aside className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3" data-section={CreateFormulaSections.LEFT_SIDEBAR}>
-            <Field label="Date">
-              <input type="date" value={meta.date} onChange={(e) => updateMeta('date', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="File No.">
-              <input value={meta.fileNo} onChange={(e) => updateMeta('fileNo', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="Customer Name">
-              <input value={meta.customerName} onChange={(e) => updateMeta('customerName', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="Color Code">
-              <input value={meta.colorCode} onChange={(e) => updateMeta('colorCode', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="Color Name">
-              <input value={meta.colorName} onChange={(e) => updateMeta('colorName', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="Customer Ref">
-              <input value={meta.customerRef} onChange={(e) => updateMeta('customerRef', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-            <Field label="Project No">
-              <input value={meta.projectNo} onChange={(e) => updateMeta('projectNo', e.target.value)} className="w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2" />
-            </Field>
-          </aside>
-        </div>
+          {/* Main Content */}
+          <div className="col-span-10">
+            {/* Header Controls */}
+            <div className="bg-white p-4 rounded shadow mb-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                  >
+                    <option>100 - Paints</option>
+                    <option>200 - Primers</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Category</label>
+                  <select
+                    value={subCategory}
+                    onChange={(e) => setSubCategory(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                  >
+                    <option>Rosner_Acrylic</option>
+                    <option>Rosner_PU</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gloss</label>
+                  <input
+                    type="number"
+                    value={gloss}
+                    onChange={(e) => setGloss(Number(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                  />
+                </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-6">
-          <section className="xl:col-span-7 bg-white dark:bg-gray-800 rounded-lg shadow" data-section={CreateFormulaSections.TINTS_TABLE}>
-            <TableHeader title="Tints" />
-            <div className="grid grid-cols-12">
-              {/* Left: SL No. + Tinter (code, series, name) */}
-              <div className="col-span-8 overflow-x-auto border-r border-gray-200 dark:border-gray-700">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <Th>SL No.</Th>
-                      <Th>Tinters</Th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {tints.map((t, idx) => (
-                      <tr key={t.id} className="text-sm">
-                        <Td className="w-16">{idx + 1}</Td>
-                        <Td>
-                          <div className="flex items-center space-x-4">
-                            <input value={t.code} placeholder="Code" onChange={(e) => updateTint(t.id, 'code', e.target.value)} className="w-28 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600" />
-                            <input value={t.series} placeholder="Series" onChange={(e) => updateTint(t.id, 'series', e.target.value)} className="w-24 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600" />
-                            <input value={t.name} placeholder="Tinter" onChange={(e) => updateTint(t.id, 'name', e.target.value)} className="flex-1 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600" />
+            <div className="grid grid-cols-12 gap-6">
+              {/* Tints and Quantities Table */}
+              <div className="col-span-8 bg-white rounded shadow overflow-hidden">
+                {/* Header */}
+                <div className="bg-gray-600 text-white">
+                  <div className="grid grid-cols-12 text-xs font-medium">
+                    <div className="col-span-1 p-2 text-center border-r border-gray-500">SL No.</div>
+                    <div className="col-span-7 p-2 text-center border-r border-gray-500">Tinters</div>
+                    <div className="col-span-4 p-2">
+                      <div className="text-center mb-1">Quantity</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center">in Grams</div>
+                        <div className="text-center">in Volume</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rows */}
+                <div className="divide-y divide-gray-200">
+                  {tints.map((tint, index) => (
+                    <div key={tint.id} className="grid grid-cols-12 text-xs">
+                      <div className="col-span-1 p-2 text-center bg-gray-100 border-r border-gray-200">
+                        {index + 1}
+                      </div>
+                      <div className="col-span-7 p-2 border-r border-gray-200">
+                        <div className="grid grid-cols-12 gap-1">
+                          <input
+                            value={tint.code}
+                            onChange={(e) => updateTint(tint.id, 'code', e.target.value)}
+                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            placeholder="Code"
+                          />
+                          <input
+                            value={tint.series}
+                            onChange={(e) => updateTint(tint.id, 'series', e.target.value)}
+                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            placeholder="Series"
+                          />
+                          <input
+                            value={tint.name}
+                            onChange={(e) => updateTint(tint.id, 'name', e.target.value)}
+                            className="col-span-8 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            placeholder="Tinter Name"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-span-4 p-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-right text-sm font-medium text-blue-600">
+                            {tint.grams.toFixed(2)}
                           </div>
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <div className="text-right text-sm">
+                            {tint.volume.toFixed(4)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Right inside same card: Quantity => in Grams / in Volume */}
-              <div className="col-span-4 overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th colSpan={2} className="px-3 py-2 text-center text-xs font-medium text-gray-600 dark:text-gray-300">Quantity</th>
-                    </tr>
-                    <tr>
-                      <Th className="text-right">in Grams</Th>
-                      <Th className="text-right">in Volume</Th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {tints.map((t) => (
-                      <tr key={t.id} className="text-sm">
-                        <Td className="text-right">
-                          <input readOnly value={t.grams} className="w-24 text-right bg-transparent outline-none" />
-                        </Td>
-                        <Td className="text-right">
-                          <input readOnly value={t.volume} className="w-28 text-right bg-transparent outline-none" />
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-
-          {/* Right: 6 quantity inputs aligned by rows */}
-          <section className="xl:col-span-5 bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3" data-section={CreateFormulaSections.QUANTITY_GRID}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Quantity</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr>
-                    {[1,2,3,4,5,6].map((n) => (
-                      <th key={n} className="p-2 text-center text-gray-700 dark:text-gray-200">{n.toString().padStart(2,'0')}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tints.map((t) => (
-                    <tr key={t.id}>
-                      {t.qty.map((q, i) => (
-                        <td key={i} className="p-2">
-                          <input type="number" value={q} onChange={(e) => updateTintQty(t.id, i, e.target.value)} className="w-24 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-right" />
-                        </td>
+              {/* Quantity Inputs */}
+              <div className="col-span-4 bg-white rounded shadow p-4">
+                <div className="text-center text-sm font-medium text-gray-700 mb-3">Quantity</div>
+                <div className="space-y-2">
+                  {tints.map((tint) => (
+                    <div key={tint.id} className="grid grid-cols-6 gap-1">
+                      {tint.qty.map((qty, colIndex) => (
+                        <input
+                          key={colIndex}
+                          type="number"
+                          value={qty}
+                          onChange={(e) => updateTintQty(tint.id, colIndex, e.target.value)}
+                          className="px-2 py-1 text-xs text-right border border-gray-300 rounded"
+                        />
                       ))}
-                    </tr>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
-          </section>
+
+            {/* Totals, Binders and Remarks Section */}
+            <div className="grid grid-cols-12 gap-6 mt-6">
+              {/* Totals and Binders */}
+              <div className="col-span-8 bg-white rounded shadow overflow-hidden">
+                {/* Total without Additives */}
+                <div className="bg-gray-600 text-white p-3 grid grid-cols-3">
+                  <div className="text-sm font-medium">Total without Additives</div>
+                  <div className="text-right text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
+                  <div className="text-right text-sm">{totalWithoutAdditivesVolume.toFixed(2)} in Volume</div>
+                </div>
+
+                {/* Binders */}
+                <div className="bg-gray-500 text-white p-3">
+                  <div className="text-sm font-medium mb-2">Binders</div>
+                  {binders.map((binder) => (
+                    <div key={binder.id} className="grid grid-cols-3 mb-1">
+                      <div className="text-sm">{binder.name}</div>
+                      <div className="text-right text-blue-300 font-semibold">{binder.grams}</div>
+                      <div className="text-right text-sm">{binder.volume}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Additives */}
+                <div className="bg-gray-400 text-white p-3">
+                  <div className="grid grid-cols-4 mb-2">
+                    <div className="text-sm font-medium">Additives</div>
+                    <div className="text-center">
+                      <select className="bg-gray-600 text-white px-2 py-1 rounded text-xs">
+                        {additives.map((additive) => (
+                          <option key={additive.id}>{additive.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="text-center">
+                      <input
+                        type="number"
+                        value={additives[0]?.percent || 0}
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
+                        onChange={(e) => updateAdditive(additives[0]?.id, 'percent', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm">%</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3">
+                    <div></div>
+                    <div className="text-right text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
+                    <div className="text-right text-sm">{additivesTotal.toFixed(2)}</div>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="bg-gray-600 text-white p-3">
+                  <div className="grid grid-cols-3">
+                    <div className="text-sm font-medium">Total</div>
+                    <div className="text-right text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
+                    <div className="text-right text-lg">{grandTotalVolume.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div className="col-span-4 bg-white rounded shadow p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Remarks</h3>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  rows={10}
+                  className="w-full p-3 border border-gray-300 rounded text-sm resize-none"
+                  placeholder="Enter remarks..."
+                />
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-3 gap-6 mt-6">
+              <div className="bg-white rounded shadow p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Solid Content(%):</span>
+                  <div className="flex items-center space-x-1">
+                    <input
+                      readOnly
+                      value={metrics.solidContent}
+                      className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                    />
+                    <span className="text-sm text-gray-600">%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded shadow p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">VOC (g/Ltr):</span>
+                  <input
+                    readOnly
+                    value={metrics.voc}
+                    className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+              </div>
+              <div className="bg-white rounded shadow p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Density (g/Ltr):</span>
+                  <input
+                    readOnly
+                    value={metrics.density}
+                    className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <section className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-6" data-section={CreateFormulaSections.TOTALS_BINDERS_ADDITIVES}>
-           <div className="xl:col-span-7 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <TableHeader title="Totals & Binders" />
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              <RowTwoValues label="Total without Additives" rightPrimary={`${totalWithoutAdditives.toFixed(2)}`} rightSecondary={`${totalWithoutAdditivesVolume.toFixed(2)}`} secondaryLabel="in Volume" />
-
-              <div className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Binders</h4>
-                  <button onClick={addBinder} className="text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Add Binder</button>
-                </div>
-                <div className="space-y-2">
-                  {binders.map((b) => (
-                    <div key={b.id} className="grid grid-cols-12 gap-2 items-center">
-                      <input value={b.name} onChange={(e) => updateBinder(b.id, 'name', e.target.value)} placeholder="Name" className="col-span-6 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2" />
-                      <input type="number" value={b.grams} onChange={(e) => updateBinder(b.id, 'grams', Number(e.target.value))} placeholder="Grams" className="col-span-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2 text-right" />
-                      <input type="number" value={b.volume} onChange={(e) => updateBinder(b.id, 'volume', Number(e.target.value))} placeholder="Volume" className="col-span-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2 text-right" />
-                      <button onClick={() => removeBinder(b.id)} className="col-span-1 text-red-500 hover:text-red-600">Remove</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Additives
-                    <span className="ml-2 text-xs text-gray-500">(percent and computed grams)</span>
-                  </h4>
-                  <button onClick={addAdditive} className="text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Add Additive</button>
-                </div>
-                <div className="space-y-2">
-                  {additives.map((a) => (
-                    <div key={a.id} className="grid grid-cols-12 gap-2 items-center">
-                      <input value={a.name} onChange={(e) => updateAdditive(a.id, 'name', e.target.value)} placeholder="Name" className="col-span-6 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2" />
-                      <input type="number" value={a.percent} onChange={(e) => updateAdditive(a.id, 'percent', Number(e.target.value))} placeholder="%" className="col-span-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2 text-right" />
-                      <input type="number" value={a.grams} onChange={(e) => updateAdditive(a.id, 'grams', Number(e.target.value))} placeholder="Grams" className="col-span-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 px-3 py-2 text-right" />
-                      <button onClick={() => removeAdditive(a.id)} className="col-span-1 text-red-500 hover:text-red-600">Remove</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-               <RowTwoValues label="Total" rightPrimary={`${grandTotal.toFixed(2)}`} rightSecondary={`${grandTotalVolume.toFixed(2)}`} secondaryLabel="in Volume" isEmphasis />
-            </div>
-          </div>
-
-          <div className="xl:col-span-5 bg-white dark:bg-gray-800 rounded-lg shadow p-4" data-section={CreateFormulaSections.REMARKS}>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Remarks</h3>
-            <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={10} className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-3" placeholder="Enter remarks..." />
-          </div>
-        </section>
-
-        <section className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3" data-section={CreateFormulaSections.ATTACHMENTS}>
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Attachments</h3>
-            <label className="block border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => onAttach(e.target.files?.[0] || null)} />
-              <span className="text-gray-600 dark:text-gray-300">Click to upload image</span>
-            </label>
-            {attachment.preview && (
-              <img src={attachment.preview} alt="preview" className="rounded-lg object-cover w-full h-48" />
-            )}
-          </div>
-
-          <div className="xl:col-span-9 grid sm:grid-cols-3 gap-4" data-section={CreateFormulaSections.METRICS}>
-            <Metric label="Solid Content(%)" value={metrics.solidContent} suffix="%" />
-            <Metric label="VOC (g/Ltr)" value={metrics.voc} />
-            <Metric label="Density (g/Ltr)" value={metrics.density} />
-          </div>
-        </section>
-      </main>
+      </div>
     </div>
   );
 };
 
-function TableHeader({ title, children }) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{title}</h3>
-      <div className="flex items-center space-x-2">{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Th({ children, className = '' }) {
-  return (
-    <th className={`px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 ${className}`}>{children}</th>
-  );
-}
-function Td({ children, className = '' }) {
-  return <td className={`px-3 py-2 text-gray-800 dark:text-gray-100 ${className}`}>{children}</td>;
-}
-
-function Row({ label, right, isEmphasis = false }) {
-  return (
-    <div className={`flex items-center justify-between px-4 py-3 ${isEmphasis ? 'bg-gray-50 dark:bg-gray-700 rounded-b-lg' : ''}`}>
-      <span className="text-sm text-gray-700 dark:text-gray-200">{label}</span>
-      <span className={`text-sm font-semibold ${isEmphasis ? 'text-blue-600 dark:text-blue-300' : 'text-gray-800 dark:text-gray-100'}`}>{right}</span>
-    </div>
-  );
-}
-
-function RowTwoValues({ label, rightPrimary, rightSecondary, secondaryLabel = '', isEmphasis = false }) {
-  return (
-    <div className={`flex items-center justify-between px-4 py-3 ${isEmphasis ? 'bg-gray-50 dark:bg-gray-700 rounded-b-lg' : ''}`}>
-      <span className="text-sm text-gray-700 dark:text-gray-200">{label}</span>
-      <div className="flex items-center space-x-6">
-        <span className={`text-sm font-semibold ${isEmphasis ? 'text-blue-600 dark:text-blue-300' : 'text-gray-800 dark:text-gray-100'}`}>{rightPrimary}</span>
-        <div className="flex items-baseline space-x-2">
-          <span className={`text-sm font-semibold ${isEmphasis ? 'text-blue-600 dark:text-blue-300' : 'text-gray-800 dark:text-gray-100'}`}>{rightSecondary}</span>
-          {secondaryLabel ? (
-            <span className="text-xs text-gray-500 dark:text-gray-300">{secondaryLabel}</span>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Metric({ label, value, suffix }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex items-center justify-between">
-      <span className="text-sm text-gray-600 dark:text-gray-300">{label}</span>
-      <div className="flex items-center space-x-1">
-        <input readOnly value={value} className="w-24 text-right bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white" />
-        {suffix ? <span className="text-sm text-gray-600 dark:text-gray-300">{suffix}</span> : null}
-      </div>
-    </div>
-  );
-}
-
 export default CreateFormula;
-
