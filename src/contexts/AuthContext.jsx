@@ -75,6 +75,32 @@ export const AuthProvider = ({ children }) => {
     hydrateSession();
   }, [hydrateSession]);
 
+  // Keep-alive timer and focus-based rehydrate
+  useEffect(() => {
+    let intervalId;
+    const KEEP_ALIVE_MS = 4 * 60 * 1000; // 4 minutes
+
+    const tick = async () => {
+      try {
+        await hydrateSession();
+      } catch (_) {}
+    };
+
+    // Periodic keep-alive (sliding window on server if supported)
+    intervalId = window.setInterval(tick, KEEP_ALIVE_MS);
+
+    // Re-validate when tab becomes active
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [hydrateSession]);
+
   const login = async (username, password, role = 'user') => {
     try {
       const endpoint = role === 'admin' ? '/admin/auth/login' : '/auth/login';
