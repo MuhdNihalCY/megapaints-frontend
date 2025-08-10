@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header';
+import { FormulaService } from '../../utils/formulaService';
 
 export const CreateFormulaSections = {
   HEADER_CONTROLS: 'header-controls',
@@ -25,9 +26,7 @@ function cryptoRandomId() {
 const GRAMS_TO_VOLUME_COEFF = 0.918;
 
 const initialTints = [
-  { id: cryptoRandomId(), sl: 1, code: '10009', series: 'PUR 68', name: 'Mipa PUR Mixing Tinter Nr. 68 green', qty: [34, 324, 43, 42, 2, 423], grams: 868.00, volume: 796.3252 },
-  { id: cryptoRandomId(), sl: 2, code: '10004', series: 'PUR 59', name: 'Mipa PUR Mixing Tinter Nr. 59 magenta', qty: [324, 23, 4, 3, 6, 8], grams: 368.00, volume: 350.4756 },
-  { id: cryptoRandomId(), sl: 3, code: '', series: '', name: 'Product ID', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
+  { id: cryptoRandomId(), sl: 1, code: '', series: '', name: 'Product ID', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
 ];
 
 function createEmptyTint(nextIndex) {
@@ -35,34 +34,36 @@ function createEmptyTint(nextIndex) {
 }
 
 const CreateFormula = () => {
-  const [category, setCategory] = useState('100 - Paints');
-  const [subCategory, setSubCategory] = useState('Rosner_Acrylic');
-  const [gloss, setGloss] = useState(13);
-  const [glossInput, setGlossInput] = useState('13');
+  const [category, setCategory] = useState('');
+  const [subCategory, setSubCategory] = useState('');
+  const [gloss, setGloss] = useState(0);
+  const [glossInput, setGlossInput] = useState('');
+
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [subCategoryOptions, setSubCategoryOptions] = useState([]);
+  const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({});
+  const [loadingMasters, setLoadingMasters] = useState(true);
+  const [mastersError, setMastersError] = useState('');
 
   const [meta, setMeta] = useState({
-    date: '08/09/2025',
-    fileNo: '10140',
-    customerName: 'wcpr',
-    colorCode: 'Mipa',
-    colorName: 'qwer',
-    customerRef: 'qew',
-    projectNo: 'qew',
+    date: new Date().toISOString().slice(0, 10),
+    fileNo: '',
+    customerName: '',
+    colorCode: '',
+    colorName: '',
+    customerRef: '',
+    projectNo: '',
   });
 
   const [tints, setTints] = useState(initialTints);
 
-  const [binders, setBinders] = useState([
-    { id: cryptoRandomId(), name: 'Duocryl Profi 1', grams: 608.49, volume: 654.13 },
-    { id: cryptoRandomId(), name: 'Duocryl Profi 5', grams: 4335.51, volume: 4608.65 },
-  ]);
+  const [binders, setBinders] = useState([]);
   
-  const [additives, setAdditives] = useState([
-    { id: cryptoRandomId(), name: 'Str-Add fein', percent: 3, grams: 185.4 },
-  ]);
+  const [additives, setAdditives] = useState([]);
   
-  const [remarks, setRemarks] = useState('Rosner Acrylic');
+  const [remarks, setRemarks] = useState('');
   const [attachment, setAttachment] = useState({ file: null, preview: '' });
+  const [uploadedAttachment, setUploadedAttachment] = useState(null); // { id, url, ... }
   const [qtyInput, setQtyInput] = useState({}); // { [tintId]: string[] }
   const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string }
 
@@ -96,6 +97,115 @@ const CreateFormula = () => {
   function sanitizeNumericInput(raw, mode = 'float') {
     return mode === 'int' ? sanitizeIntegerInput(raw) : sanitizeFloatInput(raw);
   }
+
+  function normalizeTints(list) {
+    const safe = Array.isArray(list) ? list : [];
+    const out = safe.map((t, idx) => {
+      const qtyArr = Array.isArray(t.qty) ? t.qty.slice(0, 6) : [];
+      while (qtyArr.length < 6) qtyArr.push(0);
+      const gramsRaw = typeof t.grams === 'number' ? t.grams : qtyArr.reduce((s, n) => s + Number(n || 0), 0);
+      const grams = Number(gramsRaw || 0);
+      const volume = Number(((typeof t.volume === 'number' ? t.volume : grams * GRAMS_TO_VOLUME_COEFF)).toFixed(4));
+      return {
+        id: t.id || cryptoRandomId(),
+        sl: t.sl || idx + 1,
+        code: t.code || '',
+        series: t.series || '',
+        name: t.name || '',
+        qty: qtyArr,
+        grams,
+        volume,
+      };
+    });
+    if (out.length === 0) out.push(createEmptyTint(1));
+    return out;
+  }
+
+  // Load initial masters from server
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingMasters(true);
+      setMastersError('');
+      try {
+        const data = await FormulaService.fetchMasters();
+        // categories: string[] or objects
+        const cats = Array.isArray(data?.categories)
+          ? data.categories.map((c) => (typeof c === 'string' ? c : (c?.name || c?.label || ''))).filter(Boolean)
+          : [];
+        const subByCat = data?.subCategoriesByCategory && typeof data.subCategoriesByCategory === 'object' ? data.subCategoriesByCategory : {};
+        const glossDefault = typeof data?.glossDefault === 'number' ? data.glossDefault : 0;
+
+        const metaDefaults = data?.metaDefaults && typeof data.metaDefaults === 'object' ? data.metaDefaults : {};
+
+        const defaults = {
+          category: data?.defaultCategory || cats[0] || '100 - Paints',
+          subCategory: data?.defaultSubCategory || (subByCat[cats[0]]?.[0]) || 'Rosner_Acrylic',
+          gloss: glossDefault,
+          tints: normalizeTints(data?.defaultTints),
+          binders: Array.isArray(data?.defaultBinders) ? data.defaultBinders.map((b) => ({
+            id: b.id || cryptoRandomId(),
+            name: b.name || '',
+            grams: Number(b.grams || 0),
+            volume: Number(b.volume || 0),
+          })) : [],
+          additives: Array.isArray(data?.defaultAdditives) ? data.defaultAdditives.map((a) => ({
+            id: a.id || cryptoRandomId(),
+            name: a.name || '',
+            percent: Number(a.percent || 0),
+            grams: Number(a.grams || 0),
+          })) : [],
+          remarks: typeof data?.defaultRemarks === 'string' ? data.defaultRemarks : '',
+        };
+
+        if (!cancelled) {
+          setCategoryOptions(cats.length ? cats : ['100 - Paints', '200 - Primers']);
+          setSubCategoriesByCategory(subByCat);
+          const initialSubs = subByCat[defaults.category];
+          setSubCategoryOptions(Array.isArray(initialSubs) && initialSubs.length ? initialSubs : ['Rosner_Acrylic', 'Rosner_PU']);
+
+          setCategory(defaults.category);
+          setSubCategory(defaults.subCategory);
+          setGloss(defaults.gloss);
+          setGlossInput(defaults.gloss ? String(defaults.gloss) : '');
+          setTints(defaults.tints);
+          setBinders(defaults.binders);
+          setAdditives(defaults.additives);
+          setRemarks(defaults.remarks);
+          setMeta((m) => ({
+            ...m,
+            ...metaDefaults,
+            date: metaDefaults.date || m.date,
+          }));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load masters', err);
+          setMastersError('Failed to load data.');
+          // Fallback sensible defaults
+          setCategoryOptions(['100 - Paints', '200 - Primers']);
+          setSubCategoryOptions(['Rosner_Acrylic', 'Rosner_PU']);
+          setCategory('100 - Paints');
+          setSubCategory('Rosner_Acrylic');
+          setGloss(0);
+          setGlossInput('');
+          setTints(normalizeTints(initialTints));
+        }
+      } finally {
+        if (!cancelled) setLoadingMasters(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Update sub-category options when category changes (if masters provided)
+  useEffect(() => {
+    const subs = subCategoriesByCategory[category];
+    if (Array.isArray(subs) && subs.length) {
+      setSubCategoryOptions(subs);
+      if (!subs.includes(subCategory)) setSubCategory(subs[0]);
+    }
+  }, [category, subCategoriesByCategory]);
 
   const totalWithoutAdditives = useMemo(
     () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
@@ -188,26 +298,34 @@ const CreateFormula = () => {
   const updateAdditive = (id, key, value) => setAdditives((prev) => prev.map((a) => (a.id === id ? { ...a, [key]: value } : a)));
   const removeAdditive = (id) => setAdditives((prev) => prev.filter((a) => a.id !== id));
 
-  const onAttach = (file) => {
+  const onAttach = async (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => setAttachment({ file, preview: String(e.target?.result || '') });
     reader.readAsDataURL(file);
+    try {
+      const uploaded = await FormulaService.uploadAttachment(file);
+      setUploadedAttachment(uploaded);
+    } catch (e) {
+      console.error('Attachment upload failed', e);
+    }
   };
 
   const clearAll = () => {
     setMeta({ date: new Date().toISOString().slice(0, 10), fileNo: '', customerName: '', colorCode: '', colorName: '', customerRef: '', projectNo: '' });
-    setCategory('100 - Paints');
-    setSubCategory('Rosner_Acrylic');
+    setCategory(categoryOptions[0] || '100 - Paints');
+    const subs = subCategoriesByCategory[categoryOptions[0]] || subCategoryOptions;
+    setSubCategory((Array.isArray(subs) && subs[0]) || 'Rosner_Acrylic');
     setGloss(0);
-    setTints(initialTints.map((t, i) => ({ ...t, sl: i + 1 }))); 
+    setTints(initialTints.map((t, i) => ({ ...t, sl: i + 1 })));
     setBinders([]);
     setAdditives([]);
     setRemarks('');
     setAttachment({ file: null, preview: '' });
+    setUploadedAttachment(null);
   };
 
-  const save = () => {
+  const save = async () => {
     const payload = {
       meta,
       header: { category, subCategory, gloss },
@@ -217,9 +335,19 @@ const CreateFormula = () => {
       totals: { totalWithoutAdditives, bindersTotal, additivesTotal, grandTotal },
       remarks,
       metrics,
+      attachment: uploadedAttachment || undefined,
     };
-    console.log('CreateFormula.save', payload);
-    alert('Formula saved locally (see console). Hook this up to your backend.');
+    try {
+      const res = await FormulaService.createFormula(payload);
+      if (res?.status) {
+        alert('Formula saved successfully');
+      } else {
+        alert(res?.message || 'Save failed');
+      }
+    } catch (e) {
+      console.error('Save error', e);
+      alert('Save failed');
+    }
   };
 
   return (
@@ -349,8 +477,9 @@ const CreateFormula = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
-                    <option>100 - Paints</option>
-                    <option>200 - Primers</option>
+                    {categoryOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -360,8 +489,9 @@ const CreateFormula = () => {
                     onChange={(e) => setSubCategory(e.target.value)}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
-                    <option>Rosner_Acrylic</option>
-                    <option>Rosner_PU</option>
+                    {subCategoryOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

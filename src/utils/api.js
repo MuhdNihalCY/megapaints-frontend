@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -60,11 +61,49 @@ async function tryRefreshSession() {
   }
 }
 
+// --- JWT header support (optional in addition to cookies) ---
+let inMemoryJwtToken = null;
+
+export function setJwtToken(token) {
+  inMemoryJwtToken = token || null;
+  if (token) {
+    try { localStorage.setItem('access_token', token); } catch (_) {}
+  } else {
+    try { localStorage.removeItem('access_token'); } catch (_) {}
+  }
+}
+
+export function clearJwtToken() {
+  inMemoryJwtToken = null;
+  try { localStorage.removeItem('access_token'); } catch (_) {}
+}
+
+function readJwtToken() {
+  if (inMemoryJwtToken) return inMemoryJwtToken;
+  try {
+    const ls = localStorage.getItem('access_token') || localStorage.getItem('user_access_token') || localStorage.getItem('admin_access_token');
+    if (ls) return ls;
+  } catch (_) {}
+  try {
+    // Non-HttpOnly fallbacks if server sets readable cookies (if HttpOnly, this will be undefined and we rely on cookies via withCredentials)
+    const ck = Cookies.get('access_token') || Cookies.get('user_access_token') || Cookies.get('admin_access_token');
+    if (ck) return ck;
+  } catch (_) {}
+  return null;
+}
+
 // Request interceptor to add auth headers if needed
 api.interceptors.request.use(
   (config) => {
     // Avoid infinite loop for refresh calls
     if (!config.headers) config.headers = {};
+    // Attach Authorization header if a JWT is available (server may validate either header or cookie)
+    try {
+      const token = readJwtToken();
+      if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (_) {}
     return config;
   },
   (error) => {
@@ -142,3 +181,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+export const http = api; // named export alias for convenience
