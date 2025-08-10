@@ -38,6 +38,7 @@ const CreateFormula = () => {
   const [category, setCategory] = useState('100 - Paints');
   const [subCategory, setSubCategory] = useState('Rosner_Acrylic');
   const [gloss, setGloss] = useState(13);
+  const [glossInput, setGlossInput] = useState('13');
 
   const [meta, setMeta] = useState({
     date: '08/09/2025',
@@ -62,6 +63,39 @@ const CreateFormula = () => {
   
   const [remarks, setRemarks] = useState('Rosner Acrylic');
   const [attachment, setAttachment] = useState({ file: null, preview: '' });
+  const [qtyInput, setQtyInput] = useState({}); // { [tintId]: string[] }
+  const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string }
+
+  // Input sanitizers
+  function sanitizeIntegerInput(raw) {
+    if (typeof raw !== 'string') raw = String(raw ?? '');
+    // Allow only digits (no negatives by default)
+    return raw.replace(/[^0-9]/g, '');
+  }
+
+  function sanitizeFloatInput(raw) {
+    if (typeof raw !== 'string') raw = String(raw ?? '');
+    // Allow digits and a single dot; coerce leading dot to 0.
+    const input = raw.replace(/[^0-9.]/g, '');
+    let result = '';
+    let dotSeen = false;
+    for (let i = 0; i < input.length; i += 1) {
+      const ch = input[i];
+      if (ch === '.') {
+        if (dotSeen) continue;
+        dotSeen = true;
+        if (result === '') result = '0';
+        result += '.';
+      } else {
+        result += ch;
+      }
+    }
+    return result;
+  }
+
+  function sanitizeNumericInput(raw, mode = 'float') {
+    return mode === 'int' ? sanitizeIntegerInput(raw) : sanitizeFloatInput(raw);
+  }
 
   const totalWithoutAdditives = useMemo(
     () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
@@ -194,7 +228,7 @@ const CreateFormula = () => {
       {/* Page Toolbar */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-900">Create Formula</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Create Formula</h1>
           <div className="flex space-x-3">
             <button onClick={clearAll} className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">
               Clear All
@@ -213,16 +247,16 @@ const CreateFormula = () => {
             <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
                   <input
                     type="text"
                     value={meta.date}
                     onChange={(e) => updateMeta('date', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">File no.</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">File no.</label>
                   <input
                     type="text"
                     value={meta.fileNo}
@@ -231,48 +265,48 @@ const CreateFormula = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name</label>
                   <input
                     type="text"
                     value={meta.customerName}
                     onChange={(e) => updateMeta('customerName', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Color Code</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Color Code</label>
                   <input
                     type="text"
                     value={meta.colorCode}
                     onChange={(e) => updateMeta('colorCode', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-200"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Color Name</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Color Name</label>
                   <input
                     type="text"
                     value={meta.colorName}
                     onChange={(e) => updateMeta('colorName', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Customer Ref</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Ref</label>
                   <input
                     type="text"
                     value={meta.customerRef}
                     onChange={(e) => updateMeta('customerRef', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Project No</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project No</label>
                   <input
                     type="text"
                     value={meta.projectNo}
                     onChange={(e) => updateMeta('projectNo', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                   />
                 </div>
               </div>
@@ -280,8 +314,8 @@ const CreateFormula = () => {
 
             {/* Attachments */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
-              <div className="border-2 border-dashed border-gray-300 rounded p-6 text-center">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Attachments</h3>
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded p-6 text-center">
                 <input
                   type="file"
                   accept="image/*"
@@ -295,7 +329,7 @@ const CreateFormula = () => {
                   ) : (
                     <>
                       <div className="text-2xl text-gray-400 mb-2">📁</div>
-                      <div className="text-xs text-gray-500">Click to upload image</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Click to upload image</div>
                     </>
                   )}
                 </label>
@@ -309,34 +343,38 @@ const CreateFormula = () => {
             <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mb-6">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
                     <option>100 - Paints</option>
                     <option>200 - Primers</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Category</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sub-Category</label>
                   <select
                     value={subCategory}
                     onChange={(e) => setSubCategory(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
                     <option>Rosner_Acrylic</option>
                     <option>Rosner_PU</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gloss</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gloss</label>
                   <input
-                    type="number"
-                    value={gloss}
-                    onChange={(e) => setGloss(Number(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded bg-yellow-200"
+                    type="text"
+                    value={glossInput}
+                    onChange={(e) => {
+                      const v = sanitizeNumericInput(e.target.value, 'float');
+                      setGlossInput(v);
+                      setGloss(v === '' ? 0 : Number(v));
+                    }}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   />
                 </div>
               </div>
@@ -364,7 +402,7 @@ const CreateFormula = () => {
                 <div className="divide-y divide-gray-200">
                   {tints.map((tint, index) => (
                     <div key={tint.id} className="grid grid-cols-12 text-xs">
-                      <div className="col-span-1 p-2 text-center bg-gray-100 border-r border-gray-200">
+                      <div className="col-span-1 p-2 text-center bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                         {index + 1}
                       </div>
                       <div className="col-span-7 p-2 border-r border-gray-200">
@@ -372,19 +410,19 @@ const CreateFormula = () => {
                           <input
                             value={tint.code}
                             onChange={(e) => updateTint(tint.id, 'code', e.target.value)}
-                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="Code"
                           />
                           <input
                             value={tint.series}
                             onChange={(e) => updateTint(tint.id, 'series', e.target.value)}
-                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="Series"
                           />
                           <input
                             value={tint.name}
                             onChange={(e) => updateTint(tint.id, 'name', e.target.value)}
-                            className="col-span-8 px-1 py-1 text-xs border-0 border-b border-gray-300 bg-transparent"
+                            className="col-span-8 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                             placeholder="Tinter Name"
                           />
                         </div>
@@ -394,7 +432,7 @@ const CreateFormula = () => {
                           <div className="text-right text-sm font-medium text-blue-600">
                             {tint.grams.toFixed(2)}
                           </div>
-                          <div className="text-right text-sm">
+                          <div className="text-right text-sm text-gray-800 dark:text-gray-200">
                             {tint.volume.toFixed(4)}
                           </div>
                         </div>
@@ -406,18 +444,30 @@ const CreateFormula = () => {
 
               {/* Quantity Inputs */}
               <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
-                <div className="text-center text-sm font-medium text-gray-700 mb-3">Quantity</div>
-                <div className="space-y-2">
+                <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Quantity</div>
+                <div className="space-y-4 mt-5">
                   {tints.map((tint) => (
                     <div key={tint.id} className="grid grid-cols-6 gap-1">
                       {tint.qty.map((qty, colIndex) => (
-                        <input
-                          key={colIndex}
-                          type="number"
-                          value={qty}
-                          onChange={(e) => updateTintQty(tint.id, colIndex, e.target.value)}
-                          className="px-2 py-1 text-xs text-right border border-gray-300 rounded"
-                        />
+                          <input
+                            key={colIndex}
+                            type="text"
+                            value={
+                              qtyInput[tint.id]?.[colIndex] !== undefined
+                                ? qtyInput[tint.id][colIndex]
+                                : (qty === 0 ? '' : String(qty))
+                            }
+                            onChange={(e) => {
+                              const v = sanitizeNumericInput(e.target.value, 'float');
+                              setQtyInput((prev) => {
+                                const prevRow = prev[tint.id] ? [...prev[tint.id]] : Array(6).fill('');
+                                prevRow[colIndex] = v;
+                                return { ...prev, [tint.id]: prevRow };
+                              });
+                              updateTintQty(tint.id, colIndex, v === '' ? 0 : Number(v));
+                            }}
+                            className="px-2 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          />
                       ))}
                     </div>
                   ))}
@@ -429,27 +479,39 @@ const CreateFormula = () => {
             <div className="grid grid-cols-12 gap-6 mt-6">
               {/* Totals and Binders */}
               <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
-                {/* Total without Additives */}
-                <div className="bg-gray-600 text-white p-3 grid grid-cols-3">
-                  <div className="text-sm font-medium">Total without Additives</div>
-                  <div className="text-right text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
-                  <div className="text-right text-sm">{totalWithoutAdditivesVolume.toFixed(2)} in Volume</div>
+                {/* Total without Additives - aligned to quantity columns */}
+                <div className="bg-gray-600 text-white p-2">
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-7 text-sm font-medium">Total without Additives</div>
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-right text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
+                        <div className="text-right text-sm">{totalWithoutAdditivesVolume.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Binders */}
-                <div className="bg-gray-500 text-white p-3">
+                {/* Binders - aligned to quantity columns */}
+                <div className="bg-gray-500 text-white p-2">
                   <div className="text-sm font-medium mb-2">Binders</div>
                   {binders.map((binder) => (
-                    <div key={binder.id} className="grid grid-cols-3 mb-1">
-                      <div className="text-sm">{binder.name}</div>
-                      <div className="text-right text-blue-300 font-semibold">{binder.grams}</div>
-                      <div className="text-right text-sm">{binder.volume}</div>
+                    <div key={binder.id} className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm">{binder.name}</div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-right text-blue-300 font-semibold">{binder.grams}</div>
+                          <div className="text-right text-sm">{binder.volume}</div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Additives */}
-                <div className="bg-gray-400 text-white p-3">
+                {/* Additives - aligned to quantity columns */}
+                <div className="bg-gray-400 text-white p-2">
                   <div className="grid grid-cols-4 mb-2">
                     <div className="text-sm font-medium">Additives</div>
                     <div className="text-center">
@@ -461,41 +523,63 @@ const CreateFormula = () => {
                     </div>
                     <div className="text-center">
                       <input
-                        type="number"
-                        value={additives[0]?.percent || 0}
+                        type="text"
+                        value={(() => {
+                          const id = additives[0]?.id;
+                          const current = additives[0]?.percent || 0;
+                          const mapped = id ? additiveInputById[id] : undefined;
+                          return mapped !== undefined ? mapped : (current === 0 ? '' : String(current));
+                        })()}
                         className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
-                        onChange={(e) => updateAdditive(additives[0]?.id, 'percent', Number(e.target.value))}
+                        onChange={(e) => {
+                          const id = additives[0]?.id;
+                          const v = sanitizeNumericInput(e.target.value, 'float');
+                          if (id) setAdditiveInputById((prev) => ({ ...prev, [id]: v }));
+                          // Allow empty field as 0 without forcing a 0 in the input
+                          updateAdditive(id, 'percent', v === '' ? 0 : Number(v));
+                        }}
                       />
+                      <span className="text-sm mx-2">%</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm">%</span>
+                      
                     </div>
                   </div>
-                  <div className="grid grid-cols-3">
-                    <div></div>
-                    <div className="text-right text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
-                    <div className="text-right text-sm">{additivesTotal.toFixed(2)}</div>
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-7 text-sm font-medium">Additives Total</div>
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-right text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
+                        <div className="text-right text-sm">{additivesTotal.toFixed(2)}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Total */}
-                <div className="bg-gray-600 text-white p-3">
-                  <div className="grid grid-cols-3">
-                    <div className="text-sm font-medium">Total</div>
-                    <div className="text-right text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
-                    <div className="text-right text-lg">{grandTotalVolume.toFixed(2)}</div>
+                {/* Total - aligned to quantity columns */}
+                <div className="bg-gray-600 text-white p-2">
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-7 text-sm font-medium">Total</div>
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-right text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
+                        <div className="text-right text-lg">{grandTotalVolume.toFixed(2)}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Remarks */}
               <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Remarks</h3>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Remarks</h3>
                 <textarea
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   rows={10}
-                  className="w-full p-3 border border-gray-300 rounded text-sm resize-none"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded text-sm resize-none dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="Enter remarks..."
                 />
               </div>
@@ -505,34 +589,34 @@ const CreateFormula = () => {
             <div className="grid grid-cols-3 gap-6 mt-6">
               <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Solid Content(%):</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Solid Content(%):</span>
                   <div className="flex items-center space-x-1">
                     <input
                       readOnly
                       value={metrics.solidContent}
-                      className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                      className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
                     />
-                    <span className="text-sm text-gray-600">%</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
                   </div>
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">VOC (g/Ltr):</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">VOC (g/Ltr):</span>
                   <input
                     readOnly
                     value={metrics.voc}
-                    className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                    className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
                   />
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Density (g/Ltr):</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Density (g/Ltr):</span>
                   <input
                     readOnly
                     value={metrics.density}
-                    className="w-20 px-2 py-1 text-right bg-gray-100 border border-gray-300 rounded text-sm"
+                    className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
                   />
                 </div>
               </div>

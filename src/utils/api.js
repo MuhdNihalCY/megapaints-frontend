@@ -37,18 +37,25 @@ async function tryRefreshSession() {
   // Try user and admin refresh; whichever succeeds first wins
   const controllers = [new AbortController(), new AbortController()];
   try {
+    console.info('[API] Attempting silent refresh...');
     const results = await Promise.allSettled([
       api.post('/auth/refresh', {}, { signal: controllers[0].signal, _noIntercept: true }),
       api.post('/admin/auth/refresh', {}, { signal: controllers[1].signal, _noIntercept: true }),
     ]);
     const anyFulfilled = results.find(r => r.status === 'fulfilled' && r.value?.data?.status);
     if (anyFulfilled) {
+      try {
+        const which = results.findIndex(r => r.status === 'fulfilled' && r.value?.data?.status);
+        console.info('[API] Silent refresh succeeded via', which === 0 ? '/auth/refresh' : '/admin/auth/refresh');
+      } catch {}
       // Cancel the other one (best-effort)
       controllers.forEach((c) => { try { c.abort(); } catch {} });
       return true;
     }
+    console.warn('[API] Silent refresh failed (no endpoint succeeded)');
     return false;
   } catch {
+    console.error('[API] Silent refresh threw an error');
     return false;
   }
 }
@@ -80,6 +87,12 @@ api.interceptors.response.use(
     }
 
     const isUnauthorized = error.response?.status === 401;
+    if (isUnauthorized) {
+      // Log richer context for debugging token expiry
+      try {
+        console.warn('[API] 401 Unauthorized on', originalRequest?.method?.toUpperCase?.(), originalRequest?.url);
+      } catch {}
+    }
     const isRefreshCall = typeof originalRequest?.url === 'string' && (
       originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/admin/auth/refresh')
     );
@@ -96,11 +109,16 @@ api.interceptors.response.use(
 
     // Queue the request while a refresh is in progress
     if (isRefreshing) {
+      try {
+        console.debug('[API] Queueing request while refresh in progress:', originalRequest?.method?.toUpperCase?.(), originalRequest?.url);
+      } catch {}
       return new Promise((resolve, reject) => {
         enqueuePendingRequest((refreshError) => {
           if (refreshError) return reject(refreshError);
           // Retry original request after refresh
-          api.request(originalRequest).then(resolve).catch(reject);
+          api.request(originalRequest)
+            .then((res) => { try { console.debug('[API] Retried request succeeded:', originalRequest?.url); } catch {}; resolve(res); })
+            .catch((err) => { try { console.warn('[API] Retried request failed:', originalRequest?.url); } catch {}; reject(err); });
         });
       });
     }
@@ -112,7 +130,9 @@ api.interceptors.response.use(
       isRefreshing = false;
       if (ok) {
         resolvePendingRequests();
-        api.request(originalRequest).then(resolve).catch(reject);
+        api.request(originalRequest)
+          .then((res) => { try { console.debug('[API] Retried after refresh succeeded:', originalRequest?.url); } catch {}; resolve(res); })
+          .catch((err) => { try { console.warn('[API] Retried after refresh failed:', originalRequest?.url); } catch {}; reject(err); });
       } else {
         rejectPendingRequests(error);
         reject(error);

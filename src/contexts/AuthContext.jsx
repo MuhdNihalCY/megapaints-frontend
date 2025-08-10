@@ -23,25 +23,51 @@ export const AuthProvider = ({ children }) => {
       const lastRole = localStorage.getItem('lastRole');
 
       const tryUserMe = async () => {
-        const res = await api.get('/auth/me');
-        console.log("/auth/me response");
-        console.log(res);
-        if (res?.data?.status) {
-          setUser({ username: res.data.user?.username, role: 'user' });
-          localStorage.setItem('lastRole', 'user');
-          return true;
+        console.debug('[Auth] Checking user session via /auth/me');
+        try {
+          const res = await api.get('/auth/me');
+          console.debug('[Auth] /auth/me http', res?.status);
+          if (res?.data?.status) {
+            setUser({ username: res.data.user?.username, role: 'user' });
+            localStorage.setItem('lastRole', 'user');
+            console.info('[Auth] User session valid');
+            return true;
+          }
+          console.warn('[Auth] /auth/me returned status=false', res?.data);
+          return false;
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 401) {
+            console.warn('[Auth] User token expired/invalid (401) on /auth/me');
+          } else {
+            console.error('[Auth] /auth/me request error', err?.message || err);
+          }
+          return false;
         }
-        return false;
       };
 
       const tryAdminMe = async () => {
-        const res = await api.get('/admin/auth/me');
-        if (res?.data?.status) {
-          setUser({ username: res.data.user?.username, role: 'admin' });
-          localStorage.setItem('lastRole', 'admin');
-          return true;
+        console.debug('[Auth] Checking admin session via /admin/auth/me');
+        try {
+          const res = await api.get('/admin/auth/me');
+          console.debug('[Auth] /admin/auth/me http', res?.status);
+          if (res?.data?.status) {
+            setUser({ username: res.data.user?.username, role: 'admin' });
+            localStorage.setItem('lastRole', 'admin');
+            console.info('[Auth] Admin session valid');
+            return true;
+          }
+          console.warn('[Auth] /admin/auth/me returned status=false', res?.data);
+          return false;
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 401) {
+            console.warn('[Auth] Admin token expired/invalid (401) on /admin/auth/me');
+          } else {
+            console.error('[Auth] /admin/auth/me request error', err?.message || err);
+          }
+          return false;
         }
-        return false;
       };
 
       if (lastRole === 'user') {
@@ -82,6 +108,7 @@ export const AuthProvider = ({ children }) => {
 
     const tick = async () => {
       try {
+        console.debug('[Auth] Keep-alive tick: revalidating session');
         await hydrateSession();
       } catch (_) {}
     };
@@ -91,7 +118,10 @@ export const AuthProvider = ({ children }) => {
 
     // Re-validate when tab becomes active
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') tick();
+      if (document.visibilityState === 'visible') {
+        console.debug('[Auth] Tab visible: revalidating session');
+        tick();
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
 
