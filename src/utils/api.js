@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 // Create axios instance with default config
 const api = axios.create({
   // Use Vite dev proxy in development; backend should be mounted under /api
-  baseURL: '/api',
+  baseURL: 'http://localhost:3000/api',
   withCredentials: true, // Important for cookies
   timeout: 10000,
   headers: {

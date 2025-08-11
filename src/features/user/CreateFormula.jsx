@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header';
-import { FormulaService } from '../../utils/formulaService';
+import { FormulaService } from '../../formula/services/formulaService';
+import { computeTinters, computeTinterRow } from '../../formula/calc/tinters';
+import { computeBinders } from '../../formula/calc/binders';
+import { computeAdditives } from '../../formula/calc/additives';
+import { computeFinalTotals, computeQualityMetrics } from '../../formula/calc/metrics';
+import { validateTinters, validateBinders, validateMetrics } from '../../utils/validation';
+import { fetchMastersWithCache } from '../../formula/services/mastersService';
 
 export const CreateFormulaSections = {
   HEADER_CONTROLS: 'header-controls',
@@ -23,7 +29,7 @@ function cryptoRandomId() {
   }
 }
 
-const GRAMS_TO_VOLUME_COEFF = 0.918;
+const GRAMS_TO_VOLUME_COEFF = 0.918; // legacy fallback only
 
 const initialTints = [
   { id: cryptoRandomId(), sl: 1, code: '', series: '', name: 'Product ID', qty: [0, 0, 0, 0, 0, 0], grams: 0, volume: 0 },
@@ -44,6 +50,13 @@ const CreateFormula = () => {
   const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({});
   const [loadingMasters, setLoadingMasters] = useState(true);
   const [mastersError, setMastersError] = useState('');
+  const [products, setProducts] = useState([]); // for product metadata (coefficient, density, solids, VOC)
+  const [binderConfigBySubCategory, setBinderConfigBySubCategory] = useState({});
+  const [productsBySubCategory, setProductsBySubCategory] = useState({});
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [showProductList, setShowProductList] = useState({}); // { [tintId]: boolean }
+  const [productSearchInput, setProductSearchInput] = useState({}); // { [tintId]: string }
+  const [dropdownPosition, setDropdownPosition] = useState({}); // { [tintId]: { top, left } }
 
   const [meta, setMeta] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -103,18 +116,25 @@ const CreateFormula = () => {
     const out = safe.map((t, idx) => {
       const qtyArr = Array.isArray(t.qty) ? t.qty.slice(0, 6) : [];
       while (qtyArr.length < 6) qtyArr.push(0);
-      const gramsRaw = typeof t.grams === 'number' ? t.grams : qtyArr.reduce((s, n) => s + Number(n || 0), 0);
-      const grams = Number(gramsRaw || 0);
-      const volume = Number(((typeof t.volume === 'number' ? t.volume : grams * GRAMS_TO_VOLUME_COEFF)).toFixed(4));
+      const productDensity = Number(t?.Product_Density || 0);
+      const coefficient = Number(t?.coefficient || 0);
+      const solids = Number(t?.SolidContent || 0);
+      const voc = Number(t?.VOC || 0);
+      const rowCalc = computeTinterRow({ qty: qtyArr, coefficient, Product_Density: productDensity, SolidContent: solids, VOC: voc });
       return {
         id: t.id || cryptoRandomId(),
         sl: t.sl || idx + 1,
         code: t.code || '',
         series: t.series || '',
         name: t.name || '',
+        productId: t.productId || null,
+        coefficient: Number.isFinite(coefficient) && coefficient > 0 ? coefficient : 1,
+        Product_Density: Number.isFinite(productDensity) ? productDensity : 0,
+        SolidContent: Number.isFinite(solids) ? solids : 0,
+        VOC: Number.isFinite(voc) ? voc : 0,
         qty: qtyArr,
-        grams,
-        volume,
+        grams: rowCalc.grams, // stored for backward-compat but rendering uses computed per-row
+        volume: rowCalc.volumeL,
       };
     });
     if (out.length === 0) out.push(createEmptyTint(1));
@@ -128,7 +148,10 @@ const CreateFormula = () => {
       setLoadingMasters(true);
       setMastersError('');
       try {
-        const data = await FormulaService.fetchMasters();
+        const data = await fetchMastersWithCache();
+        try {
+          console.log('[CreateFormula] Masters payload:', data);
+        } catch (_) {}
         // categories: string[] or objects
         const cats = Array.isArray(data?.categories)
           ? data.categories.map((c) => (typeof c === 'string' ? c : (c?.name || c?.label || ''))).filter(Boolean)
@@ -137,6 +160,9 @@ const CreateFormula = () => {
         const glossDefault = typeof data?.glossDefault === 'number' ? data.glossDefault : 0;
 
         const metaDefaults = data?.metaDefaults && typeof data.metaDefaults === 'object' ? data.metaDefaults : {};
+        const prods = Array.isArray(data?.products) ? data.products : [];
+        const binderCfgBySub = data?.binderConfigBySubCategory && typeof data.binderConfigBySubCategory === 'object' ? data.binderConfigBySubCategory : {};
+        const productsBySub = data?.productsBySubCategory || {};
 
         const defaults = {
           category: data?.defaultCategory || cats[0] || '100 - Paints',
@@ -161,8 +187,18 @@ const CreateFormula = () => {
         if (!cancelled) {
           setCategoryOptions(cats.length ? cats : ['100 - Paints', '200 - Primers']);
           setSubCategoriesByCategory(subByCat);
+          setProductsBySubCategory(productsBySub);
+          try {
+            console.log('[CreateFormula] categories:', cats);
+            console.log('[CreateFormula] subCategoriesByCategory keys:', Object.keys(subByCat || {}));
+            console.log('[CreateFormula] productsBySubCategory keys:', Object.keys(productsBySub || {}));
+            console.log('[CreateFormula] productsBySubCategory details:', productsBySub);
+            console.log('[CreateFormula] initial category:', defaults.category, 'initial subcategory:', defaults.subCategory);
+          } catch (_) {}
           const initialSubs = subByCat[defaults.category];
           setSubCategoryOptions(Array.isArray(initialSubs) && initialSubs.length ? initialSubs : ['Rosner_Acrylic', 'Rosner_PU']);
+          setProducts(prods);
+          setBinderConfigBySubCategory(binderCfgBySub);
 
           setCategory(defaults.category);
           setSubCategory(defaults.subCategory);
@@ -200,12 +236,90 @@ const CreateFormula = () => {
 
   // Update sub-category options when category changes (if masters provided)
   useEffect(() => {
-    const subs = subCategoriesByCategory[category];
-    if (Array.isArray(subs) && subs.length) {
-      setSubCategoryOptions(subs);
-      if (!subs.includes(subCategory)) setSubCategory(subs[0]);
+    console.log('[CreateFormula] Category changed to:', category);
+    console.log('[CreateFormula] Available subCategoriesByCategory:', subCategoriesByCategory);
+    
+    const subs = subCategoriesByCategory[category] || [];
+    const nextOptions = Array.isArray(subs) ? subs : [];
+    
+    console.log('[CreateFormula] Found subcategories for category:', category, '->', nextOptions);
+    
+    setSubCategoryOptions(nextOptions);
+    if (!nextOptions.includes(subCategory)) {
+      console.log('[CreateFormula] Current subcategory not in new options, resetting to:', nextOptions[0] || '');
+      setSubCategory(nextOptions[0] || '');
     }
   }, [category, subCategoriesByCategory]);
+
+  // Update filtered products when subcategory changes
+  useEffect(() => {
+    console.log('[CreateFormula] Subcategory changed to:', subCategory);
+    console.log('[CreateFormula] Available productsBySubCategory:', productsBySubCategory);
+    
+    if (subCategory && productsBySubCategory[subCategory]) {
+      const productsForSubCategory = productsBySubCategory[subCategory];
+      console.log('[CreateFormula] Products for subcategory:', subCategory, '->', productsForSubCategory.length, 'products');
+      console.log('[CreateFormula] Sample products:', productsForSubCategory.slice(0, 3));
+      setFilteredProducts(productsForSubCategory);
+    } else {
+      console.log('[CreateFormula] No products found for subcategory:', subCategory);
+      console.log('[CreateFormula] Available subcategories with products:', Object.keys(productsBySubCategory).filter(key => productsBySubCategory[key].length > 0));
+      setFilteredProducts([]);
+    }
+  }, [subCategory, productsBySubCategory]);
+
+  // Product search and selection functions
+  const handleProductSearch = (tintId, searchTerm) => {
+    setProductSearchInput(prev => ({ ...prev, [tintId]: searchTerm }));
+    
+    // Always show the product list when focusing on the input
+    setShowProductList(prev => ({ ...prev, [tintId]: true }));
+    
+    if (!searchTerm.trim()) {
+      const availableProducts = productsBySubCategory[subCategory] || [];
+      setFilteredProducts(availableProducts);
+      console.log('[CreateFormula] No search term, showing all products for subcategory:', subCategory, '->', availableProducts.length, 'products');
+      return;
+    }
+
+    const availableProducts = productsBySubCategory[subCategory] || [];
+    console.log('[CreateFormula] Searching for:', searchTerm, 'in', availableProducts.length, 'available products');
+    
+    const filtered = availableProducts.filter(product => 
+      product.Product_Id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.Abbreviation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.Product_Name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    console.log('[CreateFormula] Search results:', filtered.length, 'products found');
+    setFilteredProducts(filtered);
+  };
+
+  const calculateDropdownPosition = (tintId, event) => {
+    const rect = event.target.getBoundingClientRect();
+    const top = rect.bottom + window.scrollY;
+    const left = rect.left + window.scrollX;
+    
+    setDropdownPosition(prev => ({
+      ...prev,
+      [tintId]: { top, left }
+    }));
+  };
+
+  const selectProduct = (tintId, product) => {
+    updateTint(tintId, 'code', product.Product_Id || '');
+    updateTint(tintId, 'series', product.Abbreviation || ''); // Map Abbreviation to series field
+    updateTint(tintId, 'name', product.Product_Name || '');
+    updateTint(tintId, 'coefficient', Number(product.coefficient || 1));
+    updateTint(tintId, 'Product_Density', Number(product.Product_Density || 0));
+    updateTint(tintId, 'SolidContent', Number(product.SolidContent || 0));
+    updateTint(tintId, 'VOC', Number(product.VOC || 0));
+    
+    setShowProductList(prev => ({ ...prev, [tintId]: false }));
+    setProductSearchInput(prev => ({ ...prev, [tintId]: '' }));
+    
+    console.log('[CreateFormula] Selected product for tint', tintId, ':', product);
+  };
 
   const totalWithoutAdditives = useMemo(
     () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
@@ -273,9 +387,9 @@ const CreateFormula = () => {
         if (t.id !== id) return t;
         const nextQty = [...t.qty];
         nextQty[colIndex] = Number(value) || 0;
-        const grams = nextQty.reduce((s, n) => s + Number(n || 0), 0);
-        const volume = Number((grams * GRAMS_TO_VOLUME_COEFF).toFixed(4));
-        return { ...t, qty: nextQty, grams, volume };
+        // grams/volume are derived; keep for legacy but not trusted for UI
+        const derived = computeTinterRow({ qty: nextQty, coefficient: t.coefficient, Product_Density: t.Product_Density, SolidContent: t.SolidContent, VOC: t.VOC });
+        return { ...t, qty: nextQty, grams: derived.grams, volume: derived.volumeL };
       });
 
       const last = updated[updated.length - 1];
@@ -325,16 +439,50 @@ const CreateFormula = () => {
     setUploadedAttachment(null);
   };
 
+  // Derived computations
+  const tinterTotals = useMemo(() => computeTinters(tints), [tints]);
+
+  const selectedBinderConfig = useMemo(() => {
+    const cfg = binderConfigBySubCategory?.[subCategory] || {};
+    return {
+      ...cfg,
+      Binder2Equation: cfg?.Binder2Equation === 'Eq2' ? 'Eq2' : 'Eq1',
+      MattValue: 1, // default; extend when Matt/Gloss logic is finalized
+    };
+  }, [binderConfigBySubCategory, subCategory]);
+
+  const binderTotals = useMemo(() => computeBinders(tinterTotals.totalGrams, selectedBinderConfig), [tinterTotals.totalGrams, selectedBinderConfig]);
+  const additiveTotals = useMemo(() => computeAdditives(additives, tinterTotals.totalGrams + binderTotals.totalBinderGrams), [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
+  const finalTotals = useMemo(() => computeFinalTotals({ totalGrams: tinterTotals.totalGrams, totalVolumeL: tinterTotals.totalVolumeL }, { totalBinderGrams: binderTotals.totalBinderGrams, totalBinderVolumeL: binderTotals.totalBinderVolumeL }, { totalAdditiveGrams: additiveTotals.totalAdditiveGrams, totalAdditiveVolumeL: additiveTotals.totalAdditiveVolumeL }), [tinterTotals, binderTotals, additiveTotals]);
+  const quality = useMemo(() => computeQualityMetrics({ finalGrams: finalTotals.finalGrams, finalVolumeL: finalTotals.finalVolumeL, totalSolidMass: tinterTotals.totalSolidMass, totalVOCmass: tinterTotals.totalVOCMass }), [finalTotals, tinterTotals]);
+
+  const tinterErrors = useMemo(() => validateTinters(tints), [tints]);
+  const binderErrors = useMemo(() => validateBinders(selectedBinderConfig), [selectedBinderConfig]);
+  const metricWarnings = useMemo(() => validateMetrics({ solidsPercent: quality.solidsPercent, density_gPerL: quality.density_gPerL, voc_gPerL: quality.voc_gPerL }), [quality]);
+  const hasBlockingErrors = loadingMasters || tinterErrors.some(e => e.type === 'missing-density' || e.type === 'duplicate-product') || binderErrors.length > 0 || !(finalTotals.finalVolumeL > 0) || !(finalTotals.finalGrams > 0);
+
   const save = async () => {
     const payload = {
       meta,
       header: { category, subCategory, gloss },
       tints,
-      binders,
+      binders: [
+        { name: 'Binder 1', grams: binderTotals.binder1, volume: binderTotals.binder1VolumeL },
+        { name: 'Binder 2', grams: binderTotals.binder2, volume: binderTotals.binder2VolumeL },
+      ],
       additives,
-      totals: { totalWithoutAdditives, bindersTotal, additivesTotal, grandTotal },
+      totals: {
+        tinter: { grams: tinterTotals.totalGrams, volumeL: tinterTotals.totalVolumeL },
+        binder: { grams: binderTotals.totalBinderGrams, volumeL: binderTotals.totalBinderVolumeL },
+        additive: { grams: additiveTotals.totalAdditiveGrams, volumeL: additiveTotals.totalAdditiveVolumeL },
+        final: { grams: finalTotals.finalGrams, volumeL: finalTotals.finalVolumeL },
+      },
       remarks,
-      metrics,
+      metrics: {
+        solidsPercent: quality.solidsPercent,
+        density_gPerL: quality.density_gPerL,
+        voc_gPerL: quality.voc_gPerL,
+      },
       attachment: uploadedAttachment || undefined,
     };
     try {
@@ -463,6 +611,48 @@ const CreateFormula = () => {
                 </label>
               </div>
             </div>
+
+            {/* Metrics */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Metrics</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Solid Content(%):</span>
+                  <div className="flex items-center space-x-1">
+                    <input
+                      readOnly
+                      value={metrics.solidContent}
+                      className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                    />
+                    <span className="text-xs text-gray-600 dark:text-gray-300">%</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-300">VOC (g/Ltr):</span>
+                  <input
+                    readOnly
+                    value={metrics.voc}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Density (g/Ltr):</span>
+                  <input
+                    readOnly
+                    value={metrics.density}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Sampled QTY:</span>
+                  <input
+                    readOnly
+                    value={grandTotal.toFixed(2)}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Main Content */}
@@ -531,38 +721,96 @@ const CreateFormula = () => {
                 {/* Rows */}
                 <div className="divide-y divide-gray-200">
                   {tints.map((tint, index) => (
-                    <div key={tint.id} className="grid grid-cols-12 text-xs">
+                    <div key={tint.id} className="grid grid-cols-12 text-xs h-[42px]">
                       <div className="col-span-1 p-2 text-center bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                         {index + 1}
                       </div>
                       <div className="col-span-7 p-2 border-r border-gray-200">
                         <div className="grid grid-cols-12 gap-1">
-                          <input
-                            value={tint.code}
-                            onChange={(e) => updateTint(tint.id, 'code', e.target.value)}
-                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                            placeholder="Code"
-                          />
-                          <input
-                            value={tint.series}
-                            onChange={(e) => updateTint(tint.id, 'series', e.target.value)}
-                            className="col-span-2 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                            placeholder="Series"
-                          />
-                          <input
-                            value={tint.name}
-                            onChange={(e) => updateTint(tint.id, 'name', e.target.value)}
-                            className="col-span-8 px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                            placeholder="Tinter Name"
-                          />
+                          <div className="col-span-3 relative">
+                            <input
+                              value={tint.code}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                updateTint(tint.id, 'code', value);
+                                handleProductSearch(tint.id, value);
+                              }}
+                              onFocus={(e) => {
+                                handleProductSearch(tint.id, tint.code);
+                                calculateDropdownPosition(tint.id, e);
+                              }}
+                              onBlur={() => {
+                                // Delay hiding the dropdown to allow clicking on products
+                                setTimeout(() => setShowProductList(prev => ({ ...prev, [tint.id]: false })), 200);
+                              }}
+                              className="w-full px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                              placeholder="Product ID"
+                            />
+                            {/* Product dropdown */}
+                            {showProductList[tint.id] && (
+                              <div 
+                                className="fixed z-[9999] w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg"
+                                data-product-dropdown
+                                style={{
+                                  top: dropdownPosition[tint.id]?.top || 0,
+                                  left: dropdownPosition[tint.id]?.left || 0,
+                                  position: 'fixed',
+                                  zIndex: 9999
+                                }}
+                              >
+                                {filteredProducts.length > 0 ? (
+                                  filteredProducts.map((product, idx) => (
+                                    <div
+                                      key={product._id || idx}
+                                      onClick={() => selectProduct(tint.id, product)}
+                                      className="px-3 py-2 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                    >
+                                      <div className="font-medium text-sm text-gray-900 dark:text-white">
+                                        {product.Abbreviation || 'N/A'}
+                                      </div>
+                                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                        {product.Product_Name || 'N/A'}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
+                                    {tint.code ? (
+                                      `No products found for "${tint.code}"`
+                                    ) : (
+                                      <div>
+                                        <div>No products available for subcategory</div>
+                                        <div className="text-xs mt-1">"{subCategory}"</div>
+                                        <div className="text-xs mt-1 text-gray-400">Try selecting a different subcategory</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="col-span-3">
+                            <input
+                              value={tint.series}
+                              readOnly
+                              className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <input
+                              value={tint.name}
+                              readOnly
+                              className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                          </div>
                         </div>
                       </div>
                       <div className="col-span-4 p-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="text-right text-sm font-medium text-blue-600">
+                          <div className="text-center text-sm font-medium text-blue-600">
                             {tint.grams.toFixed(2)}
                           </div>
-                          <div className="text-right text-sm text-gray-800 dark:text-gray-200">
+                          <div className="text-center text-sm text-gray-800 dark:text-gray-200">
                             {tint.volume.toFixed(4)}
                           </div>
                         </div>
@@ -573,11 +821,11 @@ const CreateFormula = () => {
               </div>
 
               {/* Quantity Inputs */}
-              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
+              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4 pb-0">
                 <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Quantity</div>
-                <div className="space-y-4 mt-5">
+                <div className=" mt-4">
                   {tints.map((tint) => (
-                    <div key={tint.id} className="grid grid-cols-6 gap-1">
+                    <div key={tint.id} className="grid grid-cols-6 h-[42px] pb-2 gap-1">
                       {tint.qty.map((qty, colIndex) => (
                           <input
                             key={colIndex}
@@ -596,7 +844,7 @@ const CreateFormula = () => {
                               });
                               updateTintQty(tint.id, colIndex, v === '' ? 0 : Number(v));
                             }}
-                            className="px-2 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                            className="px-2 py-1 text-xs text-right border-b border-gray-300 dark:border-gray-600 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                           />
                       ))}
                     </div>
@@ -616,8 +864,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Total without Additives</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-right text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
-                        <div className="text-right text-sm">{totalWithoutAdditivesVolume.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
+                        <div className="text-center text-sm">{totalWithoutAdditivesVolume.toFixed(2)}</div>
                       </div>
                     </div>
                   </div>
@@ -632,8 +880,8 @@ const CreateFormula = () => {
                       <div className="col-span-7 text-sm">{binder.name}</div>
                       <div className="col-span-4">
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="text-right text-blue-300 font-semibold">{binder.grams}</div>
-                          <div className="text-right text-sm">{binder.volume}</div>
+                          <div className="text-center text-blue-300 font-semibold">{binder.grams}</div>
+                          <div className="text-center text-sm">{binder.volume}</div>
                         </div>
                       </div>
                     </div>
@@ -680,8 +928,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Additives Total</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-right text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
-                        <div className="text-right text-sm">{additivesTotal.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
+                        <div className="text-center text-sm">{additivesTotal.toFixed(2)}</div>
                       </div>
                     </div>
                   </div>
@@ -694,8 +942,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Total</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-right text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
-                        <div className="text-right text-lg">{grandTotalVolume.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
+                        <div className="text-center text-lg">{grandTotalVolume.toFixed(2)}</div>
                       </div>
                     </div>
                   </div>
@@ -712,43 +960,6 @@ const CreateFormula = () => {
                   className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded text-sm resize-none dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="Enter remarks..."
                 />
-              </div>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-6 mt-6">
-              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Solid Content(%):</span>
-                  <div className="flex items-center space-x-1">
-                    <input
-                      readOnly
-                      value={metrics.solidContent}
-                      className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">VOC (g/Ltr):</span>
-                  <input
-                    readOnly
-                    value={metrics.voc}
-                    className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
-                  />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Density (g/Ltr):</span>
-                  <input
-                    readOnly
-                    value={metrics.density}
-                    className="w-20 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white"
-                  />
-                </div>
               </div>
             </div>
           </div>
