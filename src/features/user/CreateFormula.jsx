@@ -899,12 +899,27 @@ const CreateFormula = () => {
    */
   const selectedBinderConfig = useMemo(() => {
     const cfg = binderConfigBySubCategory?.[subCategory] || {};
+    
+    // Matt/Gloss handling logic based on subcategory
+    let mattGlossValue = 1; // Default value
+    
+    if (cfg?.Matt) {
+      // Show Matt input - use gloss value as matt value
+      mattGlossValue = gloss;
+    } else if (cfg?.Gloss) {
+      // Show Gloss input - use gloss value
+      mattGlossValue = gloss;
+    } else {
+      // No Matt/Gloss - default to 1
+      mattGlossValue = 1;
+    }
+    
     return {
       ...cfg,
       Binder2Equation: cfg?.Binder2Equation === 'Eq2' ? 'Eq2' : 'Eq1',
-      MattValue: 1, // Default value; extend when Matt/Gloss logic is finalized
+      MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
     };
-  }, [binderConfigBySubCategory, subCategory]);
+  }, [binderConfigBySubCategory, subCategory, gloss]);
 
   /**
    * Calculates binder requirements based on tinter totals and configuration
@@ -1297,9 +1312,11 @@ const CreateFormula = () => {
                   </select>
                 </div>
                 
-                {/* Gloss Level Input */}
+                {/* Matt/Gloss Level Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gloss</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {selectedBinderConfig?.Matt ? 'Matt' : selectedBinderConfig?.Gloss ? 'Gloss' : 'Gloss'}
+                  </label>
                   <input
                     type="text"
                     value={glossInput}
@@ -1309,6 +1326,7 @@ const CreateFormula = () => {
                       setGloss(v === '' ? 0 : Number(v));
                     }}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                    placeholder={selectedBinderConfig?.Matt ? 'Enter Matt value' : selectedBinderConfig?.Gloss ? 'Enter Gloss value' : 'Enter Gloss value'}
                   />
                 </div>
               </div>

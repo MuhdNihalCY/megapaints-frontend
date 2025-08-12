@@ -10,7 +10,7 @@ export function computeBinders(totalTinterGrams, cfg) {
   const C = Number(cfg?.Binder1Cvalue || 0);
   const D = Number(cfg?.Binder1dvalue || 1) || 1; // guard divide-by-zero
   const A2 = Number(cfg?.Binder2Avalue || 0);
-  const binderDensity = Number(cfg?.Binder_Density || 1000); // Default density 1000 ml/1000g
+  const binderDensity = Number(cfg?.Binder_Density || 1000); // Default density 1000 g/L
   const matt = Number(cfg?.MattValue || 1) || 1;
   const eq = cfg?.Binder2Equation === 'Eq2' ? 'Eq2' : 'Eq1';
 
@@ -19,11 +19,9 @@ export function computeBinders(totalTinterGrams, cfg) {
     ? (totalTinterGrams * A2)
     : ((totalTinterGrams * A2) - binder1));
 
-  // Binder_Density is in ml/1000g - convert to volume in liters
-  const binder1_volume_ml = binderDensity > 0 ? (binder1 * binderDensity) / 1000 : 0; // Convert to milliliters
-  const binder2_volume_ml = binderDensity > 0 ? (binder2 * binderDensity) / 1000 : 0; // Convert to milliliters
-  const binder1VolumeL = binder1_volume_ml / 1000; // Convert milliliters to liters
-  const binder2VolumeL = binder2_volume_ml / 1000; // Convert milliliters to liters
+  // Binder_Density is in g/L - convert to volume in liters
+  const binder1VolumeL = binderDensity > 0 ? (binder1 * binderDensity) / 1000 : 0; // Volume = (grams * density) / 1000
+  const binder2VolumeL = binderDensity > 0 ? (binder2 * binderDensity) / 1000 : 0; // Volume = (grams * density) / 1000
 
   const totalBinderGrams = binder1 + binder2;
   const totalBinderVolumeL = binder1VolumeL + binder2VolumeL;

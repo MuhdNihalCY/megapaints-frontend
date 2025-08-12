@@ -31,9 +31,14 @@ export function computeQualityMetrics({ finalGrams, finalVolumeL, totalSolidMass
     };
   }
 
+  // Density = (TotalGram / TotalVolume) * 1000
+  const density_gPerL = (finalGrams / finalVolumeL) * 1000;
+  
+  // SolidContent = Σ(tinter_solid_content% * tinter_quantity) / TotalGram * 100
   const solidsPercent = (Number(totalSolidMass || 0) / finalGrams) * 100;
-  const density_gPerL = (finalGrams / finalVolumeL) * 1000; // Convert to g/L
-  const voc_gPerL = (Number(totalVOCmass || 0) / finalVolumeL) * 1000; // Convert to g/L
+  
+  // VOC = (Σ(tinter_VOC% * tinter_quantity) / TotalGram * 100 * 10 * (Density/1000)
+  const voc_gPerL = (Number(totalVOCmass || 0) / finalGrams) * 100 * 10 * (density_gPerL / 1000);
 
   return { 
     solidsPercent: Math.max(0, solidsPercent), 
