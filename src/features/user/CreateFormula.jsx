@@ -106,6 +106,11 @@ const CreateFormula = () => {
   const [binderConfigBySubCategory, setBinderConfigBySubCategory] = useState({}); // Binder configurations by subcategory
   const [productsBySubCategory, setProductsBySubCategory] = useState({}); // Products filtered by subcategory
   const [filteredProducts, setFilteredProducts] = useState([]);   // Products filtered by search term
+  
+  // Additives selection state
+  const [rawAdditives, setRawAdditives] = useState([]);          // Raw additives data from API
+  const [selectedAdditiveId, setSelectedAdditiveId] = useState(''); // Currently selected additive ID
+  const [additivePercentageInput, setAdditivePercentageInput] = useState(''); // Percentage input value
 
   // ===== UI STATE =====
   // Product search and dropdown management
@@ -143,6 +148,21 @@ const CreateFormula = () => {
   // Input state management
   const [qtyInput, setQtyInput] = useState({});                   // { [tinterId]: string[] } - Quantity input values
   const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string } - Additive input values
+
+  // ===== HELPER FUNCTIONS =====
+  
+  /**
+   * Gets binder name by ID from master data
+   * @param {string} binderId - Binder ID to look up
+   * @returns {string} Binder name or fallback text
+   */
+  const getBinderName = (binderId) => {
+    if (!binderId) return 'Unknown Binder';
+    
+    // Look up binder in master data (you may need to fetch binders separately)
+    // For now, return a formatted ID
+    return `Binder ${binderId}`;
+  };
 
   // ===== INPUT VALIDATION & SANITIZATION =====
   
@@ -289,6 +309,7 @@ const CreateFormula = () => {
           ? data.binderConfigBySubCategory 
           : {};
         const productsBySub = data?.productsBySubCategory || {};
+        const rawAdds = Array.isArray(data?.additives) ? data.additives : [];
 
         // ===== BUILD DEFAULT VALUES =====
         // Construct default values object with fallbacks for all required fields
@@ -335,6 +356,7 @@ const CreateFormula = () => {
           // Set product and binder configurations
           setProducts(prods);
           setBinderConfigBySubCategory(binderCfgBySub);
+          setRawAdditives(rawAdds);
 
           // ===== SET FORM DEFAULTS =====
           // Initialize form with default values from server
@@ -652,18 +674,6 @@ const CreateFormula = () => {
   );
   
   /**
-   * Total grams of all additives
-   * Used for calculations and display
-   */
-  const additivesTotal = useMemo(
-    () => additives.reduce((sum, a) => sum + Number(a.grams || 0), 0),
-    [additives]
-  );
-  
-  // Grand totals for the entire formula
-  const grandTotal = totalWithoutAdditives + bindersTotal + additivesTotal;
-  
-  /**
    * Total volume of all tinters (without binders and additives)
    * Used for calculations and display
    */
@@ -671,19 +681,8 @@ const CreateFormula = () => {
     () => tints.reduce((sum, t) => sum + Number(t.volume || 0), 0),
     [tints]
   );
-  
-  const grandTotalVolume = totalWithoutAdditivesVolume + bindersTotalVolume;
 
-  /**
-   * Calculates quality metrics for the formula
-   * Includes solid content percentage, VOC content, and density
-   */
-  const metrics = useMemo(() => {
-    const solidContent = Math.max(0, (bindersTotal / Math.max(1, grandTotal)) * 100).toFixed(2);
-    const voc = (additivesTotal * 0.47).toFixed(3);
-    const density = (grandTotal / 1000).toFixed(3);
-    return { solidContent, voc, density };
-  }, [bindersTotal, additivesTotal, grandTotal]);
+
 
   // ===== STATE UPDATE FUNCTIONS =====
   
@@ -807,6 +806,25 @@ const CreateFormula = () => {
   const addAdditive = () => setAdditives((prev) => [...prev, { _id: cryptoRandomId(), name: '', percent: 0, grams: 0 }]);
   
   /**
+   * Adds a new additive row with data from master data
+   * @param {Object} additiveData - Raw additive data from API
+   * @param {string} additiveId - Additive ID
+   */
+  const addAdditiveWithData = (additiveData, additiveId) => {
+    const newAdditive = {
+      _id: cryptoRandomId(),
+      additiveId: additiveId,
+      name: additiveData.Additive_Name || '',
+      percent: 0,
+      grams: 0,
+      Additive_Density: Number(additiveData.Additive_Density || 1000),
+      SolidContent: Number(additiveData.SolidContent || 0),
+      VOC: Number(additiveData.VOC || 0),
+    };
+    setAdditives((prev) => [...prev, newAdditive]);
+  };
+  
+  /**
    * Updates a specific field in an additive row
    * @param {string} _id - Unique identifier of the additive
    * @param {string} key - Field name to update
@@ -900,25 +918,42 @@ const CreateFormula = () => {
   const selectedBinderConfig = useMemo(() => {
     const cfg = binderConfigBySubCategory?.[subCategory] || {};
     
-    // Matt/Gloss handling logic based on subcategory
-    let mattGlossValue = 1; // Default value
+    // Matt/Gloss handling logic based on subcategory (Scenario 1, 2, 3)
+    let mattGlossValue = 1; // Default value for Scenario 3
     
     if (cfg?.Matt) {
-      // Show Matt input - use gloss value as matt value
+      // Scenario 1: Subcategory with Matt Input
       mattGlossValue = gloss;
     } else if (cfg?.Gloss) {
-      // Show Gloss input - use gloss value
+      // Scenario 2: Subcategory with Gloss Input
       mattGlossValue = gloss;
     } else {
-      // No Matt/Gloss - default to 1
+      // Scenario 3: No Matt/Gloss (Default) - multiplier = 1
       mattGlossValue = 1;
     }
     
-    return {
+    const config = {
       ...cfg,
-      Binder2Equation: cfg?.Binder2Equation === 'Eq2' ? 'Eq2' : 'Eq1',
+      Binder2Equation: cfg?.Binder2EQ1 ? 'Eq1' : 'Eq2',
       MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
     };
+    
+    // Debug logging for binder configuration
+    console.log('[Binder Config] Subcategory:', subCategory, {
+      hasMatt: !!cfg?.Matt,
+      hasGloss: !!cfg?.Gloss,
+      hasBinder1: !!cfg?.Binder1,
+      hasBinder2: !!cfg?.Binder2,
+      mattGlossValue,
+      Binder1Avalue: cfg?.Binder1Avalue,
+      Binder1Bvalue: cfg?.Binder1Bvalue,
+      Binder1Cvalue: cfg?.Binder1Cvalue,
+      Binder1dvalue: cfg?.Binder1dvalue,
+      Binder2Avalue: cfg?.Binder2Avalue,
+      Binder2EQ1: cfg?.Binder2EQ1,
+    });
+    
+    return config;
   }, [binderConfigBySubCategory, subCategory, gloss]);
 
   /**
@@ -931,7 +966,34 @@ const CreateFormula = () => {
    * Calculates additive requirements based on total formula weight
    * Considers both tinter and binder contributions
    */
-  const additiveTotals = useMemo(() => computeAdditives(additives, tinterTotals.totalGrams + binderTotals.totalBinderGrams), [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
+  const additiveTotals = useMemo(() => {
+    // Base mass for additive calculation = Total Tinter Grams + Total Binder Grams
+    const baseMass = tinterTotals.totalGrams + binderTotals.totalBinderGrams;
+    
+    // Debug logging for additive calculations
+    if (additives.length > 0) {
+      console.log('[Additive Totals Debug] Inputs:', {
+        additives: additives.map(a => ({ _id: a._id, name: a.name, percent: a.percent, additiveId: a.additiveId })),
+        baseMass,
+        tinterTotals: tinterTotals.totalGrams,
+        binderTotals: binderTotals.totalBinderGrams
+      });
+    }
+    
+    const result = computeAdditives(additives, baseMass);
+    
+    if (additives.length > 0) {
+      console.log('[Additive Totals Debug] Result:', result);
+    }
+    
+    return result;
+  }, [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
+  
+  /**
+   * Total grams of all additives
+   * Used for calculations and display
+   */
+  const additivesTotal = additiveTotals.totalAdditiveGrams;
   
   /**
    * Computes final totals for the entire formula
@@ -943,6 +1005,10 @@ const CreateFormula = () => {
     { totalAdditiveGrams: additiveTotals.totalAdditiveGrams, totalAdditiveVolumeL: additiveTotals.totalAdditiveVolumeL }
   ), [tinterTotals, binderTotals, additiveTotals]);
   
+  // Grand totals for the entire formula
+  const grandTotal = finalTotals.finalGrams;
+  const grandTotalVolume = finalTotals.finalVolumeL;
+  
   /**
    * Calculates quality metrics for the final formula
    * Includes solid content percentage, density, and VOC content
@@ -953,6 +1019,17 @@ const CreateFormula = () => {
     totalSolidMass: tinterTotals.totalSolidMass, 
     totalVOCmass: tinterTotals.totalVOCMass 
   }), [finalTotals, tinterTotals]);
+  
+  /**
+   * Calculates quality metrics for the formula
+   * Includes solid content percentage, VOC content, and density
+   */
+  const metrics = useMemo(() => {
+    const solidContent = quality.solidsPercent.toFixed(2);
+    const voc = quality.voc_gPerL.toFixed(3);
+    const density = quality.density_gPerL.toFixed(3);
+    return { solidContent, voc, density };
+  }, [quality]);
 
   // ===== VALIDATION & ERROR CHECKING =====
   // These useMemo hooks validate formula data and identify issues
@@ -1312,23 +1389,25 @@ const CreateFormula = () => {
                   </select>
                 </div>
                 
-                {/* Matt/Gloss Level Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {selectedBinderConfig?.Matt ? 'Matt' : selectedBinderConfig?.Gloss ? 'Gloss' : 'Gloss'}
-                  </label>
-                  <input
-                    type="text"
-                    value={glossInput}
-                    onChange={(e) => {
-                      const v = sanitizeNumericInput(e.target.value, 'float');
-                      setGlossInput(v);
-                      setGloss(v === '' ? 0 : Number(v));
-                    }}
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                    placeholder={selectedBinderConfig?.Matt ? 'Enter Matt value' : selectedBinderConfig?.Gloss ? 'Enter Gloss value' : 'Enter Gloss value'}
-                  />
-                </div>
+                {/* Matt/Gloss Level Input - Dynamic visibility based on subcategory */}
+                {(selectedBinderConfig?.Matt || selectedBinderConfig?.Gloss) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {selectedBinderConfig?.Matt ? 'Matt' : 'Gloss'}
+                    </label>
+                    <input
+                      type="text"
+                      value={glossInput}
+                      onChange={(e) => {
+                        const v = sanitizeNumericInput(e.target.value, 'float');
+                        setGlossInput(v);
+                        setGloss(v === '' ? 0 : Number(v));
+                      }}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                      placeholder={selectedBinderConfig?.Matt ? 'Enter Matt value' : 'Enter Gloss value'}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1567,26 +1646,59 @@ const CreateFormula = () => {
                 {/* Binders - aligned to quantity columns */}
                 <div className="bg-gray-500 text-white p-2">
                   <div className="text-sm font-medium mb-2">Binders</div>
-                  <div className="grid grid-cols-12 items-center mb-1">
-                    <div className="col-span-1"></div>
-                    <div className="col-span-7 text-sm">Binder 1</div>
-                    <div className="col-span-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold">{binderTotals.binder1.toFixed(2)} g</div>
-                        <div className="text-center text-sm">{binderTotals.binder1VolumeL.toFixed(4)} L</div>
+                  {/* Binder 1 - Show only if configured in subcategory */}
+                  {selectedBinderConfig?.Binder1 && (
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span>Binder 1:</span>
+                          <span className="text-gray-300 font-medium">
+                            {getBinderName(selectedBinderConfig.Binder1)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-center text-blue-300 font-semibold">{binderTotals.binder1.toFixed(2)} g</div>
+                          <div className="text-center text-sm">{binderTotals.binder1VolumeL.toFixed(4)} L</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-12 items-center mb-1">
-                    <div className="col-span-1"></div>
-                    <div className="col-span-7 text-sm">Binder 2</div>
-                    <div className="col-span-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold">{binderTotals.binder2.toFixed(2)} g</div>
-                        <div className="text-center text-sm">{binderTotals.binder2VolumeL.toFixed(4)} L</div>
+                  )}
+                  {/* Binder 2 - Show only if configured in subcategory */}
+                  {selectedBinderConfig?.Binder2 && (
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span>Binder 2:</span>
+                          <span className="text-gray-300 font-medium">
+                            {getBinderName(selectedBinderConfig.Binder2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-center text-blue-300 font-semibold">{binderTotals.binder2.toFixed(2)} g</div>
+                          <div className="text-center text-sm">{binderTotals.binder2VolumeL.toFixed(4)} L</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+                  {/* Show message if no binders configured */}
+                  {!selectedBinderConfig?.Binder1 && !selectedBinderConfig?.Binder2 && (
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm text-gray-300">No binders configured for this subcategory</div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-center text-gray-300">0.00 g</div>
+                          <div className="text-center text-gray-300">0.0000 L</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Additives - aligned to quantity columns */}
@@ -1594,42 +1706,128 @@ const CreateFormula = () => {
                   <div className="grid grid-cols-4 mb-2">
                     <div className="text-sm font-medium">Additives</div>
                     <div className="text-center">
-                      <select className="bg-gray-600 text-white px-2 py-1 rounded text-xs">
-                        {additives.map((additive) => (
-                          <option key={additive._id}>{additive.name}</option>
+                      <select 
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs"
+                        value={selectedAdditiveId}
+                        onChange={(e) => {
+                          const additiveId = e.target.value;
+                          setSelectedAdditiveId(additiveId);
+                          if (additiveId) {
+                            // Add new additive row if not already present
+                            const existingAdditive = additives.find(a => a.additiveId === additiveId);
+                            if (!existingAdditive) {
+                              const additive = rawAdditives.find(a => a.Additive_Id === additiveId);
+                              if (additive) {
+                                addAdditiveWithData(additive, additiveId);
+                                setAdditivePercentageInput('0'); // Set default percentage
+                              }
+                            } else {
+                              // If additive already exists, set the percentage input to its current value
+                              setAdditivePercentageInput(String(existingAdditive.percent || 0));
+                            }
+                          } else {
+                            setAdditivePercentageInput('');
+                          }
+                        }}
+                      >
+                        <option value="">Select Additive</option>
+                        {rawAdditives.map((additive) => (
+                          <option key={additive.Additive_Id} value={additive.Additive_Id}>
+                            {additive.Additive_Name} ({additive.Abbreviation || 'N/A'})
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div className="text-center">
                       <input
                         type="text"
-                        value={(() => {
-                          const id = additives[0]?._id;
-                          const current = additives[0]?.percent || 0;
-                          const mapped = id ? additiveInputById[id] : undefined;
-                          return mapped !== undefined ? mapped : (current === 0 ? '' : String(current));
-                        })()}
-                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
+                        value={additivePercentageInput}
                         onChange={(e) => {
-                          const id = additives[0]?._id;
                           const v = sanitizeNumericInput(e.target.value, 'float');
-                          if (id) setAdditiveInputById((prev) => ({ ...prev, [id]: v }));
-                          // Allow empty field as 0 without forcing a 0 in the input
-                          updateAdditive(id, 'percent', v === '' ? 0 : Number(v));
+                          setAdditivePercentageInput(v);
+                          // Update additive percentage if additive is selected
+                          if (selectedAdditiveId) {
+                            const additive = additives.find(a => a.additiveId === selectedAdditiveId);
+                            if (additive) {
+                              updateAdditive(additive._id, 'percent', v === '' ? 0 : Number(v));
+                            }
+                          }
                         }}
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
+                        placeholder="0"
                       />
                       <span className="text-sm mx-2">%</span>
                     </div>
                     <div className="text-right">
-                      
+                      <button
+                        onClick={() => {
+                          if (selectedAdditiveId) {
+                            const additive = additives.find(a => a.additiveId === selectedAdditiveId);
+                            if (additive) {
+                              // Update the percentage and clear selection
+                              updateAdditive(additive._id, 'percent', Number(additivePercentageInput) || 0);
+                              setSelectedAdditiveId('');
+                              setAdditivePercentageInput('');
+                            }
+                          }
+                        }}
+                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                        disabled={!selectedAdditiveId}
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
+                  
+                  {/* Individual Additive Rows */}
+                  {additives.length > 0 && (
+                    <div className="space-y-1 mb-2">
+                      {additives.map((additive, index) => {
+                        // Find the calculated values for this additive
+                        const calculatedRow = additiveTotals.rows.find(row => row.id === additive._id);
+                        return (
+                          <div key={additive._id} className="grid grid-cols-12 items-center text-xs">
+                            <div className="col-span-1 text-center">{index + 1}</div>
+                            <div className="col-span-7">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{additive.name}</span>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    value={additive.percent || 0}
+                                    onChange={(e) => {
+                                      const v = sanitizeNumericInput(e.target.value, 'float');
+                                      updateAdditive(additive._id, 'percent', v === '' ? 0 : Number(v));
+                                    }}
+                                    className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-xs">%</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-span-4">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="text-center text-blue-300 font-semibold">
+                                  {calculatedRow ? calculatedRow.grams.toFixed(2) : '0.00'} g
+                                </div>
+                                <div className="text-center text-sm">
+                                  {calculatedRow ? calculatedRow.volumeL.toFixed(4) : '0.0000'} L
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-12 items-center">
                     <div className="col-span-1"></div>
                     <div className="col-span-7 text-sm font-medium">Additives Total</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold">{additivesTotal.toFixed(2)} g</div>
+                        <div className="text-center text-blue-300 font-semibold">{additiveTotals.totalAdditiveGrams.toFixed(2)} g</div>
                         <div className="text-center text-sm">{additiveTotals.totalAdditiveVolumeL.toFixed(4)} L</div>
                       </div>
                     </div>

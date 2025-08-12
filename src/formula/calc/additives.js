@@ -27,7 +27,21 @@ export function computeAdditives(additives, baseMass) {
       grams, 
       volumeL, 
       percent, 
-      density 
+      density: density_g_per_l
+    });
+  }
+
+  // Debug logging for additive calculations
+  if (baseMass > 0 && safe.length > 0) {
+    console.log('[Additive Calc] Inputs:', {
+      baseMass,
+      additivesCount: safe.length,
+      additives: safe.map(a => ({ name: a.name, percent: a.percent, density: a.Additive_Density }))
+    });
+    console.log('[Additive Calc] Results:', {
+      totalAdditiveGrams,
+      totalAdditiveVolumeL,
+      rows: rows.map(r => ({ name: r.name, grams: r.grams, volumeL: r.volumeL }))
     });
   }
 
