@@ -7,6 +7,7 @@ import { computeAdditives } from '../../formula/calc/additives';
 import { computeFinalTotals, computeQualityMetrics } from '../../formula/calc/metrics';
 import { validateTinters, validateBinders, validateMetrics } from '../../utils/validation';
 import { fetchMastersWithCache } from '../../formula/services/mastersService';
+import { LoadingOverlay } from '../../components';
 
 export const CreateFormulaSections = {
   HEADER_CONTROLS: 'header-controls',
@@ -57,6 +58,8 @@ const CreateFormula = () => {
   const [showProductList, setShowProductList] = useState({}); // { [tintId]: boolean }
   const [productSearchInput, setProductSearchInput] = useState({}); // { [tintId]: string }
   const [dropdownPosition, setDropdownPosition] = useState({}); // { [tintId]: { top, left } }
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [meta, setMeta] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -414,6 +417,7 @@ const CreateFormula = () => {
 
   const onAttach = async (file) => {
     if (!file) return;
+    setIsUploading(true);
     const reader = new FileReader();
     reader.onload = (e) => setAttachment({ file, preview: String(e.target?.result || '') });
     reader.readAsDataURL(file);
@@ -422,6 +426,8 @@ const CreateFormula = () => {
       setUploadedAttachment(uploaded);
     } catch (e) {
       console.error('Attachment upload failed', e);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -462,6 +468,7 @@ const CreateFormula = () => {
   const hasBlockingErrors = loadingMasters || tinterErrors.some(e => e.type === 'missing-density' || e.type === 'duplicate-product') || binderErrors.length > 0 || !(finalTotals.finalVolumeL > 0) || !(finalTotals.finalGrams > 0);
 
   const save = async () => {
+    setIsSaving(true);
     const payload = {
       meta,
       header: { category, subCategory, gloss },
@@ -495,22 +502,51 @@ const CreateFormula = () => {
     } catch (e) {
       console.error('Save error', e);
       alert('Save failed');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Header />
+      
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        isLoading={loadingMasters || isSaving || isUploading} 
+        message={
+          loadingMasters ? "Loading ..." :
+          isSaving ? "Saving formula..." :
+          isUploading ? "Uploading attachment..." :
+          "Loading..."
+        }
+      />
+      
       {/* Page Toolbar */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Create Formula</h1>
           <div className="flex space-x-3">
-            <button onClick={clearAll} className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">
+            <button 
+              onClick={clearAll} 
+              disabled={isSaving || isUploading}
+              className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Clear All
             </button>
-            <button onClick={save} className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700">
-              Save
+            <button 
+              onClick={save} 
+              disabled={hasBlockingErrors || isSaving || isUploading}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                'Save'
+              )}
             </button>
           </div>
         </div>
