@@ -8,8 +8,16 @@ export function computeTinterRow(row) {
   const sum = quantities.reduce((s, n) => s + Number(n || 0), 0);
   const coefficient = Number(row?.coefficient || 0) > 0 ? Number(row.coefficient) : 1;
   const grams = sum * coefficient;
-  const productDensity = Number(row?.Product_Density || 0); // g/mL per spec
-  const volumeL = productDensity > 0 ? (grams / productDensity) / 1000 : 0; // Convert to liters
+  
+  // Density is in ml/1000g - convert to volume in liters
+  const density_ml_per_1000g = Number(row?.Product_Density || 0);
+  const volume_ml = density_ml_per_1000g > 0 ? (grams * density_ml_per_1000g) / 1000 : 0; // Convert to milliliters
+  const volumeL = volume_ml / 1000; // Convert milliliters to liters
+  
+  // Debug logging for density conversion
+  if (grams > 0 && density_ml_per_1000g > 0) {
+    console.log('[Density Debug] Product:', row?.name || 'Unknown', 'Density (ml/1000g):', density_ml_per_1000g, 'Grams:', grams, 'Volume (ml):', volume_ml, 'Volume (L):', volumeL);
+  }
   
   return {
     grams,

@@ -755,6 +755,11 @@ const CreateFormula = () => {
           VOC: t.VOC 
         });
         
+        // Debug logging for volume calculation
+        if (derived.grams > 0) {
+          console.log('[Volume Debug] Tinter:', t.name, 'Density:', t.Product_Density, 'g/mL, Grams:', derived.grams, 'g, Volume:', derived.volumeL, 'L');
+        }
+        
         return { ...t, qty: nextQty, grams: derived.grams, volume: derived.volumeL };
       });
 
@@ -1326,8 +1331,8 @@ const CreateFormula = () => {
                     <div className="col-span-4 p-2">
                       <div className="text-center mb-1">Quantity</div>
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center">in Grams</div>
-                        <div className="text-center">in Volume</div>
+                        <div className="text-center">Grams (g)</div>
+                        <div className="text-center">Volume (L)</div>
                       </div>
                     </div>
                   </div>
@@ -1476,10 +1481,10 @@ const CreateFormula = () => {
                       <div className="col-span-4 p-2">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="text-center text-sm font-medium text-blue-600">
-                            {tint.grams.toFixed(2)}
+                            {tint.grams.toFixed(2)} g
                           </div>
                           <div className="text-center text-sm text-gray-800 dark:text-gray-200">
-                            {tint.volume.toFixed(4)}
+                            {tint.volume.toFixed(4)} L
                           </div>
                         </div>
                       </div>
@@ -1534,8 +1539,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Total without Additives</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)}</div>
-                        <div className="text-center text-sm">{totalWithoutAdditivesVolume.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold">{totalWithoutAdditives.toFixed(2)} g</div>
+                        <div className="text-center text-sm">{totalWithoutAdditivesVolume.toFixed(4)} L</div>
                       </div>
                     </div>
                   </div>
@@ -1544,18 +1549,26 @@ const CreateFormula = () => {
                 {/* Binders - aligned to quantity columns */}
                 <div className="bg-gray-500 text-white p-2">
                   <div className="text-sm font-medium mb-2">Binders</div>
-                  {binders.map((binder) => (
-                    <div key={binder._id} className="grid grid-cols-12 items-center mb-1">
-                      <div className="col-span-1"></div>
-                      <div className="col-span-7 text-sm">{binder.name}</div>
-                      <div className="col-span-4">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="text-center text-blue-300 font-semibold">{binder.grams}</div>
-                          <div className="text-center text-sm">{binder.volume}</div>
-                        </div>
+                  <div className="grid grid-cols-12 items-center mb-1">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-7 text-sm">Binder 1</div>
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center text-blue-300 font-semibold">{binderTotals.binder1.toFixed(2)} g</div>
+                        <div className="text-center text-sm">{binderTotals.binder1VolumeL.toFixed(4)} L</div>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                  <div className="grid grid-cols-12 items-center mb-1">
+                    <div className="col-span-1"></div>
+                    <div className="col-span-7 text-sm">Binder 2</div>
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center text-blue-300 font-semibold">{binderTotals.binder2.toFixed(2)} g</div>
+                        <div className="text-center text-sm">{binderTotals.binder2VolumeL.toFixed(4)} L</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Additives - aligned to quantity columns */}
@@ -1598,8 +1611,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Additives Total</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold">{additivesTotal.toFixed(2)}</div>
-                        <div className="text-center text-sm">{additivesTotal.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold">{additivesTotal.toFixed(2)} g</div>
+                        <div className="text-center text-sm">{additiveTotals.totalAdditiveVolumeL.toFixed(4)} L</div>
                       </div>
                     </div>
                   </div>
@@ -1612,8 +1625,8 @@ const CreateFormula = () => {
                     <div className="col-span-7 text-sm font-medium">Total</div>
                     <div className="col-span-4">
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="text-center text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)}</div>
-                        <div className="text-center text-lg">{grandTotalVolume.toFixed(2)}</div>
+                        <div className="text-center text-blue-300 font-semibold text-lg">{grandTotal.toFixed(2)} g</div>
+                        <div className="text-center text-lg">{grandTotalVolume.toFixed(4)} L</div>
                       </div>
                     </div>
                   </div>

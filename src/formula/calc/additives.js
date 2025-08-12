@@ -13,9 +13,11 @@ export function computeAdditives(additives, baseMass) {
 
   for (const a of safe) {
     const percent = Number(a?.percent || 0);
-    const density = Number(a?.Additive_Density || 1000); // Default density 1000 g/L
+    // Additive_Density is in ml/1000g - convert to volume in liters
+    const density_ml_per_1000g = Number(a?.Additive_Density || 1000); // Default density 1000 ml/1000g
     const grams = (baseMass * percent) / 100;
-    const volumeL = density > 0 ? (grams / density) : 0;
+    const volume_ml = density_ml_per_1000g > 0 ? (grams * density_ml_per_1000g) / 1000 : 0; // Convert to milliliters
+    const volumeL = volume_ml / 1000; // Convert milliliters to liters
     
     totalAdditiveGrams += grams;
     totalAdditiveVolumeL += volumeL;
