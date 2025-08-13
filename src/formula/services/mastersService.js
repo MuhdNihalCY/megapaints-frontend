@@ -158,6 +158,7 @@ export async function fetchMastersFresh() {
       api.get('/v1/subcategory', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/product', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/additive', { params: { page: 1, limit: 1000 } }),
+      api.get('/v1/binder', { params: { page: 1, limit: 1000 } }), // Add binders API call
     ]);
     
     // Extract categories and subcategories from various possible response shapes
@@ -183,11 +184,17 @@ export async function fetchMastersFresh() {
       || (Array.isArray(res[3]?.data?.items) && res[3].data.items)
       || [];
 
+    const rawBinders = (Array.isArray(res[4]?.data?.binders) && res[4].data.binders)
+      || (Array.isArray(res[4]?.data?.data) && res[4].data.data)
+      || (Array.isArray(res[4]?.data?.items) && res[4].data.items)
+      || [];
+
     console.log('[Masters] Raw data extraction results:');
     console.log('[Masters] - Categories:', rawCategories.length);
     console.log('[Masters] - Subcategories:', rawSubcategories.length);
     console.log('[Masters] - Products:', rawProducts.length);
     console.log('[Masters] - Additives:', rawAdditives.length);
+    console.log('[Masters] - Binders:', rawBinders.length);
     
     if (rawCategories.length > 0) {
       console.log('[Masters] Sample category:', rawCategories[0]);
@@ -198,12 +205,16 @@ export async function fetchMastersFresh() {
     if (rawProducts.length > 0) {
       console.log('[Masters] Sample product:', rawProducts[0]);
     }
+    if (rawBinders.length > 0) {
+      console.log('[Masters] Sample binder:', rawBinders[0]);
+    }
 
     console.log('[Masters] Raw data counts:', {
       categories: rawCategories.length,
       subcategories: rawSubcategories.length,
       products: rawProducts.length,
-      additives: rawAdditives.length
+      additives: rawAdditives.length,
+      binders: rawBinders.length
     });
 
     // Build category mapping by Category_Id
@@ -280,6 +291,33 @@ export async function fetchMastersFresh() {
     console.log('[Masters] Product map created with', productMap.size, 'products');
     console.log('[Masters] Sample product IDs in map:', Array.from(productMap.keys()).slice(0, 5));
 
+    // Create binder lookup map for efficient searching
+    const binderMap = new Map();
+    console.log('[Masters] Creating binder map from', rawBinders.length, 'raw binders');
+    
+    rawBinders.forEach((binder, index) => {
+      const binderId = String(binder.Binder_Id || binder._id || '').trim();
+      if (binderId && binderId !== '0' && binderId !== 'null' && binderId !== 'undefined') {
+        binderMap.set(binderId, {
+          _id: binder._id,
+          Binder_Id: binder.Binder_Id,
+          Binder_Name: binder.Binder_Name || binder.name || binder.Name,
+          Binder_Density: Number(binder.Binder_Density) || 1000,
+          Abbreviation: binder.Abbreviation || binder.abbreviation,
+          Description: binder.Description || binder.description
+        });
+        
+        if (index < 3) {
+          console.log(`[Masters] Added binder to map: ${binderId} -> ${binder.Binder_Name || binder.name}`);
+        }
+      } else {
+        console.warn(`[Masters] Skipping binder with invalid ID:`, binder.Binder_Id || binder._id, binder);
+      }
+    });
+
+    console.log('[Masters] Binder map created with', binderMap.size, 'binders');
+    console.log('[Masters] Sample binder IDs in map:', Array.from(binderMap.keys()).slice(0, 5));
+
     // Process subcategories and extract products
     rawSubcategories.forEach((sub) => {
       const subName = sub?.SubCategory || sub?.name || sub?.Subcategory_Name || sub?.label;
@@ -351,10 +389,25 @@ export async function fetchMastersFresh() {
       productsBySubCategory[subName] = subCategoryProducts;
       console.log(`[Masters] Mapped ${subCategoryProducts.length} products to ${subName}`);
 
-      // Extract binder configuration
+      // Extract binder configuration and get binder names
+      const binder1Id = String(sub.Binder1 || '');
+      const binder2Id = String(sub.Binder2 || '');
+      
+      const binder1Data = binder1Id ? binderMap.get(binder1Id) : null;
+      const binder2Data = binder2Id ? binderMap.get(binder2Id) : null;
+      
+      console.log(`[Masters] Binder mapping for ${subName}:`, {
+        binder1Id,
+        binder2Id,
+        binder1Name: binder1Data?.Binder_Name,
+        binder2Name: binder2Data?.Binder_Name
+      });
+
       binderConfigBySubCategory[subName] = {
         Binder1: sub.Binder1 || '',
         Binder2: sub.Binder2 || '',
+        Binder1Name: binder1Data?.Binder_Name || `Binder ${binder1Id}`,
+        Binder2Name: binder2Data?.Binder_Name || `Binder ${binder2Id}`,
         Binder1Avalue: Number(sub.Binder1Avalue) || 0,
         Binder1Bvalue: Number(sub.Binder1Bvalue) || 0,
         Binder1Cvalue: Number(sub.Binder1Cvalue) || 0,
@@ -397,6 +450,7 @@ export async function fetchMastersFresh() {
       // Raw data for reference
       products: rawProducts,
       additives: rawAdditives,
+      binders: rawBinders,
       
       // Default values
       defaultCategory,

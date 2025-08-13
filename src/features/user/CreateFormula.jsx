@@ -111,6 +111,7 @@ const CreateFormula = () => {
   const [rawAdditives, setRawAdditives] = useState([]);          // Raw additives data from API
   const [selectedAdditiveId, setSelectedAdditiveId] = useState(''); // Currently selected additive ID
   const [additivePercentageInput, setAdditivePercentageInput] = useState(''); // Percentage input value
+  const [isAddingAdditive, setIsAddingAdditive] = useState(false); // Track when additive is being added
 
   // ===== UI STATE =====
   // Product search and dropdown management
@@ -159,8 +160,17 @@ const CreateFormula = () => {
   const getBinderName = (binderId) => {
     if (!binderId) return 'Unknown Binder';
     
-    // Look up binder in master data (you may need to fetch binders separately)
-    // For now, return a formatted ID
+    // Get binder name from the selected binder configuration
+    if (selectedBinderConfig) {
+      if (binderId === selectedBinderConfig.Binder1) {
+        return selectedBinderConfig.Binder1Name || `Binder ${binderId}`;
+      }
+      if (binderId === selectedBinderConfig.Binder2) {
+        return selectedBinderConfig.Binder2Name || `Binder ${binderId}`;
+      }
+    }
+    
+    // Fallback to formatted ID
     return `Binder ${binderId}`;
   };
 
@@ -1645,6 +1655,9 @@ const CreateFormula = () => {
 
                 {/* Binders - aligned to quantity columns */}
                 <div className="bg-gray-500 text-white p-2">
+                  <div className="text-xs text-gray-200 mb-1">
+                    Binder names and calculations are based on selected subcategory
+                  </div>
                   <div className="text-sm font-medium mb-2">Binders</div>
                   {/* Binder 1 - Show only if configured in subcategory */}
                   {selectedBinderConfig?.Binder1 && (
@@ -1703,7 +1716,13 @@ const CreateFormula = () => {
 
                 {/* Additives - aligned to quantity columns */}
                 <div className="bg-gray-400 text-white p-2">
-                  <div className="grid grid-cols-4 mb-2">
+                  <div className="text-xs text-gray-200 mb-1">
+                    Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage to add automatically.
+                    {isAddingAdditive && (
+                      <span className="text-green-300 ml-2">✓ Added!</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 mb-2">
                     <div className="text-sm font-medium">Additives</div>
                     <div className="text-center">
                       <select 
@@ -1745,7 +1764,7 @@ const CreateFormula = () => {
                         onChange={(e) => {
                           const v = sanitizeNumericInput(e.target.value, 'float');
                           setAdditivePercentageInput(v);
-                          // Update additive percentage if additive is selected
+                          // Automatically update additive percentage if additive is selected
                           if (selectedAdditiveId) {
                             const additive = additives.find(a => a.additiveId === selectedAdditiveId);
                             if (additive) {
@@ -1753,29 +1772,33 @@ const CreateFormula = () => {
                             }
                           }
                         }}
+                        onBlur={() => {
+                          // Clear selection after percentage is entered
+                          if (selectedAdditiveId && additivePercentageInput && Number(additivePercentageInput) > 0) {
+                            setIsAddingAdditive(true);
+                            setTimeout(() => {
+                              setSelectedAdditiveId('');
+                              setAdditivePercentageInput('');
+                              setIsAddingAdditive(false);
+                            }, 500);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Clear selection when Enter is pressed
+                          if (e.key === 'Enter' && selectedAdditiveId && additivePercentageInput && Number(additivePercentageInput) > 0) {
+                            e.preventDefault();
+                            setIsAddingAdditive(true);
+                            setTimeout(() => {
+                              setSelectedAdditiveId('');
+                              setAdditivePercentageInput('');
+                              setIsAddingAdditive(false);
+                            }, 500);
+                          }
+                        }}
                         className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
                         placeholder="0"
                       />
                       <span className="text-sm mx-2">%</span>
-                    </div>
-                    <div className="text-right">
-                      <button
-                        onClick={() => {
-                          if (selectedAdditiveId) {
-                            const additive = additives.find(a => a.additiveId === selectedAdditiveId);
-                            if (additive) {
-                              // Update the percentage and clear selection
-                              updateAdditive(additive._id, 'percent', Number(additivePercentageInput) || 0);
-                              setSelectedAdditiveId('');
-                              setAdditivePercentageInput('');
-                            }
-                          }
-                        }}
-                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
-                        disabled={!selectedAdditiveId}
-                      >
-                        Add
-                      </button>
                     </div>
                   </div>
                   
@@ -1803,6 +1826,13 @@ const CreateFormula = () => {
                                     placeholder="0"
                                   />
                                   <span className="text-xs">%</span>
+                                  <button
+                                    onClick={() => removeAdditive(additive._id)}
+                                    className="text-red-300 hover:text-red-100 text-xs"
+                                    title="Remove additive"
+                                  >
+                                    ×
+                                  </button>
                                 </div>
                               </div>
                             </div>
