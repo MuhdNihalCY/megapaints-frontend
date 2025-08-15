@@ -3,8 +3,8 @@ import Cookies from 'js-cookie';
 
 // Create axios instance with default config
 const api = axios.create({
-  // Use Vite dev proxy in development; backend should be mounted under /api
-  baseURL: 'http://localhost:3000/api',
+  // Use live backend API only
+  baseURL: 'http://localhost:3000',
   withCredentials: true, // Important for cookies
   timeout: 10000,
   headers: {
@@ -40,14 +40,14 @@ async function tryRefreshSession() {
   try {
     console.info('[API] Attempting silent refresh...');
     const results = await Promise.allSettled([
-      api.post('/auth/refresh', {}, { signal: controllers[0].signal, _noIntercept: true }),
-      api.post('/admin/auth/refresh', {}, { signal: controllers[1].signal, _noIntercept: true }),
+      api.post('/api/auth/refresh', {}, { signal: controllers[0].signal, _noIntercept: true }),
+      api.post('/api/admin/auth/refresh', {}, { signal: controllers[1].signal, _noIntercept: true }),
     ]);
     const anyFulfilled = results.find(r => r.status === 'fulfilled' && r.value?.data?.status);
     if (anyFulfilled) {
       try {
         const which = results.findIndex(r => r.status === 'fulfilled' && r.value?.data?.status);
-        console.info('[API] Silent refresh succeeded via', which === 0 ? '/auth/refresh' : '/admin/auth/refresh');
+        console.info('[API] Silent refresh succeeded via', which === 0 ? '/api/auth/refresh' : '/api/admin/auth/refresh');
       } catch {}
       // Cancel the other one (best-effort)
       controllers.forEach((c) => { try { c.abort(); } catch {} });
@@ -133,7 +133,7 @@ api.interceptors.response.use(
       } catch {}
     }
     const isRefreshCall = typeof originalRequest?.url === 'string' && (
-      originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/admin/auth/refresh')
+      originalRequest.url.includes('/api/auth/refresh') || originalRequest.url.includes('/api/admin/auth/refresh')
     );
 
     if (!isUnauthorized || isRefreshCall) {

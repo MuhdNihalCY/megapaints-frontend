@@ -33,9 +33,9 @@ const Login = () => {
     }
 
     try {
-      const result = await login(formData.username, formData.password, 'user');
+      const result = await login(formData, false); // false = not admin
       if (result.success) {
-        navigate(result.redirect);
+        navigate('/dashboard');
       } else {
         setError(result.message);
       }
@@ -45,6 +45,24 @@ const Login = () => {
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const result = await login({ username: 'demo', password: 'demo' }, false);
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError('Demo login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -105,27 +123,28 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign In'
-              )}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          <div className="mt-6 text-center space-y-2">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Welcome to MegaPaints - Your Creative Digital Canvas
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Are you an admin?{' '}
-              <Link to="/admin/login" className="text-blue-600 dark:text-blue-400 hover:underline">
-                Go to admin login
+          {/* Demo Login Button */}
+          <div className="mt-4">
+            <button
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              {loading ? 'Signing in...' : 'Demo Login (No Backend)'}
+            </button>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign up
               </Link>
             </p>
           </div>

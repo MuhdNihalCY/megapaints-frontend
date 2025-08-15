@@ -9,6 +9,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import CreateFormula from './features/user/CreateFormula';
 import Order from './features/user/Order';
 import Orders from './features/user/Orders';
+import KanbanDashboard from './features/kanban/pages/KanbanDashboard';
+import KanbanTest from './features/kanban/components/KanbanTest';
+import BackendTest from './features/kanban/pages/BackendTest';
 
 function App() {
   return (
@@ -28,7 +31,7 @@ function App() {
                 path="/dashboard" 
                 element={
                   <ProtectedRoute requiredRole="user">
-                    <UserDashboard />
+                    <KanbanDashboard />
                   </ProtectedRoute>
                 } 
               />
@@ -43,6 +46,30 @@ function App() {
               />
 
               {/* User-only additional routes */}
+              <Route 
+                path="/old-dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <UserDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/kanban-test" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <KanbanTest />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/backend-test" 
+                element={
+                  <ProtectedRoute requiredRole="user">
+                    <BackendTest />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/create-formula" 
                 element={
