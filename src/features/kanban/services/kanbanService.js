@@ -297,7 +297,8 @@ class KanbanService {
    */
   async getUsers() {
     try {
-      const response = await api.get('/api/users');
+      const response = await api.get('/api/v2/users');
+      console.log('Response from getUsers:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -312,7 +313,7 @@ class KanbanService {
    */
   async searchUsers(searchTerm) {
     try {
-      const response = await api.get('/api/users/search', {
+      const response = await api.get('/api/v2/users/search', {
         params: { q: searchTerm }
       });
       return response.data;
