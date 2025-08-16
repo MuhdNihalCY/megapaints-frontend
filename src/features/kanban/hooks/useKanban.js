@@ -308,16 +308,17 @@ export const usePriorityDisplay = (priority) => {
 /**
  * Hook for managing card labels display
  * @param {Array} labels - Card labels
+ * @param {Array} availableLabels - Available labels from context
  * @returns {Object} Labels display information
  */
-export const useLabelsDisplay = (labels) => {
+export const useLabelsDisplay = (labels, availableLabels = []) => {
   const labelInfo = useMemo(() => {
     if (!labels || labels.length === 0) {
       return { labels: [], hasLabels: false };
     }
 
     const labelObjects = labels.map(labelId => {
-      const label = Object.values(CARD_LABELS).find(l => l.id === labelId);
+      const label = availableLabels.find(l => l.id === labelId);
       return label || { id: labelId, name: labelId, color: '#6b7280' };
     });
 
@@ -325,7 +326,7 @@ export const useLabelsDisplay = (labels) => {
       labels: labelObjects,
       hasLabels: true
     };
-  }, [labels]);
+  }, [labels, availableLabels]);
 
   return labelInfo;
 };

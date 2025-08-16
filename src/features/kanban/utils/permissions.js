@@ -30,6 +30,7 @@ const PERMISSION_MATRIX = {
   ],
   [USER_ROLES.PRODUCTION]: [
     PERMISSIONS.VIEW_BOARD,
+    PERMISSIONS.CREATE_CARD,
     PERMISSIONS.EDIT_CARD,
     PERMISSIONS.MOVE_CARD,
     PERMISSIONS.COMMENT,
@@ -180,16 +181,27 @@ export const canMoveCard = (userRole, fromColumn, toColumn) => {
 };
 
 /**
- * Check if a user can create cards in a specific column
+ * Check if a user can create cards in a specific column or subcolumn
  * @param {string} userRole - The user's role
  * @param {string} columnType - The column type
+ * @param {Object} subcolumn - The subcolumn object (optional)
  * @returns {boolean} Whether the user can create cards
  */
-export const canCreateCard = (userRole, columnType) => {
+export const canCreateCard = (userRole, columnType, subcolumn = null) => {
   if (!userRole || !columnType) return false;
   
   // Check basic create permission
   if (!hasPermission(userRole, PERMISSIONS.CREATE_CARD)) return false;
+  
+  // For user subcolumns (Production/Drivers), allow creation if user has appropriate role
+  if (subcolumn && subcolumn.type === 'user') {
+    if (columnType === COLUMN_TYPES.PRODUCTION) {
+      return [USER_ROLES.PRODUCTION, USER_ROLES.PRODUCTION_LEAD, USER_ROLES.ADMIN].includes(userRole);
+    }
+    if (columnType === COLUMN_TYPES.DRIVERS) {
+      return [USER_ROLES.DRIVER, USER_ROLES.DRIVER_LEAD, USER_ROLES.ADMIN].includes(userRole);
+    }
+  }
   
   // Check column-specific permissions
   return canPerformColumnAction(userRole, columnType, 'createCard');

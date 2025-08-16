@@ -298,10 +298,73 @@ class KanbanService {
   async getUsers() {
     try {
       const response = await api.get('/api/v2/users');
-      console.log('Response from getUsers:', response.data);
+      // Debug logging for user data
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Response from getUsers:', response.data);
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all labels
+   * @returns {Promise<Array>} Array of labels
+   */
+  async getLabels() {
+    try {
+      const response = await api.get('/api/v2/board/labels');
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      // Return empty array if labels endpoint doesn't exist yet
+      return [];
+    }
+  }
+
+  /**
+   * Create a new label
+   * @param {Object} labelData - The label data
+   * @returns {Promise<Object>} Created label
+   */
+  async createLabel(labelData) {
+    try {
+      const response = await api.post('/api/v2/board/labels', labelData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating label:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a label
+   * @param {string} labelId - The label ID
+   * @param {Object} updates - The updates to apply
+   * @returns {Promise<Object>} Updated label
+   */
+  async updateLabel(labelId, updates) {
+    try {
+      const response = await api.put(`/api/v2/board/labels/${labelId}`, updates);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating label:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a label
+   * @param {string} labelId - The label ID
+   * @returns {Promise<void>}
+   */
+  async deleteLabel(labelId) {
+    try {
+      await api.delete(`/api/v2/board/labels/${labelId}`);
+    } catch (error) {
+      console.error('Error deleting label:', error);
       throw error;
     }
   }

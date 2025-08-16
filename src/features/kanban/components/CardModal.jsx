@@ -4,23 +4,25 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, User, Tag, Paperclip, Send, Edit3, Trash2 } from 'lucide-react';
+import { X, Calendar, User, Tag, Paperclip, Send, Edit3, Trash2, CheckSquare } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
 import { useKanban } from '../contexts/KanbanContext';
 import { useDueDateStatus, usePriorityDisplay, useLabelsDisplay } from '../hooks/useKanban';
-import { CARD_PRIORITIES, CARD_LABELS, COLUMN_TYPES } from '../utils/constants';
+import { CARD_PRIORITIES, COLUMN_TYPES } from '../utils/constants';
+import CardChecklist from './CardChecklist';
 
 /**
  * Card Modal Component
  */
 const CardModal = ({ isOpen, card, mode, onClose }) => {
-  const { createCard, updateCard, addComment, users, canEditCard, canAssignUsers, canChangeDue, canChangeLabels } = useKanban();
+  const { createCard, updateCard, addComment, users, labels, canEditCard, canAssignUsers, canChangeDue, canChangeLabels } = useKanban();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   const {
     register,
@@ -37,7 +39,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
   // Get display information
   const dueDateStatus = useDueDateStatus(watchedValues.dueDate);
   const priorityInfo = usePriorityDisplay(watchedValues.priority);
-  const labelInfo = useLabelsDisplay(watchedValues.labels);
+  const labelInfo = useLabelsDisplay(watchedValues.labels, labels);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -136,21 +138,26 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
     setValue('assignees', newAssignees);
   };
 
+  // Handle checklist update
+  const handleChecklistUpdate = (newChecklist) => {
+    setValue('checklist', newChecklist);
+  };
+
   if (!isOpen) return null;
 
   const canEdit = mode === 'create' || (card && canEditCard(card));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {mode === 'create' ? 'Create New Card' : card?.title}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <X size={20} />
           </button>
@@ -164,14 +171,14 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
               <div className="lg:col-span-2 space-y-6">
                 {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Title *
                   </label>
                   <input
                     type="text"
                     {...register('title', { required: 'Title is required' })}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     placeholder="Enter card title"
                   />
                   {errors.title && (
@@ -181,14 +188,14 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
                   <textarea
                     {...register('description')}
                     disabled={!isEditing}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     placeholder="Enter card description"
                   />
                 </div>
@@ -196,13 +203,13 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                 {/* Column Selection (Create mode only) */}
                 {mode === 'create' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Column
-                    </label>
-                    <select
-                      {...register('columnId')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Column
+                  </label>
+                  <select
+                    {...register('columnId')}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
                       <option value={COLUMN_TYPES.SALES}>Sales</option>
                       <option value={COLUMN_TYPES.OFFICE}>Office</option>
                     </select>
@@ -212,21 +219,21 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                 {/* Comments Section */}
                 {mode !== 'create' && (
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Comments</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Comments</h3>
                     
                     {/* Comments List */}
                     <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
                       {card?.comments?.map((comment) => (
-                        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                        <div key={comment.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
                               {comment.authorName}
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
                               {new Date(comment.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-700">{comment.text}</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{comment.text}</p>
                         </div>
                       ))}
                     </div>
@@ -238,7 +245,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Add a comment..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       />
                       <button
                         type="submit"
@@ -250,19 +257,46 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                     </form>
                   </div>
                 )}
+
+                {/* Checklist Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center space-x-2">
+                      <CheckSquare size={18} />
+                      <span>Checklist</span>
+                    </h3>
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => setShowChecklist(!showChecklist)}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                      >
+                        {showChecklist ? 'Hide' : 'Show'}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {showChecklist && (
+                    <CardChecklist
+                      checklist={watchedValues.checklist || []}
+                      onUpdate={handleChecklistUpdate}
+                      isEditing={isEditing}
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Sidebar */}
               <div className="space-y-6">
                 {/* Priority */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Priority
                   </label>
                   <select
                     {...register('priority')}
                     disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     {Object.entries(CARD_PRIORITIES).map(([key, value]) => (
                       <option key={key} value={value}>
@@ -274,14 +308,14 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
 
                 {/* Due Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Due Date
                   </label>
                   <input
                     type="date"
                     {...register('dueDate')}
                     disabled={!isEditing || !canChangeDue}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   {watchedValues.dueDate && (
                     <p className={`mt-1 text-xs ${dueDateStatus.color}`}>
@@ -292,33 +326,37 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
 
                 {/* Labels */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Labels
                   </label>
                   <div className="space-y-2">
-                    {Object.values(CARD_LABELS).map((label) => (
-                      <label key={label.id} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={watchedValues.labels?.includes(label.id) || false}
-                          onChange={() => handleLabelToggle(label.id)}
-                          disabled={!isEditing || !canChangeLabels}
-                          className="mr-2"
-                        />
-                        <span
-                          className="px-2 py-1 text-xs rounded-full text-white"
-                          style={{ backgroundColor: label.color }}
-                        >
-                          {label.name}
-                        </span>
-                      </label>
-                    ))}
+                    {labels.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No labels available</p>
+                    ) : (
+                      labels.map((label) => (
+                        <label key={label.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={watchedValues.labels?.includes(label.id) || false}
+                            onChange={() => handleLabelToggle(label.id)}
+                            disabled={!isEditing || !canChangeLabels}
+                            className="mr-2"
+                          />
+                          <span
+                            className="px-2 py-1 text-xs rounded-full text-white"
+                            style={{ backgroundColor: label.color }}
+                          >
+                            {label.name}
+                          </span>
+                        </label>
+                      ))
+                    )}
                   </div>
                 </div>
 
                 {/* Assignees */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Assignees
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -331,7 +369,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                           disabled={!isEditing || !canAssignUsers}
                           className="mr-2"
                         />
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
                           {user.name || user.username}
                         </span>
                       </label>
@@ -344,13 +382,13 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-2">
             {mode !== 'create' && canEdit && (
               <button
                 type="button"
                 onClick={() => setIsEditing(!isEditing)}
-                className="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:text-gray-800"
+                className="flex items-center space-x-1 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               >
                 <Edit3 size={16} />
                 <span>{isEditing ? 'Cancel Edit' : 'Edit'}</span>
@@ -362,7 +400,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
               Cancel
             </button>

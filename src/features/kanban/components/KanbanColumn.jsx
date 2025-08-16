@@ -24,6 +24,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
 
   const isSubcolumnActive = subcolumn.isActive !== false;
   const isActivatingSubcolumn = isActivating(subcolumn.id);
+  const isUserSubcolumn = subcolumn.type === 'user';
 
   const handleToggleActivation = async (subcolumnId, isActive) => {
     try {
@@ -37,19 +38,30 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
     <div
       ref={isSubcolumnActive ? setNodeRef : null}
       className={clsx(
-        'flex flex-col bg-white rounded border-2 border-dashed min-w-[280px] max-w-[400px] min-h-[200px]',
-        isOver && isSubcolumnActive ? 'border-blue-400 bg-blue-50' : 'border-gray-200',
-        !isSubcolumnActive && 'opacity-50'
+        'flex flex-col bg-white dark:bg-gray-800 rounded border-2 border-dashed min-w-[280px] max-w-[400px] min-h-[200px]',
+        isOver && isSubcolumnActive ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600',
+        !isSubcolumnActive && 'opacity-50',
+        isUserSubcolumn && 'border-green-300 dark:border-green-600'
       )}
     >
       {/* Subcolumn Header */}
-      <div className="p-2 border-b border-gray-200 bg-gray-50 rounded-t">
+      <div className={clsx(
+        'p-2 border-b border-gray-200 dark:border-gray-600 rounded-t',
+        isUserSubcolumn ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-700'
+      )}>
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-sm text-gray-700">
-            {subcolumn.title}
-          </h4>
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
+            <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
+              {subcolumn.title}
+            </h4>
+            {isUserSubcolumn && (
+              <span className="px-1 py-0.5 text-xs bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 rounded">
+                User
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {cards.length}
             </span>
             
@@ -59,15 +71,15 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
                 onClick={() => handleToggleActivation(subcolumn.id, !isSubcolumnActive)}
                 disabled={isActivatingSubcolumn}
                 className={clsx(
-                  'p-1 rounded hover:bg-gray-200 transition-colors',
+                  'p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors',
                   isActivatingSubcolumn && 'opacity-50 cursor-not-allowed'
                 )}
                 title={isSubcolumnActive ? 'Hide column' : 'Show column'}
               >
                 {isSubcolumnActive ? (
-                  <Eye size={14} className="text-gray-600" />
+                  <Eye size={14} className="text-gray-600 dark:text-gray-300" />
                 ) : (
-                  <EyeOff size={14} className="text-gray-400" />
+                  <EyeOff size={14} className="text-gray-400 dark:text-gray-500" />
                 )}
               </button>
             )}
@@ -87,7 +99,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
             ))}
           </SortableContext>
           
-          {/* Create Card Button for Production/Drivers */}
+          {/* Create Card Button for Production/Drivers and User Subcolumns */}
           {(columnType === COLUMN_TYPES.PRODUCTION || columnType === COLUMN_TYPES.DRIVERS) && 
            canCreateCard && (
             <CreateCardButton 
@@ -125,6 +137,16 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
   // Get subcolumns for grouped columns
   const subcolumns = isGrouped ? column.subcolumns : [];
 
+  // Debug logging for column structure
+  if (process.env.NODE_ENV === 'development' && (column.type === 'production' || column.type === 'drivers')) {
+    console.log(`Column ${column.title}:`, {
+      type: column.type,
+      isGrouped,
+      subcolumnsCount: subcolumns.length,
+      subcolumns: subcolumns
+    });
+  }
+
   // Get cards for a specific subcolumn
   const getCardsForSubcolumn = (subcolumnId) => {
     return getCardsBySubcolumn(subcolumnId);
@@ -135,9 +157,10 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
     return (
       <div
         ref={setNodeRef}
+        data-column-id={column.id}
         className={clsx(
-          'flex flex-col bg-gray-50 rounded-lg border-2 border-dashed min-w-[280px] max-w-[400px]',
-          isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200',
+          'flex flex-col bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed min-w-[280px] max-w-[400px] kanban-column',
+          isOver ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600',
           column.isActive === false && 'opacity-50'
         )}
       >
@@ -154,7 +177,9 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
           
           {/* Create Card Button */}
           {canCreateCard(column.id) && (
-            <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
+            <div className="create-card-button">
+              <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
+            </div>
           )}
         </div>
       </div>
@@ -163,15 +188,15 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
 
   // Render grouped column
   return (
-    <div className="flex flex-col bg-gray-50 rounded-lg border border-gray-200 min-w-[600px] max-w-[1200px]">
+    <div className="flex flex-col bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 min-w-[600px] max-w-[1200px]">
       {/* Group Header */}
-      <div className="p-3 border-b border-gray-200 bg-gray-100 rounded-t-lg">
+      <div className="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 rounded-t-lg">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">{column.title}</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">{cards.length} cards</span>
+            <span className="text-sm text-gray-600 dark:text-gray-300">{cards.length} cards</span>
             {canManageColumn(column.id) && (
-              <button className="p-1 text-gray-500 hover:text-gray-700">
+              <button className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 <Settings size={16} />
               </button>
             )}
@@ -196,7 +221,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
                 isActivating={isActivating}
                 toggleColumnActivation={toggleColumnActivation}
                 columnType={column.type}
-                canCreateCard={canCreateCard(column.id)}
+                canCreateCard={canCreateCard(column.id, subcolumn)}
               />
             );
           })}

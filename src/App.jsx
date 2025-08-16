@@ -13,6 +13,7 @@ import KanbanDashboard from './features/kanban/pages/KanbanDashboard';
 import KanbanTest from './features/kanban/components/KanbanTest';
 import BackendTest from './features/kanban/pages/BackendTest';
 
+
 function App() {
   return (
     <AuthProvider>
@@ -70,6 +71,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+
               <Route 
                 path="/create-formula" 
                 element={

@@ -3,7 +3,7 @@
  * Main component that renders the entire Kanban board with drag and drop
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -26,6 +26,9 @@ import { COLUMN_TYPES, DND_RESTRICTIONS } from '../utils/constants';
 import KanbanColumn from './KanbanColumn';
 import KanbanCard from './KanbanCard';
 import FiltersPanel from './FiltersPanel';
+import KeyboardShortcuts from './KeyboardShortcuts';
+import HelpPanel from './HelpPanel';
+import LabelManager from './LabelManager';
 import { LoadingOverlay } from '../../../components';
 
 /**
@@ -44,6 +47,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     getActiveColumns,
     canMoveCard
   } = useKanban();
+  
+  const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
 
   const {
     draggedCard,
@@ -240,8 +245,16 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Filters Panel */}
-      <FiltersPanel />
+      {/* Header with Filters and Label Manager */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <FiltersPanel />
+        <button
+          onClick={() => setIsLabelManagerOpen(true)}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center space-x-2 transition-colors"
+        >
+          <span>Manage Labels</span>
+        </button>
+      </div>
       
       {/* Board Container */}
       <div className="flex-1 overflow-hidden">
@@ -256,15 +269,28 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
           {/* Board Content */}
           <div className="h-full overflow-x-auto">
             <div className="flex gap-4 p-4 min-w-max">
-              {activeColumns.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  cards={getCardsByColumn(column.id)}
-                  onCardClick={onCardClick}
-                  onCreateCard={onCreateCard}
-                />
-              ))}
+              {activeColumns.map((column) => {
+                // Debug logging for column rendering
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Rendering column:', {
+                    id: column.id,
+                    type: column.type,
+                    title: column.title,
+                    isGrouped: column.subcolumns && column.subcolumns.length > 0,
+                    subcolumnsCount: column.subcolumns ? column.subcolumns.length : 0
+                  });
+                }
+                
+                return (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    cards={getCardsByColumn(column.id)}
+                    onCardClick={onCardClick}
+                    onCreateCard={onCreateCard}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -276,6 +302,18 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Keyboard Shortcuts */}
+      <KeyboardShortcuts />
+      
+      {/* Help Panel */}
+      <HelpPanel />
+      
+      {/* Label Manager */}
+      <LabelManager 
+        isOpen={isLabelManagerOpen} 
+        onClose={() => setIsLabelManagerOpen(false)} 
+      />
     </div>
   );
 };
