@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import Cookies from 'js-cookie';
-import api from '../utils/api';
+import api, { setJwtToken, clearJwtToken, setUserRole } from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -30,6 +30,14 @@ export const AuthProvider = ({ children }) => {
           if (res?.data?.status) {
             setUser({ username: res.data.user?.username, role: 'user' });
             localStorage.setItem('lastRole', 'user');
+            
+            // Set token if provided in response
+            const token = res.data.token || res.data.accessToken;
+            if (token) {
+              setJwtToken(token, 'user');
+              setUserRole('user');
+            }
+            
             console.info('[Auth] User session valid');
             return true;
           }
@@ -54,6 +62,14 @@ export const AuthProvider = ({ children }) => {
           if (res?.data?.status) {
             setUser({ username: res.data.user?.username, role: 'admin' });
             localStorage.setItem('lastRole', 'admin');
+            
+            // Set token if provided in response
+            const token = res.data.token || res.data.accessToken;
+            if (token) {
+              setJwtToken(token, 'admin');
+              setUserRole('admin');
+            }
+            
             console.info('[Auth] Admin session valid');
             return true;
           }
@@ -141,6 +157,15 @@ export const AuthProvider = ({ children }) => {
           username: response.data.user?.username,
           role: isAdmin ? 'admin' : 'user'
         };
+        
+        // Store the token based on user type
+        const token = response.data.token || response.data.accessToken;
+        if (token) {
+          const role = isAdmin ? 'admin' : 'user';
+          setJwtToken(token, role); // Set for immediate use with role
+          setUserRole(role); // Set the role for token selection
+        }
+        
         setUser(userData);
         localStorage.setItem('lastRole', userData.role);
         return { success: true, user: userData };
@@ -167,6 +192,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('lastRole');
       // Clear any stored tokens
       try {
+        clearJwtToken(); // Clear in-memory token
         localStorage.removeItem('access_token');
         localStorage.removeItem('user_access_token');
         localStorage.removeItem('admin_access_token');

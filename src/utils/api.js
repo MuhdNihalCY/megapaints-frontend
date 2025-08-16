@@ -63,32 +63,70 @@ async function tryRefreshSession() {
 
 // --- JWT header support (optional in addition to cookies) ---
 let inMemoryJwtToken = null;
+let currentUserRole = null;
 
-export function setJwtToken(token) {
+export function setJwtToken(token, role = null) {
   inMemoryJwtToken = token || null;
+  currentUserRole = role || null;
+  
   if (token) {
-    try { localStorage.setItem('access_token', token); } catch (_) {}
+    try { 
+      // Store based on role if provided
+      if (role === 'admin') {
+        localStorage.setItem('admin_access_token', token);
+      } else if (role === 'user') {
+        localStorage.setItem('user_access_token', token);
+      } else {
+        localStorage.setItem('access_token', token);
+      }
+    } catch (_) {}
   } else {
-    try { localStorage.removeItem('access_token'); } catch (_) {}
+    try { 
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_access_token');
+      localStorage.removeItem('admin_access_token');
+    } catch (_) {}
   }
 }
 
 export function clearJwtToken() {
   inMemoryJwtToken = null;
-  try { localStorage.removeItem('access_token'); } catch (_) {}
+  currentUserRole = null;
+  try { 
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_access_token');
+    localStorage.removeItem('admin_access_token');
+  } catch (_) {}
+}
+
+export function setUserRole(role) {
+  currentUserRole = role;
 }
 
 function readJwtToken() {
   if (inMemoryJwtToken) return inMemoryJwtToken;
+  
   try {
+    // Use in-memory role first, then fallback to any available token
+    if (currentUserRole === 'admin') {
+      const adminToken = localStorage.getItem('admin_access_token');
+      if (adminToken) return adminToken;
+    } else if (currentUserRole === 'user') {
+      const userToken = localStorage.getItem('user_access_token');
+      if (userToken) return userToken;
+    }
+    
+    // Fallback to any available token
     const ls = localStorage.getItem('access_token') || localStorage.getItem('user_access_token') || localStorage.getItem('admin_access_token');
     if (ls) return ls;
   } catch (_) {}
+  
   try {
     // Non-HttpOnly fallbacks if server sets readable cookies (if HttpOnly, this will be undefined and we rely on cookies via withCredentials)
     const ck = Cookies.get('access_token') || Cookies.get('user_access_token') || Cookies.get('admin_access_token');
     if (ck) return ck;
   } catch (_) {}
+  
   return null;
 }
 
@@ -97,13 +135,25 @@ api.interceptors.request.use(
   (config) => {
     // Avoid infinite loop for refresh calls
     if (!config.headers) config.headers = {};
+    
+    // Skip token for login endpoints
+    const isLoginEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/admin/auth/login');
+    if (isLoginEndpoint) {
+      return config;
+    }
+    
     // Attach Authorization header if a JWT is available (server may validate either header or cookie)
     try {
       const token = readJwtToken();
       if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.debug('[API] Added Authorization header for:', config.url);
+      } else if (!token) {
+        console.warn('[API] No token available for request:', config.url);
       }
-    } catch (_) {}
+    } catch (error) {
+      console.error('[API] Error reading token:', error);
+    }
     return config;
   },
   (error) => {

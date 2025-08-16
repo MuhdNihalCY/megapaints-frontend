@@ -177,7 +177,7 @@ export const API_ENDPOINTS = {
   COLUMNS: '/api/v2/board/columns',
   COMMENTS: '/api/v2/board/comments',
   ACTIVITY: '/api/v2/board/activity',
-  USERS: '/api/users'
+  USERS: '/api/v2/users'
 };
 
 // UI Constants

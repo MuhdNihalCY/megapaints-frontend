@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { kanbanService } from '../services/kanbanService';
+import { logTokenStatus } from '../../../utils/tokenDebug';
 
 const KanbanTest = () => {
   const { user } = useAuth();
@@ -15,6 +16,10 @@ const KanbanTest = () => {
   const runTests = async () => {
     setLoading(true);
     const results = {};
+
+    // Log token status before running tests
+    console.log('=== Token Status Before Tests ===');
+    logTokenStatus();
 
     try {
       // Test 1: Get board data
