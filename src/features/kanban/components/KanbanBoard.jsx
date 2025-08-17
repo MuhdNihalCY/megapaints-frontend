@@ -28,7 +28,7 @@ import KanbanCard from './KanbanCard';
 import FiltersPanel from './FiltersPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import HelpPanel from './HelpPanel';
-import LabelManager from './LabelManager';
+
 import { LoadingOverlay } from '../../../components';
 
 /**
@@ -48,7 +48,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     canMoveCard
   } = useKanban();
   
-  const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
+
 
   const {
     draggedCard,
@@ -245,15 +245,9 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header with Filters and Label Manager */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      {/* Header with Filters */}
+      <div className="flex items-center justify-end p-4 border-b border-gray-200 dark:border-gray-700">
         <FiltersPanel />
-        <button
-          onClick={() => setIsLabelManagerOpen(true)}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center space-x-2 transition-colors"
-        >
-          <span>Manage Labels</span>
-        </button>
       </div>
       
       {/* Board Container */}
@@ -309,11 +303,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       {/* Help Panel */}
       <HelpPanel />
       
-      {/* Label Manager */}
-      <LabelManager 
-        isOpen={isLabelManagerOpen} 
-        onClose={() => setIsLabelManagerOpen(false)} 
-      />
+
     </div>
   );
 };

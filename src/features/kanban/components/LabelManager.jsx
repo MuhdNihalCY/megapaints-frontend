@@ -8,7 +8,7 @@ import { Plus, Edit3, Trash2, X, Save } from 'lucide-react';
 import { useKanban } from '../contexts/KanbanContext';
 import toast from 'react-hot-toast';
 
-const LabelManager = ({ isOpen, onClose }) => {
+const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
   const { labels, createLabel, updateLabel, deleteLabel } = useKanban();
   const [isCreating, setIsCreating] = useState(false);
   const [editingLabel, setEditingLabel] = useState(null);
@@ -85,13 +85,25 @@ const LabelManager = ({ isOpen, onClose }) => {
     setFormData({ name: '', color: '#3b82f6' });
   };
 
+  const handleLabelClick = (label) => {
+    if (onLabelSelect) {
+      onLabelSelect(label);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Manage Labels
           </h2>
@@ -104,7 +116,7 @@ const LabelManager = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* Create New Label */}
           {!isCreating && !editingLabel && (
             <button
@@ -175,7 +187,8 @@ const LabelManager = ({ isOpen, onClose }) => {
               labels.map((label) => (
                 <div
                   key={label.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleLabelClick(label)}
                 >
                   <div className="flex items-center space-x-3">
                     <div
@@ -186,7 +199,7 @@ const LabelManager = ({ isOpen, onClose }) => {
                       {label.name}
                     </span>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => startEditing(label)}
                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"

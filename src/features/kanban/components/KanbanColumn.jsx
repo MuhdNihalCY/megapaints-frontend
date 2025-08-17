@@ -101,7 +101,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
           
           {/* Create Card Button for Production/Drivers and User Subcolumns */}
           {(columnType === COLUMN_TYPES.PRODUCTION || columnType === COLUMN_TYPES.DRIVERS) && 
-           canCreateCard && (
+           canCreateCard(subcolumn.id, subcolumn) && (
             <CreateCardButton 
               columnId={subcolumn.id} 
               subcolumnId={subcolumn.id}
@@ -125,6 +125,10 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
     isActivating,
     getCardsBySubcolumn
   } = useKanban();
+
+
+
+
 
   // Set up droppable for non-grouped columns
   const { setNodeRef, isOver } = useDroppable({
@@ -176,7 +180,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
           </SortableContext>
           
           {/* Create Card Button */}
-          {canCreateCard(column.id) && (
+          {((typeof canCreateCard === 'function' && canCreateCard(column.id)) || column.type === 'sales') && (
             <div className="create-card-button">
               <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
             </div>
@@ -195,7 +199,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
           <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600 dark:text-gray-300">{cards.length} cards</span>
-            {canManageColumn(column.id) && (
+            {typeof canManageColumn === 'function' && canManageColumn(column.id) && (
               <button className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 <Settings size={16} />
               </button>
@@ -217,11 +221,11 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
                 cards={subcolumnCards}
                 onCardClick={onCardClick}
                 onCreateCard={onCreateCard}
-                canManageColumn={canManageColumn(column.id)}
+                canManageColumn={typeof canManageColumn === 'function' && canManageColumn(column.id)}
                 isActivating={isActivating}
                 toggleColumnActivation={toggleColumnActivation}
                 columnType={column.type}
-                canCreateCard={canCreateCard(column.id, subcolumn)}
+                canCreateCard={canCreateCard}
               />
             );
           })}

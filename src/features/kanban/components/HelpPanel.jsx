@@ -13,15 +13,19 @@ const HelpPanel = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const shortcuts = [
-    { key: 'Ctrl/Cmd + K', description: 'Quick search' },
-    { key: 'Ctrl/Cmd + N', description: 'Create new card in Sales column' },
+    { key: 'Ctrl/Cmd + S', description: 'Quick search' },
+    { key: 'Ctrl/Cmd + T', description: 'Create new card in Sales column' },
     { key: 'Escape', description: 'Close modals and dropdowns' },
     { key: 'Arrow Keys', description: 'Navigate between cards' },
-    { key: 'Enter', description: 'Open selected card' },
-    { key: 'Delete/Backspace', description: 'Delete selected card' },
+    { key: 'Space', description: 'Open selected card' },
+    { key: 'Ctrl/Cmd + Delete', description: 'Delete selected card' },
     { key: '1-4', description: 'Set priority (Low, Medium, High, Urgent)' },
-    { key: 'F', description: 'Toggle filters panel' },
-    { key: 'H', description: 'Toggle this help panel' },
+    { key: 'Ctrl/Cmd + F', description: 'Toggle filters panel' },
+    { key: 'Ctrl/Cmd + H', description: 'Toggle this help panel' },
+    { key: 'Ctrl/Cmd + R', description: 'Refresh board data' },
+    { key: 'Ctrl/Cmd + E', description: 'Edit selected card' },
+    { key: 'Ctrl/Cmd + M', description: 'Move card to next column' },
+    { key: 'Ctrl/Cmd + B', description: 'Move card to previous column' },
   ];
 
   const features = [
@@ -48,7 +52,7 @@ const HelpPanel = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">

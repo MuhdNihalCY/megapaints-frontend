@@ -278,4 +278,7 @@ export const canMention = (userRole) => {
   return hasPermission(userRole, PERMISSIONS.MENTION);
 };
 
+// Re-export PERMISSIONS for use in other modules
+export { PERMISSIONS };
+
 

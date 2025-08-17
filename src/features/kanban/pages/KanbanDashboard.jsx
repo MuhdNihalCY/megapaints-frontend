@@ -41,6 +41,22 @@ const KanbanDashboard = () => {
     setModalState({ isOpen: true, card: null, mode: 'create' });
   };
 
+  const handleEditCard = (card) => {
+    setModalState({ isOpen: true, card, mode: 'edit' });
+  };
+
+  // Listen for edit card events from keyboard shortcuts
+  useEffect(() => {
+    const handleEditCardEvent = (event) => {
+      handleEditCard(event.detail.card);
+    };
+
+    document.addEventListener('editCard', handleEditCardEvent);
+    return () => {
+      document.removeEventListener('editCard', handleEditCardEvent);
+    };
+  }, []);
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

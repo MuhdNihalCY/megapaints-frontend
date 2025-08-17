@@ -18,7 +18,8 @@ import {
   canCreateCard as canCreateCardPermission, 
   canEditCard, 
   canMoveCard,
-  canManageColumn 
+  canManageColumn,
+  PERMISSIONS
 } from '../utils/permissions';
 
 // Action types for the reducer
@@ -540,7 +541,7 @@ export const KanbanProvider = ({ children }) => {
 
   // Create a new card
   const createCard = useCallback(async (cardData) => {
-    if (!user || !canCreateCard(user.role, cardData.columnId)) {
+    if (!user || !canCreateCardPermission(user.role, cardData.columnId)) {
       throw new Error('Insufficient permissions to create card');
     }
 
@@ -762,6 +763,20 @@ export const KanbanProvider = ({ children }) => {
     dispatch({ type: ACTIONS.SET_FILTERS, payload: filters });
   }, []);
 
+  // Clear filters
+  const clearFilters = useCallback(() => {
+    dispatch({ 
+      type: ACTIONS.SET_FILTERS, 
+      payload: {
+        labels: [],
+        assignees: [],
+        dueDate: null,
+        priority: null,
+        text: ''
+      }
+    });
+  }, []);
+
   // Set search term
   const setSearchTerm = useCallback((searchTerm) => {
     dispatch({ type: ACTIONS.SET_SEARCH_TERM, payload: searchTerm });
@@ -922,6 +937,7 @@ export const KanbanProvider = ({ children }) => {
     updateComment,
     deleteComment,
     setFilters,
+    clearFilters,
     setSearchTerm,
     loadBoardData,
     
@@ -942,6 +958,9 @@ export const KanbanProvider = ({ children }) => {
     canEditCard: (card) => canEditCard(user?.role, card, user?.username),
     canMoveCard: (fromColumn, toColumn) => canMoveCard(user?.role, fromColumn, toColumn),
     canManageColumn: (columnId) => canManageColumn(user?.role, columnId),
+    canAssignUsers: () => hasPermission(user?.role, PERMISSIONS.ASSIGN_USERS),
+    canChangeDue: () => hasPermission(user?.role, PERMISSIONS.CHANGE_DUE),
+    canChangeLabels: () => hasPermission(user?.role, PERMISSIONS.CHANGE_LABELS),
     hasPermission: (permission) => hasPermission(user?.role, permission)
   };
 
