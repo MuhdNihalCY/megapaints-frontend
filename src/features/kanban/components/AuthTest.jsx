@@ -31,7 +31,7 @@ const AuthTest = () => {
       // Test user login
       console.log('Testing user login...');
       try {
-        const response = await api.post('/api/auth/login', loginData);
+        const response = await api.post('/auth/login', loginData);
         results.userLogin = { success: true, data: response.data };
         console.log('✅ User login success:', response.data);
       } catch (error) {
@@ -45,7 +45,7 @@ const AuthTest = () => {
       // Test admin login
       console.log('Testing admin login...');
       try {
-        const response = await api.post('/api/admin/auth/login', loginData);
+        const response = await api.post('/admin/auth/login', loginData);
         results.adminLogin = { success: true, data: response.data };
         console.log('✅ Admin login success:', response.data);
       } catch (error) {
@@ -59,7 +59,7 @@ const AuthTest = () => {
       // Test auth/me endpoint
       console.log('Testing auth/me...');
       try {
-        const response = await api.get('/api/auth/me');
+        const response = await api.get('/auth/me');
         results.authMe = { success: true, data: response.data };
         console.log('✅ auth/me success:', response.data);
       } catch (error) {

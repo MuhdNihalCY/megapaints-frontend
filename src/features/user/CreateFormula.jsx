@@ -7,6 +7,12 @@
  * - Calculating totals and quality metrics
  * - Saving formulas with attachments
  * 
+ * CONSOLE LOGGING STRATEGY:
+ * - Only essential dynamic data flow logs are kept for debugging
+ * - All logs are wrapped in process.env.NODE_ENV === 'development' checks
+ * - Focus on category/subcategory changes, product filtering, and binder configuration
+ * - Removed verbose logging to keep console clean in production
+ * 
  * @author Megapaints Team
  * @version 1.0.0
  */
@@ -109,9 +115,14 @@ const CreateFormula = () => {
   
   // Additives selection state
   const [rawAdditives, setRawAdditives] = useState([]);          // Raw additives data from API
+  const [rawBinders, setRawBinders] = useState([]);              // Raw binders data from API
   const [selectedAdditiveId, setSelectedAdditiveId] = useState(''); // Currently selected additive ID
   const [additivePercentageInput, setAdditivePercentageInput] = useState(''); // Percentage input value
   const [isAddingAdditive, setIsAddingAdditive] = useState(false); // Track when additive is being added
+  
+  // Binder selection state - Auto-selected based on subcategory
+  const [selectedBinder1Id, setSelectedBinder1Id] = useState(''); // Auto-selected binder 1 ID from subcategory
+  const [selectedBinder2Id, setSelectedBinder2Id] = useState(''); // Auto-selected binder 2 ID from subcategory
 
   // ===== UI STATE =====
   // Product search and dropdown management
@@ -167,6 +178,18 @@ const CreateFormula = () => {
       }
       if (binderId === selectedBinderConfig.Binder2) {
         return selectedBinderConfig.Binder2Name || `Binder ${binderId}`;
+      }
+    }
+    
+    // Try to find binder in the raw binders data
+    if (rawBinders && Array.isArray(rawBinders)) {
+      const binder = rawBinders.find(b => 
+        b.Binder_Id === binderId || 
+        b._id === binderId || 
+        String(b.Binder_Id) === String(binderId)
+      );
+      if (binder) {
+        return binder.Binder_Name || binder.name || binder.Name || `Binder ${binderId}`;
       }
     }
     
@@ -295,9 +318,7 @@ const CreateFormula = () => {
           // This ensures we always have the latest data from the database
           const data = await fetchMastersFresh();
           
-          try {
-            console.log('[CreateFormula] Fresh masters payload:', data);
-          } catch (_) {}
+          // Data loaded successfully
         
         // ===== EXTRACT AND VALIDATE MASTER DATA =====
         
@@ -320,6 +341,7 @@ const CreateFormula = () => {
           : {};
         const productsBySub = data?.productsBySubCategory || {};
         const rawAdds = Array.isArray(data?.additives) ? data.additives : [];
+        const rawBinds = Array.isArray(data?.binders) ? data.binders : [];
 
         // ===== BUILD DEFAULT VALUES =====
         // Construct default values object with fallbacks for all required fields
@@ -350,14 +372,7 @@ const CreateFormula = () => {
           setSubCategoriesByCategory(subByCat);
           setProductsBySubCategory(productsBySub);
           
-          // Debug logging for development
-          try {
-            console.log('[CreateFormula] categories:', cats);
-            console.log('[CreateFormula] subCategoriesByCategory keys:', Object.keys(subByCat || {}));
-            console.log('[CreateFormula] productsBySubCategory keys:', Object.keys(productsBySub || {}));
-            console.log('[CreateFormula] productsBySubCategory details:', productsBySub);
-            console.log('[CreateFormula] initial category:', defaults.category, 'initial subcategory:', defaults.subCategory);
-          } catch (_) {}
+          // Dynamic data loaded and configured
           
           // Set subcategory options for the selected category
           const initialSubs = subByCat[defaults.category];
@@ -367,6 +382,7 @@ const CreateFormula = () => {
           setProducts(prods);
           setBinderConfigBySubCategory(binderCfgBySub);
           setRawAdditives(rawAdds);
+          setRawBinders(rawBinds);
 
           // ===== SET FORM DEFAULTS =====
           // Initialize form with default values from server
@@ -415,42 +431,76 @@ const CreateFormula = () => {
    * Ensures subcategory selection remains valid for the selected category
    */
   useEffect(() => {
-    console.log('[CreateFormula] Category changed to:', category);
-    console.log('[CreateFormula] Available subCategoriesByCategory:', subCategoriesByCategory);
-    
     const subs = subCategoriesByCategory[category] || [];
     const nextOptions = Array.isArray(subs) ? subs : [];
-    
-    console.log('[CreateFormula] Found subcategories for category:', category, '->', nextOptions);
     
     setSubCategoryOptions(nextOptions);
     
     // Reset subcategory if current selection is no longer valid
     if (!nextOptions.includes(subCategory)) {
-      console.log('[CreateFormula] Current subcategory not in new options, resetting to:', nextOptions[0] || '');
       setSubCategory(nextOptions[0] || '');
     }
-  }, [category, subCategoriesByCategory]);
+    
+    // Debug: Dynamic data flow - Category change
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Dynamic Data] Category changed:', { 
+        category, 
+        subcategoryOptions: nextOptions.length,
+        currentSubCategory: subCategory,
+        willReset: !nextOptions.includes(subCategory)
+      });
+    }
+  }, [category, subCategoriesByCategory, subCategory]);
 
   /**
    * Updates filtered products when subcategory changes
    * Loads products specific to the selected subcategory for product search
    */
   useEffect(() => {
-    console.log('[CreateFormula] Subcategory changed to:', subCategory);
-    console.log('[CreateFormula] Available productsBySubCategory:', productsBySubCategory);
-    
     if (subCategory && productsBySubCategory[subCategory]) {
       const productsForSubCategory = productsBySubCategory[subCategory];
-      console.log('[CreateFormula] Products for subcategory:', subCategory, '->', productsForSubCategory.length, 'products');
-      console.log('[CreateFormula] Sample products:', productsForSubCategory.slice(0, 3));
       setFilteredProducts(productsForSubCategory);
+      
+      // Clear any existing product selections when subcategory changes
+      setTints([createEmptyTint(1)]);
+      setProductSearchInput({});
+      setShowProductList({});
+      
+      // Auto-select binders for the new subcategory
+      autoSelectBindersForSubcategory(subCategory);
+      
+      // Debug: Dynamic data flow - Subcategory change
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Dynamic Data] Subcategory changed:', { 
+          subCategory, 
+          availableProducts: productsForSubCategory.length,
+          clearedSelections: true,
+          autoSelectedBinders: true
+        });
+      }
     } else {
-      console.log('[CreateFormula] No products found for subcategory:', subCategory);
-      console.log('[CreateFormula] Available subcategories with products:', Object.keys(productsBySubCategory).filter(key => productsBySubCategory[key].length > 0));
       setFilteredProducts([]);
+      
+      // Clear products when no subcategory is selected
+      setTints([createEmptyTint(1)]);
+      setProductSearchInput({});
+      setShowProductList({});
+      
+      // Clear binder selections when no subcategory
+      setSelectedBinder1Id('');
+      setSelectedBinder2Id('');
+      
+      // Debug: Dynamic data flow - No subcategory
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Dynamic Data] No subcategory selected:', { 
+          subCategory, 
+          availableProducts: 0,
+          clearedSelections: true,
+          clearedBinders: true
+        });
+      }
     }
-  }, [subCategory, productsBySubCategory]);
+  }, [subCategory, productsBySubCategory, binderConfigBySubCategory, rawBinders]);
 
   // ===== PRODUCT SEARCH & SELECTION =====
   
@@ -478,12 +528,10 @@ const CreateFormula = () => {
         !tints.some(tint => tint._id !== tintId && tint.code === product.Product_Id)
       );
       setFilteredProducts(filtered);
-      console.log('[CreateFormula] No search term, showing available products:', filtered.length, 'products');
       return;
     }
 
     const availableProducts = productsBySubCategory[subCategory] || [];
-    console.log('[CreateFormula] Searching for:', searchTerm, 'in', availableProducts.length, 'available products');
     
     // Filter products by search term (case-insensitive) and exclude already selected
     const filtered = availableProducts.filter(product => {
@@ -496,7 +544,6 @@ const CreateFormula = () => {
       return matchesSearch && notAlreadySelected;
     });
     
-    console.log('[CreateFormula] Search results:', filtered.length, 'products found');
     setFilteredProducts(filtered);
   };
 
@@ -546,8 +593,6 @@ const CreateFormula = () => {
         quantityInput.focus();
       }
     }, 100);
-    
-    console.log('[CreateFormula] Selected product for tint', tintId, ':', product);
   };
 
   /**
@@ -764,10 +809,7 @@ const CreateFormula = () => {
           VOC: t.VOC 
         });
         
-        // Debug logging for volume calculation
-        if (derived.grams > 0) {
-          console.log('[Volume Debug] Tinter:', t.name, 'Density:', t.Product_Density, 'g/mL, Grams:', derived.grams, 'g, Volume:', derived.volumeL, 'L');
-        }
+        // Volume calculation completed
         
         return { ...t, qty: nextQty, grams: derived.grams, volume: derived.volumeL };
       });
@@ -832,6 +874,52 @@ const CreateFormula = () => {
       VOC: Number(additiveData.VOC || 0),
     };
     setAdditives((prev) => [...prev, newAdditive]);
+  };
+
+  /**
+   * Auto-selects binders based on subcategory configuration
+   * @param {string} subCategoryName - Name of the selected subcategory
+   */
+  const autoSelectBindersForSubcategory = (subCategoryName) => {
+    if (!subCategoryName) {
+      setSelectedBinder1Id('');
+      setSelectedBinder2Id('');
+      return;
+    }
+    
+    // Find the subcategory configuration
+    const subcategoryConfig = Object.values(binderConfigBySubCategory).find(
+      config => config.SubCategory === subCategoryName || config.name === subCategoryName
+    );
+    
+    if (subcategoryConfig) {
+      // Extract binder IDs from the configuration
+      // Handle both direct Binder1/Binder2 and nested Products.Binder1/Binder2
+      const binder1Id = subcategoryConfig.Binder1 || subcategoryConfig.Products?.Binder1 || '';
+      const binder2Id = subcategoryConfig.Binder2 || subcategoryConfig.Products?.Binder2 || '';
+      
+      setSelectedBinder1Id(binder1Id);
+      setSelectedBinder2Id(binder2Id);
+      
+      // Debug: Dynamic data flow - Auto binder selection
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Dynamic Data] Auto-selected binders for subcategory:', { 
+          subCategoryName,
+          binder1Id,
+          binder2Id,
+          availableBinders: rawBinders.length,
+          configSource: subcategoryConfig.Products ? 'Products object' : 'direct properties'
+        });
+      }
+    } else {
+      setSelectedBinder1Id('');
+      setSelectedBinder2Id('');
+      
+      // Debug: Dynamic data flow - No binder config found
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Dynamic Data] No binder configuration found for subcategory:', subCategoryName);
+      }
+    }
   };
   
   /**
@@ -901,10 +989,20 @@ const CreateFormula = () => {
     
     // Reset formula components
     setGloss(0);
+    setGlossInput('');
     setTints([createEmptyTint(1)]);
     setBinders([]);
     setAdditives([]);
     setRemarks('');
+    
+    // Clear UI state
+    setProductSearchInput({});
+    setShowProductList({});
+    setSelectedAdditiveId('');
+    setAdditivePercentageInput('');
+    setIsAddingAdditive(false);
+    setSelectedBinder1Id('');
+    setSelectedBinder2Id('');
     
     // Clear attachments
     setAttachment({ file: null, preview: '' });
@@ -942,26 +1040,40 @@ const CreateFormula = () => {
       mattGlossValue = 1;
     }
     
+    // Get selected binders from state (auto-selected based on subcategory)
+    const selectedBinder1 = selectedBinder1Id;
+    const selectedBinder2 = selectedBinder2Id;
+    
+    // Get binder data from raw binders array using Binder_Id
+    const binder1Data = rawBinders.find(b => String(b.Binder_Id) === String(selectedBinder1));
+    const binder2Data = rawBinders.find(b => String(b.Binder_Id) === String(selectedBinder2));
+    
     const config = {
       ...cfg,
+      Binder1: selectedBinder1,
+      Binder2: selectedBinder2,
+      Binder1Name: binder1Data?.Binder_Name || binder1Data?.name || cfg?.Binder1Name || `Binder ${selectedBinder1}`,
+      Binder2Name: binder2Data?.Binder_Name || binder2Data?.name || cfg?.Binder2Name || `Binder ${selectedBinder2}`,
       Binder2Equation: cfg?.Binder2EQ1 ? 'Eq1' : 'Eq2',
       MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
     };
     
-    // Debug logging for binder configuration
-    console.log('[Binder Config] Subcategory:', subCategory, {
-      hasMatt: !!cfg?.Matt,
-      hasGloss: !!cfg?.Gloss,
-      hasBinder1: !!cfg?.Binder1,
-      hasBinder2: !!cfg?.Binder2,
-      mattGlossValue,
-      Binder1Avalue: cfg?.Binder1Avalue,
-      Binder1Bvalue: cfg?.Binder1Bvalue,
-      Binder1Cvalue: cfg?.Binder1Cvalue,
-      Binder1dvalue: cfg?.Binder1dvalue,
-      Binder2Avalue: cfg?.Binder2Avalue,
-      Binder2EQ1: cfg?.Binder2EQ1,
-    });
+    // Debug: Dynamic data flow - Binder configuration
+    if (process.env.NODE_ENV === 'development' && subCategory) {
+      console.log('[Dynamic Data] Binder config loaded:', { 
+        subCategory, 
+        hasBinder1: !!selectedBinder1,
+        hasBinder2: !!selectedBinder2,
+        hasMatt: !!cfg?.Matt,
+        hasGloss: !!cfg?.Gloss,
+        binder1Name: config.Binder1Name,
+        binder2Name: config.Binder2Name,
+        selectedBinder1Id,
+        selectedBinder2Id
+      });
+    }
+    
+    // Binder configuration loaded for subcategory
     
     return config;
   }, [binderConfigBySubCategory, subCategory, gloss]);
@@ -980,21 +1092,8 @@ const CreateFormula = () => {
     // Base mass for additive calculation = Total Tinter Grams + Total Binder Grams
     const baseMass = tinterTotals.totalGrams + binderTotals.totalBinderGrams;
     
-    // Debug logging for additive calculations
-    if (additives.length > 0) {
-      console.log('[Additive Totals Debug] Inputs:', {
-        additives: additives.map(a => ({ _id: a._id, name: a.name, percent: a.percent, additiveId: a.additiveId })),
-        baseMass,
-        tinterTotals: tinterTotals.totalGrams,
-        binderTotals: binderTotals.totalBinderGrams
-      });
-    }
-    
+    // Calculate additive totals
     const result = computeAdditives(additives, baseMass);
-    
-    if (additives.length > 0) {
-      console.log('[Additive Totals Debug] Result:', result);
-    }
     
     return result;
   }, [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
@@ -1315,6 +1414,35 @@ const CreateFormula = () => {
                 </label>
               </div>
             </div>
+
+            {/* Debug Information - Development Only */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded shadow mb-4">
+                <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">Debug Info</h3>
+                <div className="text-xs space-y-1 text-yellow-700 dark:text-yellow-300">
+                  <div>Category: {category}</div>
+                  <div>SubCategory: {subCategory}</div>
+                  <div>Available Categories: {categoryOptions.length}</div>
+                  <div>Available SubCategories: {subCategoryOptions.length}</div>
+                  <div>Available Products: {filteredProducts.length}</div>
+                  <div>Available Additives: {rawAdditives.length}</div>
+                  <div>Available Binders: {rawBinders.length}</div>
+                  <div>Binder Config: {selectedBinderConfig ? 'Yes' : 'No'}</div>
+                  <div>Auto-Selected Binder1: {selectedBinder1Id || 'None'}</div>
+                  <div>Auto-Selected Binder2: {selectedBinder2Id || 'None'}</div>
+                  {selectedBinderConfig && (
+                    <div className="ml-2">
+                      <div>Binder1 Name: {selectedBinderConfig.Binder1Name || 'None'}</div>
+                      <div>Binder2 Name: {selectedBinderConfig.Binder2Name || 'None'}</div>
+                      <div>Config Source: {selectedBinderConfig.Products ? 'Products object' : 'Direct properties'}</div>
+                      <div>Matt: {selectedBinderConfig.Matt ? 'Yes' : 'No'}</div>
+                      <div>Gloss: {selectedBinderConfig.Gloss ? 'Yes' : 'No'}</div>
+                      <div>Suffix: {selectedBinderConfig.suffix || 'None'}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Quality Metrics Display */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
@@ -1656,19 +1784,21 @@ const CreateFormula = () => {
                 {/* Binders - aligned to quantity columns */}
                 <div className="bg-gray-500 text-white p-2">
                   <div className="text-xs text-gray-200 mb-1">
-                    Binder names and calculations are based on selected subcategory
+                    Binder names and calculations are automatically selected based on the chosen subcategory configuration.
                   </div>
                   <div className="text-sm font-medium mb-2">Binders</div>
-                  {/* Binder 1 - Show only if configured in subcategory */}
-                  {selectedBinderConfig?.Binder1 && (
+                  
+                  {/* Binder 1 - Show only if auto-selected for subcategory */}
+                  {selectedBinder1Id && (
                     <div className="grid grid-cols-12 items-center mb-1">
                       <div className="col-span-1"></div>
                       <div className="col-span-7 text-sm">
                         <div className="flex items-center space-x-2">
                           <span>Binder 1:</span>
                           <span className="text-gray-300 font-medium">
-                            {getBinderName(selectedBinderConfig.Binder1)}
+                            {selectedBinderConfig.Binder1Name}
                           </span>
+                          <span className="text-xs text-gray-400">(ID: {selectedBinder1Id})</span>
                         </div>
                       </div>
                       <div className="col-span-4">
@@ -1679,16 +1809,17 @@ const CreateFormula = () => {
                       </div>
                     </div>
                   )}
-                  {/* Binder 2 - Show only if configured in subcategory */}
-                  {selectedBinderConfig?.Binder2 && (
+                  {/* Binder 2 - Show only if auto-selected for subcategory */}
+                  {selectedBinder2Id && (
                     <div className="grid grid-cols-12 items-center mb-1">
                       <div className="col-span-1"></div>
                       <div className="col-span-7 text-sm">
                         <div className="flex items-center space-x-2">
                           <span>Binder 2:</span>
                           <span className="text-gray-300 font-medium">
-                            {getBinderName(selectedBinderConfig.Binder2)}
+                            {selectedBinderConfig.Binder2Name}
                           </span>
+                          <span className="text-xs text-gray-400">(ID: {selectedBinder2Id})</span>
                         </div>
                       </div>
                       <div className="col-span-4">
@@ -1700,7 +1831,7 @@ const CreateFormula = () => {
                     </div>
                   )}
                   {/* Show message if no binders configured */}
-                  {!selectedBinderConfig?.Binder1 && !selectedBinderConfig?.Binder2 && (
+                  {!selectedBinder1Id && !selectedBinder2Id && (
                     <div className="grid grid-cols-12 items-center mb-1">
                       <div className="col-span-1"></div>
                       <div className="col-span-7 text-sm text-gray-300">No binders configured for this subcategory</div>

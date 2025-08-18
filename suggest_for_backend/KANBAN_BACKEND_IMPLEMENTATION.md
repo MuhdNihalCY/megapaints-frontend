@@ -410,20 +410,20 @@ module.exports = Activity;
 #### User Authentication
 ```javascript
 // routes/auth/userAuth.js
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/logout
-POST /api/auth/refresh
-GET /api/auth/me
+POST /auth/register
+POST /auth/login
+POST /auth/logout
+POST /auth/refresh
+GET /auth/me
 ```
 
 #### Admin Authentication
 ```javascript
 // routes/auth/adminAuth.js
-POST /api/admin/auth/login
-POST /api/admin/auth/logout
-POST /api/admin/auth/refresh
-GET /api/admin/auth/me
+POST /admin/auth/login
+POST /admin/auth/logout
+POST /admin/auth/refresh
+GET /admin/auth/me
 ```
 
 ### Kanban Board Routes
@@ -1009,7 +1009,7 @@ describe('Kanban Board API', () => {
     
     // Setup test data
     const loginResponse = await request(app)
-      .post('/api/auth/login')
+      .post('/auth/login')
       .send({ username: 'testuser', password: 'password' });
     
     authToken = loginResponse.body.token;

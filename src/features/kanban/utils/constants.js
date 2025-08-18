@@ -172,12 +172,12 @@ export const USER_ROLES = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  KANBAN: '/api/v2/board',
-  CARDS: '/api/v2/board/cards',
-  COLUMNS: '/api/v2/board/columns',
-  COMMENTS: '/api/v2/board/comments',
-  ACTIVITY: '/api/v2/board/activity',
-  USERS: '/api/v2/users'
+  KANBAN: '/v2/board',
+  CARDS: '/v2/board/cards',
+  COLUMNS: '/v2/board/columns',
+  COMMENTS: '/v2/board/comments',
+  ACTIVITY: '/v2/board/activity',
+  USERS: '/v2/users'
 };
 
 // UI Constants

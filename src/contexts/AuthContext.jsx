@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
       const tryUserMe = async () => {
         console.debug('[Auth] Checking user session via /api/auth/me');
         try {
-          const res = await api.get('/api/auth/me');
+          const res = await api.get('/auth/me');
           console.debug('[Auth] /api/auth/me http', res?.status);
           if (res?.data?.status) {
             setUser({ username: res.data.user?.username, role: 'user' });
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
       const tryAdminMe = async () => {
         console.debug('[Auth] Checking admin session via /api/admin/auth/me');
         try {
-          const res = await api.get('/api/admin/auth/me');
+          const res = await api.get('/admin/auth/me');
           console.debug('[Auth] /api/admin/auth/me http', res?.status);
           if (res?.data?.status) {
             setUser({ username: res.data.user?.username, role: 'admin' });
@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(async (credentials, isAdmin = false) => {
     try {
-      const endpoint = isAdmin ? '/api/admin/auth/login' : '/api/auth/login';
+      const endpoint = isAdmin ? '/admin/auth/login' : '/auth/login';
       const response = await api.post(endpoint, credentials);
       
       if (response.data.status) {
@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
-      const endpoint = user?.role === 'admin' ? '/api/admin/auth/logout' : '/api/auth/logout';
+      const endpoint = user?.role === 'admin' ? '/admin/auth/logout' : '/auth/logout';
       await api.post(endpoint);
     } catch (error) {
       console.warn('[Auth] Logout error (continuing anyway):', error);

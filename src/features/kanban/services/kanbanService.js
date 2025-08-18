@@ -17,7 +17,7 @@ class KanbanService {
    */
   async getBoard() {
     try {
-      const response = await api.get('/api/v2/board');
+      const response = await api.get('/v2/board');
       return response.data;
     } catch (error) {
       console.error('Error fetching board:', error);
@@ -31,7 +31,7 @@ class KanbanService {
    */
   async getCards() {
     try {
-      const response = await api.get('/api/v2/board/cards');
+      const response = await api.get('/v2/board/cards');
       return response.data;
     } catch (error) {
       console.error('Error fetching cards:', error);
@@ -46,7 +46,7 @@ class KanbanService {
    */
   async getCard(cardId) {
     try {
-      const response = await api.get(`/api/v2/board/cards/${cardId}`);
+      const response = await api.get(`/v2/board/cards/${cardId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching card:', error);
@@ -61,7 +61,7 @@ class KanbanService {
    */
   async createCard(cardData) {
     try {
-      const response = await api.post('/api/v2/board/cards', cardData);
+      const response = await api.post('/v2/board/cards', cardData);
       return response.data;
     } catch (error) {
       console.error('Error creating card:', error);
@@ -77,7 +77,7 @@ class KanbanService {
    */
   async updateCard(cardId, cardData) {
     try {
-      const response = await api.put(`/api/v2/board/cards/${cardId}`, cardData);
+      const response = await api.put(`/v2/board/cards/${cardId}`, cardData);
       return response.data;
     } catch (error) {
       console.error('Error updating card:', error);
@@ -95,7 +95,7 @@ class KanbanService {
    */
   async moveCard(cardId, fromColumn, toColumn, toSubcolumn = null) {
     try {
-      const response = await api.post(`/api/v2/board/cards/${cardId}/move`, {
+      const response = await api.post(`/v2/board/cards/${cardId}/move`, {
         fromColumn,
         toColumn,
         toSubcolumn
@@ -114,7 +114,7 @@ class KanbanService {
    */
   async deleteCard(cardId) {
     try {
-      await api.delete(`/api/v2/board/cards/${cardId}`);
+      await api.delete(`/v2/board/cards/${cardId}`);
     } catch (error) {
       console.error('Error deleting card:', error);
       throw error;
@@ -127,7 +127,7 @@ class KanbanService {
    */
   async getColumns() {
     try {
-      const response = await api.get('/api/v2/board/columns');
+      const response = await api.get('/v2/board/columns');
       return response.data;
     } catch (error) {
       console.error('Error fetching columns:', error);
@@ -142,7 +142,7 @@ class KanbanService {
    */
   async createColumn(columnData) {
     try {
-      const response = await api.post('/api/v2/board/columns', columnData);
+      const response = await api.post('/v2/board/columns', columnData);
       return response.data;
     } catch (error) {
       console.error('Error creating column:', error);
@@ -158,7 +158,7 @@ class KanbanService {
    */
   async updateColumn(columnId, columnData) {
     try {
-      const response = await api.put(`/api/v2/board/columns/${columnId}`, columnData);
+      const response = await api.put(`/v2/board/columns/${columnId}`, columnData);
       return response.data;
     } catch (error) {
       console.error('Error updating column:', error);
@@ -174,7 +174,7 @@ class KanbanService {
    */
   async toggleColumnActivation(columnId, isActive) {
     try {
-      const response = await api.post(`/api/v2/board/columns/${columnId}/toggle`, {
+      const response = await api.post(`/v2/board/columns/${columnId}/toggle`, {
         isActive
       });
       return response.data;
@@ -191,7 +191,7 @@ class KanbanService {
    */
   async deleteColumn(columnId) {
     try {
-      await api.delete(`/api/v2/board/columns/${columnId}`);
+      await api.delete(`/v2/board/columns/${columnId}`);
     } catch (error) {
       console.error('Error deleting column:', error);
       throw error;
@@ -205,7 +205,7 @@ class KanbanService {
    */
   async reorderColumns(columnOrder) {
     try {
-      const response = await api.put('/api/v2/board/columns/reorder', {
+      const response = await api.put('/v2/board/columns/reorder', {
         columnOrder
       });
       return response.data;
@@ -222,7 +222,7 @@ class KanbanService {
    */
   async getComments(cardId) {
     try {
-      const response = await api.get(`/api/v2/board/cards/${cardId}/comments`);
+      const response = await api.get(`/v2/board/cards/${cardId}/comments`);
       return response.data;
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -238,7 +238,7 @@ class KanbanService {
    */
   async addComment(cardId, commentData) {
     try {
-      const response = await api.post(`/api/v2/board/cards/${cardId}/comments`, commentData);
+      const response = await api.post(`/v2/board/cards/${cardId}/comments`, commentData);
       return response.data;
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -254,7 +254,7 @@ class KanbanService {
    */
   async updateComment(commentId, commentData) {
     try {
-      const response = await api.put(`/api/v2/board/comments/${commentId}`, commentData);
+      const response = await api.put(`/v2/board/comments/${commentId}`, commentData);
       return response.data;
     } catch (error) {
       console.error('Error updating comment:', error);
@@ -269,7 +269,7 @@ class KanbanService {
    */
   async deleteComment(commentId) {
     try {
-      await api.delete(`/api/v2/board/comments/${commentId}`);
+      await api.delete(`/v2/board/comments/${commentId}`);
     } catch (error) {
       console.error('Error deleting comment:', error);
       throw error;
@@ -283,7 +283,7 @@ class KanbanService {
    */
   async getActivity(cardId) {
     try {
-      const response = await api.get(`/api/v2/board/cards/${cardId}/activity`);
+      const response = await api.get(`/v2/board/cards/${cardId}/activity`);
       return response.data;
     } catch (error) {
       console.error('Error fetching activity:', error);
@@ -297,7 +297,7 @@ class KanbanService {
    */
   async getUsers() {
     try {
-      const response = await api.get('/api/v2/users');
+      const response = await api.get('/v2/users');
       // Debug logging for user data
       if (process.env.NODE_ENV === 'development') {
         console.log('Response from getUsers:', response.data);
@@ -315,7 +315,7 @@ class KanbanService {
    */
   async getLabels() {
     try {
-      const response = await api.get('/api/v2/board/labels');
+      const response = await api.get('/v2/board/labels');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching labels:', error);
@@ -331,7 +331,7 @@ class KanbanService {
    */
   async createLabel(labelData) {
     try {
-      const response = await api.post('/api/v2/board/labels', labelData);
+      const response = await api.post('/v2/board/labels', labelData);
       return response.data;
     } catch (error) {
       console.error('Error creating label:', error);
@@ -347,7 +347,7 @@ class KanbanService {
    */
   async updateLabel(labelId, updates) {
     try {
-      const response = await api.put(`/api/v2/board/labels/${labelId}`, updates);
+      const response = await api.put(`/v2/board/labels/${labelId}`, updates);
       return response.data;
     } catch (error) {
       console.error('Error updating label:', error);
@@ -362,7 +362,7 @@ class KanbanService {
    */
   async deleteLabel(labelId) {
     try {
-      await api.delete(`/api/v2/board/labels/${labelId}`);
+      await api.delete(`/v2/board/labels/${labelId}`);
     } catch (error) {
       console.error('Error deleting label:', error);
       throw error;
@@ -376,7 +376,7 @@ class KanbanService {
    */
   async searchUsers(searchTerm) {
     try {
-      const response = await api.get('/api/v2/users/search', {
+      const response = await api.get('/v2/users/search', {
         params: { q: searchTerm }
       });
       return response.data;
@@ -395,7 +395,7 @@ class KanbanService {
    */
   async searchCards(boardId, searchTerm, filters = {}) {
     try {
-      const response = await api.get('/api/v2/board/cards/search', {
+      const response = await api.get('/v2/board/cards/search', {
         params: { 
           boardId, 
           searchTerm, 
@@ -420,7 +420,7 @@ class KanbanService {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.post(`/api/v2/board/cards/${cardId}/attachments`, formData, {
+      const response = await api.post(`/v2/board/cards/${cardId}/attachments`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -441,7 +441,7 @@ class KanbanService {
    */
   async deleteAttachment(cardId, attachmentId) {
     try {
-      await api.delete(`/api/v2/board/cards/${cardId}/attachments/${attachmentId}`);
+      await api.delete(`/v2/board/cards/${cardId}/attachments/${attachmentId}`);
     } catch (error) {
       console.error('Error deleting attachment:', error);
       throw error;
@@ -456,7 +456,7 @@ class KanbanService {
    */
   async assignUsers(cardId, userIds) {
     try {
-      const response = await api.post(`/api/v2/board/cards/${cardId}/assign`, {
+      const response = await api.post(`/v2/board/cards/${cardId}/assign`, {
         userIds
       });
       return response.data;
@@ -474,7 +474,7 @@ class KanbanService {
    */
   async reorderCards(columnId, cardOrder) {
     try {
-      const response = await api.put(`/api/v2/board/cards/reorder`, {
+      const response = await api.put(`/v2/board/cards/reorder`, {
         columnId,
         cardOrder
       });
@@ -492,7 +492,7 @@ class KanbanService {
    */
   async getBoardMembers(boardId) {
     try {
-      const response = await api.get(`/api/v2/board/${boardId}/members`);
+      const response = await api.get(`/v2/board/${boardId}/members`);
       return response.data;
     } catch (error) {
       console.error('Error fetching board members:', error);
@@ -508,7 +508,7 @@ class KanbanService {
    */
   async addBoardMember(boardId, userId) {
     try {
-      const response = await api.post(`/api/v2/board/${boardId}/members`, {
+      const response = await api.post(`/v2/board/${boardId}/members`, {
         userId
       });
       return response.data;
@@ -526,7 +526,7 @@ class KanbanService {
    */
   async removeBoardMember(boardId, userId) {
     try {
-      const response = await api.delete(`/api/v2/board/${boardId}/members/${userId}`);
+      const response = await api.delete(`/v2/board/${boardId}/members/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error removing board member:', error);
@@ -541,7 +541,7 @@ class KanbanService {
    */
   async createBoard(boardData) {
     try {
-      const response = await api.post('/api/v2/board', boardData);
+      const response = await api.post('/v2/board', boardData);
       return response.data;
     } catch (error) {
       console.error('Error creating board:', error);
@@ -557,7 +557,7 @@ class KanbanService {
    */
   async updateBoard(boardId, boardData) {
     try {
-      const response = await api.put(`/api/v2/board/${boardId}`, boardData);
+      const response = await api.put(`/v2/board/${boardId}`, boardData);
       return response.data;
     } catch (error) {
       console.error('Error updating board:', error);
@@ -572,7 +572,7 @@ class KanbanService {
    */
   async deleteBoard(boardId) {
     try {
-      await api.delete(`/api/v2/board/${boardId}`);
+      await api.delete(`/v2/board/${boardId}`);
     } catch (error) {
       console.error('Error deleting board:', error);
       throw error;

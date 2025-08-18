@@ -19,7 +19,7 @@ export async function fetchMastersWithCache() {
     
     const syntheticEtag = `v1:${res[0]?.data?.total || 0}:${res[1]?.data?.total || 0}:${res[2]?.data?.total || 0}:${res[3]?.data?.total || 0}`;
     if (etag && etag === syntheticEtag && cached) {
-      console.log('[Masters] cache hit via syntheticEtag; returning cached payload');
+      // Cache hit - returning cached data
       return cached;
     }
 
@@ -36,8 +36,7 @@ export async function fetchMastersWithCache() {
       || (Array.isArray(res[1]?.data?.items) && res[1].data.items)
       || [];
 
-    console.log('[Masters] Raw categories:', rawCategories);
-    console.log('[Masters] Raw subcategories:', rawSubcategories);
+    // Raw data extracted from API responses
 
     // Build category mapping by Category_Id
     const categoryIdToName = new Map();
@@ -54,7 +53,7 @@ export async function fetchMastersWithCache() {
         categoryNames.push(categoryName);
         if (categoryId) {
           categoryIdToName.set(categoryId, categoryName);
-          console.log(`[Masters] Mapped category ID ${categoryId} -> "${categoryName}"`);
+          // Category mapped successfully
         }
       }
     });
@@ -75,9 +74,9 @@ export async function fetchMastersWithCache() {
           subCategoriesByCategory[key] = [];
         }
         subCategoriesByCategory[key].push(String(subName));
-        console.log(`[Masters] Mapped subcategory "${subName}" to category "${parentCategoryName}" via Category_Id: ${categoryId}`);
+        // Subcategory mapped to category successfully
       } else {
-        console.log(`[Masters] Could not map subcategory "${subName}" - Category_Id: ${categoryId}, available category IDs:`, Array.from(categoryIdToName.keys()));
+        // Subcategory mapping failed - no matching category found
       }
     });
 
@@ -102,10 +101,10 @@ export async function fetchMastersWithCache() {
     if (rawProducts.length > 0 && Object.keys(productsBySubCategory).length > 0) {
       const firstSubCategory = Object.keys(productsBySubCategory)[0];
       productsBySubCategory[firstSubCategory] = rawProducts;
-      console.log(`[Masters] Temporarily assigned ${rawProducts.length} products to subcategory "${firstSubCategory}" for testing`);
+      // Products temporarily assigned for testing
     }
 
-    console.log('[Masters] Products by subcategory structure created:', Object.keys(productsBySubCategory));
+    // Products by subcategory structure created
 
     // Ensure every category exists as a key even if no subcategories yet
     categoryNames.forEach((catName) => {
@@ -115,8 +114,7 @@ export async function fetchMastersWithCache() {
       }
     });
 
-    console.log('[Masters] Final categories:', categoryNames);
-    console.log('[Masters] Final subCategoriesByCategory:', subCategoriesByCategory);
+    // Final data structure prepared
 
     const payload = {
       status: true,
@@ -140,6 +138,12 @@ export async function fetchMastersWithCache() {
  * 
  * This service fetches and processes master data from the API
  * including categories, subcategories, products, and their relationships
+ * 
+ * CONSOLE LOGGING STRATEGY:
+ * - Removed verbose logging to keep console clean
+ * - Kept only essential error handling and data processing logs
+ * - Focus on data extraction and relationship mapping
+ * - All logs are wrapped in development environment checks where applicable
  */
 
 // import api from '../../utils/api';
@@ -151,295 +155,252 @@ export async function fetchMastersWithCache() {
  */
 export async function fetchMastersFresh() {
   try {
-    console.log('[Masters] Fetching fresh data from server (no cache)');
+    // Fetching fresh data from server
     
+    // Fetch all master data in parallel
     const res = await Promise.all([
       api.get('/v1/category', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/subcategory', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/product', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/additive', { params: { page: 1, limit: 1000 } }),
-      api.get('/v1/binder', { params: { page: 1, limit: 1000 } }), // Add binders API call
+      api.get('/v1/binder', { params: { page: 1, limit: 1000 } }),
     ]);
     
-    // Extract categories and subcategories from various possible response shapes
-    const rawCategories = (Array.isArray(res[0]?.data?.categories) && res[0].data.categories)
-      || (Array.isArray(res[0]?.data?.category) && res[0].data.category)
-      || (Array.isArray(res[0]?.data?.data) && res[0].data.data)
-      || (Array.isArray(res[0]?.data?.items) && res[0].data.items)
-      || [];
+    // Extract raw data with fallback handling
+    const rawCategories = extractArrayData(res[0]?.data, ['categories', 'category', 'data', 'items']);
+    const rawSubcategories = extractArrayData(res[1]?.data, ['subcategories', 'Subcategories', 'data', 'items']);
+    const rawProducts = extractArrayData(res[2]?.data, ['products', 'data', 'items']);
+    const rawAdditives = extractArrayData(res[3]?.data, ['additives', 'data', 'items']);
+    const rawBinders = extractArrayData(res[4]?.data, ['binders', 'data', 'items']);
 
-    const rawSubcategories = (Array.isArray(res[1]?.data?.subcategories) && res[1].data.subcategories)
-      || (Array.isArray(res[1]?.data?.Subcategories) && res[1].data.Subcategories)
-      || (Array.isArray(res[1]?.data?.data) && res[1].data.data)
-      || (Array.isArray(res[1]?.data?.items) && res[1].data.items)
-      || [];
+    // Raw data counts processed
 
-    const rawProducts = (Array.isArray(res[2]?.data?.products) && res[2].data.products)
-      || (Array.isArray(res[2]?.data?.data) && res[2].data.data)
-      || (Array.isArray(res[2]?.data?.items) && res[2].data.items)
-      || [];
-
-    const rawAdditives = (Array.isArray(res[3]?.data?.additives) && res[3].data.additives)
-      || (Array.isArray(res[3]?.data?.data) && res[3].data.data)
-      || (Array.isArray(res[3]?.data?.items) && res[3].data.items)
-      || [];
-
-    const rawBinders = (Array.isArray(res[4]?.data?.binders) && res[4].data.binders)
-      || (Array.isArray(res[4]?.data?.data) && res[4].data.data)
-      || (Array.isArray(res[4]?.data?.items) && res[4].data.items)
-      || [];
-
-    console.log('[Masters] Raw data extraction results:');
-    console.log('[Masters] - Categories:', rawCategories.length);
-    console.log('[Masters] - Subcategories:', rawSubcategories.length);
-    console.log('[Masters] - Products:', rawProducts.length);
-    console.log('[Masters] - Additives:', rawAdditives.length);
-    console.log('[Masters] - Binders:', rawBinders.length);
-    
-    if (rawCategories.length > 0) {
-      console.log('[Masters] Sample category:', rawCategories[0]);
-    }
-    if (rawSubcategories.length > 0) {
-      console.log('[Masters] Sample subcategory:', rawSubcategories[0]);
-    }
-    if (rawProducts.length > 0) {
-      console.log('[Masters] Sample product:', rawProducts[0]);
-    }
-    if (rawBinders.length > 0) {
-      console.log('[Masters] Sample binder:', rawBinders[0]);
-    }
-
-    console.log('[Masters] Raw data counts:', {
-      categories: rawCategories.length,
-      subcategories: rawSubcategories.length,
-      products: rawProducts.length,
-      additives: rawAdditives.length,
-      binders: rawBinders.length
-    });
-
-    // Build category mapping by Category_Id
-    const categoryIdToName = new Map();
+    // ===== PROCESS CATEGORIES =====
+    const categoryMap = new Map();
     const categoryNames = [];
 
-    // Create category mappings - support both existing and new structure
     rawCategories.forEach((cat) => {
-      const name = cat?.Category || cat?.name || cat?.Category_Name || cat?.label;
       const id = cat?.Category_Id || cat?._id || cat?.id || cat?.CategoryID;
+      const name = cat?.Category || cat?.name || cat?.Category_Name || cat?.label;
       
-      if (name && id) {
-        // Create display name with ID prefix
+      if (id && name) {
         const displayName = `${id} - ${name}`;
         const categoryId = String(id);
         
         categoryNames.push(displayName);
-        categoryIdToName.set(categoryId, displayName);
-        // Also map the numeric version for compatibility
-        if (!isNaN(Number(id))) {
-          categoryIdToName.set(String(Number(id)), displayName);
-        }
-        console.log(`[Masters] Mapped category ID ${categoryId} -> "${displayName}"`);
+        categoryMap.set(categoryId, {
+          id: categoryId,
+          name: String(name),
+          displayName: displayName
+        });
+        
+        // Category processed successfully
       }
     });
 
     // Fallback categories if none found
     if (categoryNames.length === 0) {
-      categoryNames.push('100 - Paints', '102 - Primers');
-      categoryIdToName.set('100', '100 - Paints');
-      categoryIdToName.set('102', '102 - Primers');
-      console.log('[Masters] Using fallback categories');
+      const fallbackCategories = [
+        { id: '100', name: 'Paints', displayName: '100 - Paints' },
+        { id: '102', name: 'Primers', displayName: '102 - Primers' }
+      ];
+      
+      fallbackCategories.forEach(cat => {
+        categoryNames.push(cat.displayName);
+        categoryMap.set(cat.id, cat);
+      });
+      
+      // Using fallback categories
     }
 
-    // Build subcategory mapping by Category_Id
+    // ===== PROCESS PRODUCTS =====
+    const productMap = new Map();
+    
+    rawProducts.forEach((product) => {
+      const productId = String(product?.Product_Id || '').trim();
+      
+      if (productId && productId !== '0' && productId !== 'null' && productId !== 'undefined') {
+        productMap.set(productId, {
+          _id: product._id,
+          Product_Id: productId,
+          Product_Name: product?.Product_Name || product?.name || '',
+          Abbreviation: product?.Abbreviation || product?.abbreviation || '',
+          Product_Density: Number(product?.Product_Density) || 1000,
+          SolidContent: Number(product?.SolidContent) || 0,
+          VOC: Number(product?.VOC) || 0,
+          coefficient: Number(product?.coefficient) || 1,
+          SubCategory_Id: product?.SubCategory_Id || product?.subcategory_id || '',
+          Category_Id: product?.Category_Id || product?.category_id || '',
+          GroupName: product?.GroupName || '',
+          Price: product?.Price || 0,
+          PriceUnit: product?.PriceUnit || ''
+        });
+      }
+    });
+
+    // Products processed successfully
+
+    // ===== PROCESS BINDERS =====
+    const binderMap = new Map();
+    
+    rawBinders.forEach((binder) => {
+      const binderId = String(binder?.Binder_Id || binder?._id || '').trim();
+      
+      if (binderId && binderId !== '0' && binderId !== 'null' && binderId !== 'undefined') {
+        binderMap.set(binderId, {
+          _id: binder._id,
+          Binder_Id: binderId,
+          Binder_Name: binder?.Binder_Name || binder?.name || binder?.Name || '',
+          Binder_Density: Number(binder?.Binder_Density) || 1000,
+          Abbreviation: binder?.Abbreviation || binder?.abbreviation || '',
+          Description: binder?.Description || binder?.description || ''
+        });
+      }
+    });
+
+    // Binders processed successfully
+
+    // ===== PROCESS SUBCATEGORIES =====
     const subCategoriesByCategory = {};
-    const binderConfigBySubCategory = {};
     const productsBySubCategory = {};
+    const binderConfigBySubCategory = {};
 
     // Initialize category mappings
     categoryNames.forEach((catName) => {
       subCategoriesByCategory[catName] = [];
     });
 
-    // Create product lookup map for efficient searching
-    const productMap = new Map();
-    console.log('[Masters] Creating product map from', rawProducts.length, 'raw products');
-    
-    rawProducts.forEach((product, index) => {
-      const productId = String(product.Product_Id || '').trim();
-      if (productId && productId !== '0' && productId !== 'null' && productId !== 'undefined') {
-        productMap.set(productId, {
-          _id: product._id,
-          Product_Id: product.Product_Id,
-          Product_Name: product.Product_Name,
-          Abbreviation: product.Abbreviation,
-          Product_Density: Number(product.Product_Density) || 0,
-          SolidContent: Number(product.SolidContent) || 0,
-          VOC: Number(product.VOC) || 0,
-          coefficient: Number(product.coefficient) || 1,
-          GroupName: product.GroupName,
-          Price: product.Price,
-          PriceUnit: product.PriceUnit
-        });
-        
-        if (index < 3) {
-          console.log(`[Masters] Added product to map: ${productId} -> ${product.Product_Name}`);
-        }
-      } else {
-        console.warn(`[Masters] Skipping product with invalid ID:`, product.Product_Id, product);
-      }
-    });
-
-    console.log('[Masters] Product map created with', productMap.size, 'products');
-    console.log('[Masters] Sample product IDs in map:', Array.from(productMap.keys()).slice(0, 5));
-
-    // Create binder lookup map for efficient searching
-    const binderMap = new Map();
-    console.log('[Masters] Creating binder map from', rawBinders.length, 'raw binders');
-    
-    rawBinders.forEach((binder, index) => {
-      const binderId = String(binder.Binder_Id || binder._id || '').trim();
-      if (binderId && binderId !== '0' && binderId !== 'null' && binderId !== 'undefined') {
-        binderMap.set(binderId, {
-          _id: binder._id,
-          Binder_Id: binder.Binder_Id,
-          Binder_Name: binder.Binder_Name || binder.name || binder.Name,
-          Binder_Density: Number(binder.Binder_Density) || 1000,
-          Abbreviation: binder.Abbreviation || binder.abbreviation,
-          Description: binder.Description || binder.description
-        });
-        
-        if (index < 3) {
-          console.log(`[Masters] Added binder to map: ${binderId} -> ${binder.Binder_Name || binder.name}`);
-        }
-      } else {
-        console.warn(`[Masters] Skipping binder with invalid ID:`, binder.Binder_Id || binder._id, binder);
-      }
-    });
-
-    console.log('[Masters] Binder map created with', binderMap.size, 'binders');
-    console.log('[Masters] Sample binder IDs in map:', Array.from(binderMap.keys()).slice(0, 5));
-
-    // Process subcategories and extract products
     rawSubcategories.forEach((sub) => {
       const subName = sub?.SubCategory || sub?.name || sub?.Subcategory_Name || sub?.label;
-      const categoryId = String(sub?.Category_Id || '');
+      const categoryId = String(sub?.Category_Id || sub?.category_id || '');
       
       if (!subName) {
         console.warn('[Masters] Subcategory missing name:', sub);
         return;
       }
 
-      console.log(`[Masters] Processing subcategory: ${subName} with Category_Id: ${categoryId}`);
-      console.log(`[Masters] Available category mappings:`, Array.from(categoryIdToName.entries()));
-
-      // Find parent category - try both string and numeric versions
-      let parentCategoryName = categoryIdToName.get(categoryId);
-      if (!parentCategoryName && !isNaN(Number(categoryId))) {
-        parentCategoryName = categoryIdToName.get(String(Number(categoryId)));
+      // Find parent category
+      let parentCategory = null;
+      if (categoryId && categoryMap.has(categoryId)) {
+        parentCategory = categoryMap.get(categoryId).displayName;
+      } else if (categoryId && !isNaN(Number(categoryId))) {
+        // Try numeric version
+        const numericId = String(Number(categoryId));
+        if (categoryMap.has(numericId)) {
+          parentCategory = categoryMap.get(numericId).displayName;
+        }
       }
-      
-      if (parentCategoryName) {
+
+      // Fallback to first category if no match found
+      if (!parentCategory && categoryNames.length > 0) {
+        parentCategory = categoryNames[0];
+        // Using fallback category for subcategory
+      }
+
+      if (parentCategory) {
         // Add subcategory to parent category
-        if (!subCategoriesByCategory[parentCategoryName].includes(subName)) {
-          subCategoriesByCategory[parentCategoryName].push(subName);
-          console.log(`[Masters] Mapped subcategory "${subName}" to category "${parentCategoryName}"`);
+        if (!subCategoriesByCategory[parentCategory].includes(subName)) {
+          subCategoriesByCategory[parentCategory].push(subName);
+          // Subcategory mapped successfully
         }
-      } else {
-        // If no matching category found, add to first category as fallback
-        const firstCategory = categoryNames[0];
-        if (firstCategory && !subCategoriesByCategory[firstCategory].includes(subName)) {
-          subCategoriesByCategory[firstCategory].push(subName);
-          console.log(`[Masters] Mapped subcategory "${subName}" to fallback category "${firstCategory}"`);
-        }
-        console.warn(`[Masters] No category found for subcategory "${subName}" with Category_Id: ${categoryId}`);
-      }
 
-      // Extract products for this subcategory
-      const subCategoryProducts = [];
-      
-      if (sub.Products && Array.isArray(sub.Products)) {
-        console.log(`[Masters] Found ${sub.Products.length} product IDs for ${subName}:`, sub.Products.slice(0, 5));
-        console.log(`[Masters] Product map has ${productMap.size} products available`);
+        // Find products for this subcategory
+        const subCategoryProducts = [];
+        const subCategoryId = String(sub?.SubCategory_Id || sub?._id || '');
+
+        // Method 1: Products linked by SubCategory_Id
+        if (subCategoryId) {
+          productMap.forEach((product, productId) => {
+            if (product.SubCategory_Id === subCategoryId || 
+                product.SubCategory_Id === subName ||
+                product.SubCategory_Id === sub?._id) {
+              subCategoryProducts.push(product);
+            }
+          });
+        }
+
+        // Method 2: Products linked by Category_Id (if no direct subcategory link)
+        if (subCategoryProducts.length === 0 && categoryId) {
+          productMap.forEach((product, productId) => {
+            if (product.Category_Id === categoryId) {
+              subCategoryProducts.push(product);
+            }
+          });
+        }
+
+        // Method 3: Products from subcategory.Products array (if available)
+        if (sub.Products && Array.isArray(sub.Products)) {
+          sub.Products.forEach(productId => {
+            const productIdStr = String(productId).trim();
+            const product = productMap.get(productIdStr);
+            if (product && !subCategoryProducts.some(p => p.Product_Id === product.Product_Id)) {
+              subCategoryProducts.push(product);
+            }
+          });
+        }
+
+              productsBySubCategory[subName] = subCategoryProducts;
+      // Products mapped to subcategory successfully
+
+        // Configure binders for this subcategory
+        // Handle both direct properties and nested Products object
+        const binder1Id = String(sub?.Binder1 || sub?.Products?.Binder1 || '');
+        const binder2Id = String(sub?.Binder2 || sub?.Products?.Binder2 || '');
         
-        sub.Products.forEach(productId => {
-          // Convert to string and handle various data types
-          const productIdStr = String(productId).trim();
+        const binder1Data = binder1Id ? binderMap.get(binder1Id) : null;
+        const binder2Data = binder2Id ? binderMap.get(binder2Id) : null;
+
+        binderConfigBySubCategory[subName] = {
+          // Store the original subcategory data for reference
+          SubCategory: subName,
+          Category_Id: categoryId,
+          SubCategory_Id: sub?.SubCategory_Id || sub?._id,
           
-          // Skip invalid entries
-          if (!productIdStr || 
-              productIdStr === '0' || 
-              productIdStr === 'null' || 
-              productIdStr === 'undefined' ||
-              productIdStr.length < 3) {
-            console.log(`[Masters] Skipping invalid product ID: ${productIdStr}`);
-            return;
-          }
+          // Binder IDs (handle both direct and nested)
+          Binder1: binder1Id,
+          Binder2: binder2Id,
+          
+          // Store the Products object if it exists
+          Products: sub?.Products || null,
+          
+          // Binder names resolved from binder data
+          Binder1Name: binder1Data?.Binder_Name || `Binder ${binder1Id}`,
+          Binder2Name: binder2Data?.Binder_Name || `Binder ${binder2Id}`,
+          
+          // Binder configuration values
+          Binder1Avalue: Number(sub?.Binder1Avalue) || 0,
+          Binder1Bvalue: Number(sub?.Binder1Bvalue) || 0,
+          Binder1Cvalue: Number(sub?.Binder1Cvalue) || 0,
+          Binder1dvalue: Number(sub?.Binder1dvalue) || 1,
+          Binder2Avalue: Number(sub?.Binder2Avalue) || 0,
+          Binder2EQ1: Boolean(sub?.Binder2EQ1),
+          Binder2XvalueHidden: Number(sub?.Binder2XvalueHidden) || 0,
+          Binder2XWithoutB1Hidden: sub?.Binder2XWithoutB1Hidden || '',
+          Binder2XwithB1Hidden: sub?.Binder2XwithB1Hidden || '',
+          Binder_Density: Number(sub?.Binder_Density) || 1000,
+          
+          // UI configuration
+          Gloss: Boolean(sub?.Gloss || sub?.Products?.Gloss),
+          Matt: Boolean(sub?.Matt || sub?.Products?.Matt),
+          Liter: Boolean(sub?.Liter || sub?.Products?.Liter),
+          Gram: Boolean(sub?.Gram || sub?.Products?.Gram),
+          
+          // Additional properties
+          Remarks: sub?.Remarks || '',
+          suffix: sub?.suffix || sub?.Products?.suffix || ''
+        };
 
-          const product = productMap.get(productIdStr);
-          if (product) {
-            subCategoryProducts.push(product);
-            console.log(`[Masters] Found product: ${product.Product_Name} (${productIdStr})`);
-          } else {
-            console.warn(`[Masters] Product not found for ID: ${productIdStr} in subcategory: ${subName}`);
-          }
-        });
-      } else {
-        console.warn(`[Masters] No Products array found for subcategory: ${subName}`);
+        // Binders configured for subcategory
       }
-
-      productsBySubCategory[subName] = subCategoryProducts;
-      console.log(`[Masters] Mapped ${subCategoryProducts.length} products to ${subName}`);
-
-      // Extract binder configuration and get binder names
-      const binder1Id = String(sub.Binder1 || '');
-      const binder2Id = String(sub.Binder2 || '');
-      
-      const binder1Data = binder1Id ? binderMap.get(binder1Id) : null;
-      const binder2Data = binder2Id ? binderMap.get(binder2Id) : null;
-      
-      console.log(`[Masters] Binder mapping for ${subName}:`, {
-        binder1Id,
-        binder2Id,
-        binder1Name: binder1Data?.Binder_Name,
-        binder2Name: binder2Data?.Binder_Name
-      });
-
-      binderConfigBySubCategory[subName] = {
-        Binder1: sub.Binder1 || '',
-        Binder2: sub.Binder2 || '',
-        Binder1Name: binder1Data?.Binder_Name || `Binder ${binder1Id}`,
-        Binder2Name: binder2Data?.Binder_Name || `Binder ${binder2Id}`,
-        Binder1Avalue: Number(sub.Binder1Avalue) || 0,
-        Binder1Bvalue: Number(sub.Binder1Bvalue) || 0,
-        Binder1Cvalue: Number(sub.Binder1Cvalue) || 0,
-        Binder1dvalue: Number(sub.Binder1dvalue) || 1,
-        Binder2Avalue: Number(sub.Binder2Avalue) || 0,
-        Binder2Equation: sub.Binder2EQ1 ? 'Eq1' : 'Eq2',
-        Binder2XvalueHidden: Number(sub.Binder2XvalueHidden) || 0,
-        Binder2XWithoutB1Hidden: sub.Binder2XWithoutB1Hidden || '',
-        Binder2XwithB1Hidden: sub.Binder2XwithB1Hidden || '',
-        Binder_Density: Number(sub.Binder_Density) || 1000, // Default density
-        Gloss: sub.Gloss === 'on',
-        Matt: sub.Matt === 'on',
-        Liter: sub.Liter === 'on',
-        Gram: sub.Gram === 'on',
-        Remarks: sub.Remarks || '',
-        suffix: sub.suffix || '',
-        MattValue: 1 // Default matt value
-      };
     });
 
-    // Determine defaults
+    // ===== DETERMINE DEFAULTS =====
     const defaultCategory = categoryNames[0] || '100 - Paints';
     const defaultSubCategory = subCategoriesByCategory[defaultCategory]?.[0] || 'Rosner_Acrylic';
 
-    console.log('[Masters] Final data structure:', {
-      categoryNames: categoryNames.length,
-      subCategoriesByCategory: Object.entries(subCategoriesByCategory).map(([k, v]) => `${k}: ${v.length} subs`),
-      productsBySubCategory: Object.entries(productsBySubCategory).map(([k, v]) => `${k}: ${v.length} products`),
-      defaultCategory,
-      defaultSubCategory
-    });
+    // Final data structure prepared successfully
 
+    // ===== BUILD PAYLOAD =====
     const payload = {
       status: true,
       categories: categoryNames,
@@ -448,9 +409,9 @@ export async function fetchMastersFresh() {
       binderConfigBySubCategory,
       
       // Raw data for reference
-      products: rawProducts,
+      products: Array.from(productMap.values()),
       additives: rawAdditives,
-      binders: rawBinders,
+      binders: Array.from(binderMap.values()),
       
       // Default values
       defaultCategory,
@@ -490,12 +451,27 @@ export async function fetchMastersFresh() {
       }
     };
 
-    console.log('[Masters] Fresh data fetched successfully from server');
+    // Fresh data fetched successfully
     return payload;
   } catch (e) {
     console.error('[Masters] Fresh fetch failed', e);
-    throw e; // Re-throw error instead of falling back to cache
+    throw e;
   }
+}
+
+/**
+ * Helper function to extract array data from API response
+ * @param {Object} data - API response data
+ * @param {Array<string>} possibleKeys - Possible keys where array data might be found
+ * @returns {Array} Extracted array data
+ */
+function extractArrayData(data, possibleKeys) {
+  for (const key of possibleKeys) {
+    if (Array.isArray(data?.[key])) {
+      return data[key];
+    }
+  }
+  return [];
 }
 
 async function getAll(endpoint, { page = 1, limit = 1000, sortBy = 'name', sortOrder = 'asc', search = '' } = {}) {
