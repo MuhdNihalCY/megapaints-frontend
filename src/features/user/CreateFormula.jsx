@@ -455,14 +455,20 @@ const CreateFormula = () => {
   /**
    * Updates filtered products when subcategory changes
    * Loads products specific to the selected subcategory for product search
+   * Preserves existing tinter selections while updating available products
    */
   useEffect(() => {
     if (subCategory && productsBySubCategory[subCategory]) {
       const productsForSubCategory = productsBySubCategory[subCategory];
       setFilteredProducts(productsForSubCategory);
       
-      // Clear any existing product selections when subcategory changes
-      setTints([createEmptyTint(1)]);
+      // Preserve existing tinter selections - don't clear them
+      // Only clear if no tinters exist yet
+      if (tints.length === 0 || (tints.length === 1 && !tints[0].code)) {
+        setTints([createEmptyTint(1)]);
+      }
+      
+      // Clear search inputs and dropdowns for new subcategory
       setProductSearchInput({});
       setShowProductList({});
       
@@ -474,7 +480,7 @@ const CreateFormula = () => {
         console.log('[Dynamic Data] Subcategory changed:', { 
           subCategory, 
           availableProducts: productsForSubCategory.length,
-          clearedSelections: true,
+          preservedTinters: tints.filter(t => t.code).length,
           autoSelectedBinders: true
         });
       }
@@ -508,6 +514,7 @@ const CreateFormula = () => {
    * Handles product search input and filters products based on search term
    * Searches across Product_Id, Abbreviation, and Product_Name fields
    * Filters out already selected products to prevent duplicates
+   * Shows all available products for current subcategory when no search term
    * @param {string} tintId - ID of the tinter row being searched
    * @param {string} searchTerm - Search term entered by user
    */
@@ -523,7 +530,7 @@ const CreateFormula = () => {
     if (!searchTerm.trim()) {
       // Show all products for the current subcategory when no search term
       const availableProducts = productsBySubCategory[subCategory] || [];
-      // Filter out already selected products
+      // Filter out already selected products (except the current row being edited)
       const filtered = availableProducts.filter(product => 
         !tints.some(tint => tint._id !== tintId && tint.code === product.Product_Id)
       );
@@ -920,6 +927,18 @@ const CreateFormula = () => {
         console.log('[Dynamic Data] No binder configuration found for subcategory:', subCategoryName);
       }
     }
+  };
+
+  /**
+   * Validates if a selected tinter is available in the current subcategory
+   * @param {string} productId - The product ID to validate
+   * @returns {boolean} True if the tinter is available in current subcategory
+   */
+  const isTinterAvailableInSubcategory = (productId) => {
+    if (!subCategory || !productId) return false;
+    
+    const availableProducts = productsBySubCategory[subCategory] || [];
+    return availableProducts.some(product => product.Product_Id === productId);
   };
   
   /**
@@ -1425,6 +1444,8 @@ const CreateFormula = () => {
                   <div>Available Categories: {categoryOptions.length}</div>
                   <div>Available SubCategories: {subCategoryOptions.length}</div>
                   <div>Available Products: {filteredProducts.length}</div>
+                  <div>Selected Tinters: {tints.filter(t => t.code).length}</div>
+                  <div>Available in Subcategory: {tints.filter(t => t.code && isTinterAvailableInSubcategory(t.code)).length}</div>
                   <div>Available Additives: {rawAdditives.length}</div>
                   <div>Available Binders: {rawBinders.length}</div>
                   <div>Binder Config: {selectedBinderConfig ? 'Yes' : 'No'}</div>
@@ -1622,14 +1643,35 @@ const CreateFormula = () => {
                                   <>
                                     {/* Show selected product at the top if one is selected */}
                                     {tint.code && tint.code.trim() && (
-                                      <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700">
-                                        <div className="text-xs text-blue-600 dark:text-blue-300 font-medium mb-1">
+                                      <div className={`px-3 py-2 border-b ${
+                                        isTinterAvailableInSubcategory(tint.code)
+                                          ? 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700'
+                                          : 'bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700'
+                                      }`}>
+                                        <div className={`text-xs font-medium mb-1 ${
+                                          isTinterAvailableInSubcategory(tint.code)
+                                            ? 'text-blue-600 dark:text-blue-300'
+                                            : 'text-yellow-600 dark:text-yellow-300'
+                                        }`}>
                                           Selected Product:
+                                          {!isTinterAvailableInSubcategory(tint.code) && (
+                                            <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
+                                              Not in current subcategory
+                                            </span>
+                                          )}
                                         </div>
-                                        <div className="font-medium text-sm text-blue-800 dark:text-blue-100">
+                                        <div className={`font-medium text-sm ${
+                                          isTinterAvailableInSubcategory(tint.code)
+                                            ? 'text-blue-800 dark:text-blue-100'
+                                            : 'text-yellow-800 dark:text-yellow-100'
+                                        }`}>
                                           {tint.series || tint.code}
                                         </div>
-                                        <div className="text-xs text-blue-600 dark:text-blue-300 truncate">
+                                        <div className={`text-xs truncate ${
+                                          isTinterAvailableInSubcategory(tint.code)
+                                            ? 'text-blue-600 dark:text-blue-300'
+                                            : 'text-yellow-600 dark:text-yellow-300'
+                                        }`}>
                                           {tint.name || 'N/A'}
                                         </div>
                                       </div>

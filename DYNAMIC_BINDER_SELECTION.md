@@ -3,6 +3,22 @@
 ## Overview
 Updated the CreateFormula component to automatically select binders based on subcategory configuration. When a user selects a subcategory, the system automatically fetches and configures the appropriate binders using the Binder1 and Binder2 IDs from the subcategory data.
 
+## Subcategory Selection Behavior
+
+### **Binders - Auto-Selection**
+When the user changes the subcategory:
+- **Automatically fetch binders** (Binder1, Binder2, etc.) from the selected subcategory
+- **Match with Binder_Id** in the binders array
+- **Auto-populate binders** in the UI
+- **No manual selection** - binders are always driven by the subcategory
+
+### **Tinters - Preserved Selection**
+When the user changes the subcategory:
+- **Update tinter dropdown list** to show only tinters for that subcategory
+- **Preserve existing tinter selections** - do not remove or reset them
+- **Keep selections even if not available** in the new subcategory
+- **Visual feedback** for tinters not available in current subcategory
+
 ## Data Structure
 
 ### 1. **Subcategory Configuration Example**
@@ -45,14 +61,27 @@ Updated the CreateFormula component to automatically select binders based on sub
 - Fetches binder data from the binders array using Binder_Id
 - No manual selection required - fully automatic
 
-### 2. **State Management**
+### 2. **Tinter Selection Preservation**
+- Existing tinter selections are preserved when subcategory changes
+- Only clears tinters if no selections exist yet
+- Visual feedback for tinters not available in current subcategory
+- Dropdown shows only products available in current subcategory
+
+### 3. **State Management**
 ```javascript
 // Auto-selected binder state
 const [selectedBinder1Id, setSelectedBinder1Id] = useState(''); // Auto-selected binder 1 ID from subcategory
 const [selectedBinder2Id, setSelectedBinder2Id] = useState(''); // Auto-selected binder 2 ID from subcategory
+
+// Tinter validation function
+const isTinterAvailableInSubcategory = (productId) => {
+  if (!subCategory || !productId) return false;
+  const availableProducts = productsBySubCategory[subCategory] || [];
+  return availableProducts.some(product => product.Product_Id === productId);
+};
 ```
 
-### 3. **Auto-Selection Function**
+### 4. **Auto-Selection Function**
 ```javascript
 const autoSelectBindersForSubcategory = (subCategoryName) => {
   if (!subCategoryName) {
@@ -81,7 +110,7 @@ const autoSelectBindersForSubcategory = (subCategoryName) => {
 };
 ```
 
-### 4. **Enhanced Binder Configuration**
+### 5. **Enhanced Binder Configuration**
 The `selectedBinderConfig` useMemo now:
 - Uses auto-selected binders from state
 - Fetches binder data using Binder_Id from raw binders array
@@ -134,13 +163,46 @@ const config = {
 )}
 ```
 
-### 2. **Updated Help Text**
+### 2. **Tinter Selection with Visual Feedback**
+```jsx
+{/* Show selected product with availability status */}
+{tint.code && tint.code.trim() && (
+  <div className={`px-3 py-2 border-b ${
+    isTinterAvailableInSubcategory(tint.code)
+      ? 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700'
+      : 'bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700'
+  }`}>
+    <div className={`text-xs font-medium mb-1 ${
+      isTinterAvailableInSubcategory(tint.code)
+        ? 'text-blue-600 dark:text-blue-300'
+        : 'text-yellow-600 dark:text-yellow-300'
+    }`}>
+      Selected Product:
+      {!isTinterAvailableInSubcategory(tint.code) && (
+        <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
+          Not in current subcategory
+        </span>
+      )}
+    </div>
+    <div className={`font-medium text-sm ${
+      isTinterAvailableInSubcategory(tint.code)
+        ? 'text-blue-800 dark:text-blue-100'
+        : 'text-yellow-800 dark:text-yellow-100'
+    }`}>
+      {tint.series || tint.code}
+    </div>
+  </div>
+)}
+```
+
+### 3. **Updated Help Text**
 - Updated description to explain automatic binder selection
 - Clear indication that binders are auto-configured based on subcategory
+- Information about tinter selection preservation
 
-### 3. **No Manual Selection UI**
-- Removed dropdown selectors
-- Removed manual selection handlers
+### 4. **No Manual Selection UI**
+- Removed dropdown selectors for binders
+- Removed manual selection handlers for binders
 - Simplified interface focused on display only
 
 ## Data Flow
@@ -162,6 +224,10 @@ selectedBinderConfig recalculates
 Binder data fetched from raw binders array
     ↓
 UI updates to show auto-selected binders
+    ↓
+Tinter dropdown updates with new subcategory products
+    ↓
+Existing tinter selections preserved (with visual feedback)
 ```
 
 ### 2. **Binder Data Resolution Flow**
@@ -179,11 +245,28 @@ Binder calculations performed
 Results displayed in UI
 ```
 
-### 3. **Subcategory Change Flow**
+### 3. **Tinter Selection Flow**
+```
+User selects tinter from dropdown
+    ↓
+Tinter added to tints array
+    ↓
+User changes subcategory
+    ↓
+Tinter selection preserved (not cleared)
+    ↓
+Dropdown shows only products for new subcategory
+    ↓
+Visual feedback if tinter not available in new subcategory
+    ↓
+User can manually change tinter if needed
+```
+
+### 4. **Subcategory Change Flow**
 ```
 User changes subcategory
     ↓
-Previous binder selections cleared
+Previous binder selections cleared and new ones auto-selected
     ↓
 New subcategory configuration loaded
     ↓
@@ -191,18 +274,23 @@ New binders auto-selected from Products object
     ↓
 Binder calculations updated
     ↓
-UI refreshed with new binder information
+Tinter dropdown updated with new subcategory products
+    ↓
+Existing tinter selections preserved with availability status
+    ↓
+UI refreshed with new information
 ```
 
 ## Debug Information
 
 ### 1. **Enhanced Debug Panel**
 The development debug panel now shows:
-- Auto-Selected Binder1 ID
-- Auto-Selected Binder2 ID
+- Auto-Selected Binder1 ID and Binder2 ID
 - Binder names resolved from data
 - Configuration source (Products object vs direct properties)
-- Current binder configuration
+- Current binder configuration details
+- Selected tinters count
+- Tinters available in current subcategory count
 
 ### 2. **Console Logging**
 ```javascript
@@ -215,15 +303,12 @@ console.log('[Dynamic Data] Auto-selected binders for subcategory:', {
   configSource: subcategoryConfig.Products ? 'Products object' : 'direct properties'
 });
 
-// Debug: Dynamic data flow - Binder configuration
-console.log('[Dynamic Data] Binder config loaded:', { 
+// Debug: Dynamic data flow - Subcategory change
+console.log('[Dynamic Data] Subcategory changed:', { 
   subCategory, 
-  hasBinder1: !!selectedBinder1,
-  hasBinder2: !!selectedBinder2,
-  binder1Name: config.Binder1Name,
-  binder2Name: config.Binder2Name,
-  selectedBinder1Id,
-  selectedBinder2Id
+  availableProducts: productsForSubCategory.length,
+  preservedTinters: tints.filter(t => t.code).length,
+  autoSelectedBinders: true
 });
 ```
 
@@ -240,9 +325,10 @@ console.log('[Dynamic Data] Binder config loaded:', {
 - Automatic cleanup on subcategory changes
 
 ### 3. **User Experience**
-- Simplified interface
+- Simplified interface for binders
 - Clear indication of auto-selected binders
 - No confusion about binder selection
+- Preserved tinter selections prevent data loss
 
 ### 4. **Maintainability**
 - Centralized binder selection logic
@@ -258,13 +344,24 @@ console.log('[Dynamic Data] Binder config loaded:', {
 4. Binder names and calculations displayed
 5. No manual intervention required
 
-### 2. **Change Subcategory**
-1. Select different subcategory
-2. Previous binders automatically cleared
-3. New binders auto-selected based on new subcategory's Products object
-4. UI updates immediately
+### 2. **Change Subcategory with Existing Tinters**
+1. User has selected tinters in current subcategory
+2. User selects different subcategory
+3. Binders automatically update to new subcategory
+4. Tinter selections are preserved
+5. Visual feedback shows if tinters are not available in new subcategory
+6. User can manually change tinters if needed
 
-### 3. **No Binders Configured**
+### 3. **Tinter Availability Feedback**
+1. User selects tinter from subcategory A
+2. User changes to subcategory B
+3. If tinter is not available in subcategory B:
+   - Tinter selection remains
+   - Visual warning shows "Not in current subcategory"
+   - Yellow highlighting indicates unavailable status
+4. User can keep the selection or choose a different tinter
+
+### 4. **No Binders Configured**
 1. Select subcategory without binder configuration in Products object
 2. No binders displayed
 3. Clear indication that no binders are configured
@@ -291,6 +388,12 @@ console.log('[Dynamic Data] Binder config loaded:', {
 - Flexible configuration source detection
 - Clear indication of data source in debug information
 
+### 5. **Tinter Availability**
+- Validates tinter availability in current subcategory
+- Visual feedback for unavailable tinters
+- Preserves selections even when not available
+- Clear indication of availability status
+
 ## Future Enhancements
 
 ### 1. **Binder Validation**
@@ -308,7 +411,12 @@ console.log('[Dynamic Data] Binder config loaded:', {
 - Binder-specific calculation parameters
 - Custom binder property handling
 
+### 4. **Tinter Management**
+- Bulk tinter operations
+- Tinter import/export functionality
+- Advanced tinter filtering and search
+
 ## Conclusion
 
-The auto binder selection feature provides a streamlined experience where binders are automatically configured based on subcategory selection. This approach ensures data consistency, reduces user complexity, and provides a more reliable formula creation process. The system automatically handles the relationship between subcategories and their associated binders, making the interface simpler and more intuitive.
+The auto binder selection feature provides a streamlined experience where binders are automatically configured based on subcategory selection, while tinter selections are preserved to prevent data loss. This approach ensures data consistency, reduces user complexity, and provides a more reliable formula creation process. The system automatically handles the relationship between subcategories and their associated binders, making the interface simpler and more intuitive while maintaining user control over tinter selections.
 
