@@ -39,8 +39,8 @@ export function computeBinders(totalTinterGrams, cfg) {
     : ((totalTinterGrams * A2) - binder1)) : 0;
 
   // Binder_Density is in g/L - convert to volume in liters
-  const binder1VolumeL = binderDensity > 0 ? binder1 / binderDensity : 0; // Volume = grams / density (L)
-  const binder2VolumeL = binderDensity > 0 ? binder2 / binderDensity : 0; // Volume = grams / density (L)
+  const binder1VolumeL = binderDensity > 0 ? (binder1 * binderDensity) / 1000 : 0; // Volume = (grams × density) / 1000
+  const binder2VolumeL = binderDensity > 0 ? (binder2 * binderDensity) / 1000 : 0; // Volume = (grams × density) / 1000
 
   const totalBinderGrams = binder1 + binder2;
   const totalBinderVolumeL = binder1VolumeL + binder2VolumeL;

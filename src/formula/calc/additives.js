@@ -16,7 +16,7 @@ export function computeAdditives(additives, baseMass) {
     // Additive_Density is in g/L - convert to volume in liters
     const density_g_per_l = Number(a?.Additive_Density || 1000); // Default density 1000 g/L
     const grams = (baseMass * percent) / 100;
-    const volumeL = density_g_per_l > 0 ? grams / density_g_per_l : 0; // Volume = grams / density (L)
+    const volumeL = density_g_per_l > 0 ? (grams * density_g_per_l) / 1000 : 0; // Volume = (grams × density) / 1000
     
     totalAdditiveGrams += grams;
     totalAdditiveVolumeL += volumeL;

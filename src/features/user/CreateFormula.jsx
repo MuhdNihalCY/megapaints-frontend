@@ -508,6 +508,22 @@ const CreateFormula = () => {
     }
   }, [subCategory, productsBySubCategory, binderConfigBySubCategory, rawBinders]);
 
+  // Debug: Monitor additives array changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Dynamic Data] Additives array changed:', {
+        additivesCount: additives.length,
+        additives: additives.map(a => ({ 
+          id: a._id, 
+          additiveId: a.additiveId, 
+          name: a.name, 
+          percent: a.percent,
+          density: a.Additive_Density 
+        }))
+      });
+    }
+  }, [additives]);
+
   // ===== PRODUCT SEARCH & SELECTION =====
   
   /**
@@ -940,6 +956,8 @@ const CreateFormula = () => {
     const availableProducts = productsBySubCategory[subCategory] || [];
     return availableProducts.some(product => product.Product_Id === productId);
   };
+
+
   
   /**
    * Updates a specific field in an additive row
@@ -1113,6 +1131,22 @@ const CreateFormula = () => {
     
     // Calculate additive totals
     const result = computeAdditives(additives, baseMass);
+    
+    // Debug: Additive calculation
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Dynamic Data] Additive calculation:', { 
+        baseMass,
+        tinterTotalGrams: tinterTotals.totalGrams,
+        binderTotalGrams: binderTotals.totalBinderGrams,
+        additivesCount: additives.length,
+        additives: additives.map(a => ({ name: a.name, percent: a.percent, id: a._id })),
+        result: {
+          totalAdditiveGrams: result.totalAdditiveGrams,
+          totalAdditiveVolumeL: result.totalAdditiveVolumeL,
+          rowsCount: result.rows.length
+        }
+      });
+    }
     
     return result;
   }, [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
@@ -1447,6 +1481,13 @@ const CreateFormula = () => {
                   <div>Selected Tinters: {tints.filter(t => t.code).length}</div>
                   <div>Available in Subcategory: {tints.filter(t => t.code && isTinterAvailableInSubcategory(t.code)).length}</div>
                   <div>Available Additives: {rawAdditives.length}</div>
+                  <div>Current Additives: {additives.length}</div>
+                  <div>Selected Additive: {selectedAdditiveId || 'None'}</div>
+                  <div>Additive Percentage: {additivePercentageInput || '0'}%</div>
+                  <div>Tinter Total Grams: {tinterTotals.totalGrams.toFixed(2)}</div>
+                  <div>Binder Total Grams: {binderTotals.totalBinderGrams.toFixed(2)}</div>
+                  <div>Base Mass for Additives: {(tinterTotals.totalGrams + binderTotals.totalBinderGrams).toFixed(2)}</div>
+                  <div>Additive Total Grams: {additiveTotals.totalAdditiveGrams.toFixed(2)}</div>
                   <div>Available Binders: {rawBinders.length}</div>
                   <div>Binder Config: {selectedBinderConfig ? 'Yes' : 'No'}</div>
                   <div>Auto-Selected Binder1: {selectedBinder1Id || 'None'}</div>
@@ -1890,32 +1931,82 @@ const CreateFormula = () => {
                 {/* Additives - aligned to quantity columns */}
                 <div className="bg-gray-400 text-white p-2">
                   <div className="text-xs text-gray-200 mb-1">
-                    Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage to add automatically.
+                    Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage for automatic calculation.
                     {isAddingAdditive && (
-                      <span className="text-green-300 ml-2">✓ Added!</span>
+                      <span className="text-green-300 ml-2">✓ Updated!</span>
                     )}
                   </div>
                   <div className="grid grid-cols-3 mb-2">
                     <div className="text-sm font-medium">Additives</div>
                     <div className="text-center">
                       <select 
-                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs"
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-full"
                         value={selectedAdditiveId}
                         onChange={(e) => {
                           const additiveId = e.target.value;
                           setSelectedAdditiveId(additiveId);
                           if (additiveId) {
-                            // Add new additive row if not already present
+                            // Check if additive already exists
                             const existingAdditive = additives.find(a => a.additiveId === additiveId);
                             if (!existingAdditive) {
-                              const additive = rawAdditives.find(a => a.Additive_Id === additiveId);
+                              // Add new additive automatically with 0% default
+                              // Handle both string and number ID types
+                              const additive = rawAdditives.find(a => 
+                                String(a.Additive_Id) === String(additiveId) || 
+                                Number(a.Additive_Id) === Number(additiveId)
+                              );
                               if (additive) {
-                                addAdditiveWithData(additive, additiveId);
-                                setAdditivePercentageInput('0'); // Set default percentage
+                                const newAdditive = {
+                                  _id: cryptoRandomId(),
+                                  additiveId: additiveId,
+                                  name: additive.Additive_Name || '',
+                                  percent: 0,
+                                  grams: 0,
+                                  Additive_Density: Number(additive.Additive_Density || 1000),
+                                  SolidContent: Number(additive.SolidContent || 0),
+                                  VOC: Number(additive.VOC || 0),
+                                };
+                                setAdditives((prev) => {
+                                  const updated = [...prev, newAdditive];
+                                  // Debug: Additive selection
+                                  if (process.env.NODE_ENV === 'development') {
+                                    console.log('[Dynamic Data] New additive added:', { 
+                                      additiveId,
+                                      additiveName: additive.Additive_Name,
+                                      currentAdditives: updated.length,
+                                      newAdditive
+                                    });
+                                  }
+                                  return updated;
+                                });
+                                setAdditivePercentageInput('0');
+                              } else {
+                                // Debug: Additive not found in raw data
+                                if (process.env.NODE_ENV === 'development') {
+                                  console.log('[Dynamic Data] Additive not found in raw data:', { 
+                                    selectedAdditiveId: additiveId,
+                                    selectedAdditiveIdType: typeof additiveId,
+                                    availableRawAdditives: rawAdditives.map(a => ({ 
+                                      id: a.Additive_Id, 
+                                      idType: typeof a.Additive_Id,
+                                      name: a.Additive_Name 
+                                    })),
+                                    rawAdditivesCount: rawAdditives.length
+                                  });
+                                }
                               }
                             } else {
                               // If additive already exists, set the percentage input to its current value
                               setAdditivePercentageInput(String(existingAdditive.percent || 0));
+                              
+                              // Debug: Existing additive selected
+                              if (process.env.NODE_ENV === 'development') {
+                                console.log('[Dynamic Data] Existing additive selected:', { 
+                                  additiveId,
+                                  additiveName: existingAdditive.name,
+                                  currentPercent: existingAdditive.percent
+                                });
+                              }
                             }
                           } else {
                             setAdditivePercentageInput('');
@@ -1925,7 +2016,7 @@ const CreateFormula = () => {
                         <option value="">Select Additive</option>
                         {rawAdditives.map((additive) => (
                           <option key={additive.Additive_Id} value={additive.Additive_Id}>
-                            {additive.Additive_Name} ({additive.Abbreviation || 'N/A'})
+                            {additive.Additive_Name} {additive.Abbreviation ? `(${additive.Abbreviation})` : ''}
                           </option>
                         ))}
                       </select>
@@ -1939,33 +2030,72 @@ const CreateFormula = () => {
                           setAdditivePercentageInput(v);
                           // Automatically update additive percentage if additive is selected
                           if (selectedAdditiveId) {
-                            const additive = additives.find(a => a.additiveId === selectedAdditiveId);
+                            let additive = additives.find(a => a.additiveId === selectedAdditiveId);
                             if (additive) {
                               updateAdditive(additive._id, 'percent', v === '' ? 0 : Number(v));
+                              // Show success feedback
+                              setIsAddingAdditive(true);
+                              setTimeout(() => setIsAddingAdditive(false), 500);
+                              
+                              // Debug: Additive percentage update
+                              if (process.env.NODE_ENV === 'development') {
+                                console.log('[Dynamic Data] Additive percentage updated:', { 
+                                  additiveId: selectedAdditiveId,
+                                  additiveName: additive.name,
+                                  newPercent: v === '' ? 0 : Number(v),
+                                  additiveInternalId: additive._id
+                                });
+                              }
+                            } else {
+                              // If additive is selected but not in array, add it immediately
+                              // Handle both string and number ID types
+                              const rawAdditive = rawAdditives.find(a => 
+                                String(a.Additive_Id) === String(selectedAdditiveId) || 
+                                Number(a.Additive_Id) === Number(selectedAdditiveId)
+                              );
+                              if (rawAdditive) {
+                                const newAdditive = {
+                                  _id: cryptoRandomId(),
+                                  additiveId: selectedAdditiveId,
+                                  name: rawAdditive.Additive_Name || '',
+                                  percent: v === '' ? 0 : Number(v),
+                                  grams: 0,
+                                  Additive_Density: Number(rawAdditive.Additive_Density || 1000),
+                                  SolidContent: Number(rawAdditive.SolidContent || 0),
+                                  VOC: Number(rawAdditive.VOC || 0),
+                                };
+                                setAdditives((prev) => {
+                                  const updated = [...prev, newAdditive];
+                                  // Debug: Additive added with percentage
+                                  if (process.env.NODE_ENV === 'development') {
+                                    console.log('[Dynamic Data] Additive added with percentage:', { 
+                                      additiveId: selectedAdditiveId,
+                                      additiveName: rawAdditive.Additive_Name,
+                                      newPercent: v === '' ? 0 : Number(v),
+                                      currentAdditives: updated.length
+                                    });
+                                  }
+                                  return updated;
+                                });
+                                // Show success feedback
+                                setIsAddingAdditive(true);
+                                setTimeout(() => setIsAddingAdditive(false), 500);
+                                                             } else {
+                                 // Debug: Additive not found in raw data
+                                 if (process.env.NODE_ENV === 'development') {
+                                   console.log('[Dynamic Data] Additive not found in raw data:', { 
+                                     selectedAdditiveId,
+                                     selectedAdditiveIdType: typeof selectedAdditiveId,
+                                     availableRawAdditives: rawAdditives.map(a => ({ 
+                                       id: a.Additive_Id, 
+                                       idType: typeof a.Additive_Id,
+                                       name: a.Additive_Name 
+                                     })),
+                                     rawAdditivesCount: rawAdditives.length
+                                   });
+                                 }
+                               }
                             }
-                          }
-                        }}
-                        onBlur={() => {
-                          // Clear selection after percentage is entered
-                          if (selectedAdditiveId && additivePercentageInput && Number(additivePercentageInput) > 0) {
-                            setIsAddingAdditive(true);
-                            setTimeout(() => {
-                              setSelectedAdditiveId('');
-                              setAdditivePercentageInput('');
-                              setIsAddingAdditive(false);
-                            }, 500);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          // Clear selection when Enter is pressed
-                          if (e.key === 'Enter' && selectedAdditiveId && additivePercentageInput && Number(additivePercentageInput) > 0) {
-                            e.preventDefault();
-                            setIsAddingAdditive(true);
-                            setTimeout(() => {
-                              setSelectedAdditiveId('');
-                              setAdditivePercentageInput('');
-                              setIsAddingAdditive(false);
-                            }, 500);
                           }
                         }}
                         className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
@@ -1976,54 +2106,7 @@ const CreateFormula = () => {
                   </div>
                   
                   {/* Individual Additive Rows */}
-                  {additives.length > 0 && (
-                    <div className="space-y-1 mb-2">
-                      {additives.map((additive, index) => {
-                        // Find the calculated values for this additive
-                        const calculatedRow = additiveTotals.rows.find(row => row.id === additive._id);
-                        return (
-                          <div key={additive._id} className="grid grid-cols-12 items-center text-xs">
-                            <div className="col-span-1 text-center">{index + 1}</div>
-                            <div className="col-span-7">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">{additive.name}</span>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="text"
-                                    value={additive.percent || 0}
-                                    onChange={(e) => {
-                                      const v = sanitizeNumericInput(e.target.value, 'float');
-                                      updateAdditive(additive._id, 'percent', v === '' ? 0 : Number(v));
-                                    }}
-                                    className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
-                                    placeholder="0"
-                                  />
-                                  <span className="text-xs">%</span>
-                                  <button
-                                    onClick={() => removeAdditive(additive._id)}
-                                    className="text-red-300 hover:text-red-100 text-xs"
-                                    title="Remove additive"
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="col-span-4">
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="text-center text-blue-300 font-semibold">
-                                  {calculatedRow ? calculatedRow.grams.toFixed(2) : '0.00'} g
-                                </div>
-                                <div className="text-center text-sm">
-                                  {calculatedRow ? calculatedRow.volumeL.toFixed(4) : '0.0000'} L
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+
                   
                   <div className="grid grid-cols-12 items-center">
                     <div className="col-span-1"></div>
