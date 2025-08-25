@@ -23,10 +23,13 @@ import { useEffect, useMemo, useState } from 'react';
 // Component imports
 import Header from './components/Header';
 import { LoadingOverlay } from '../../components';
+import FileNumberModal from './components/FileNumberModal';
+import AccessKeyModal from './components/AccessKeyModal';
 
 // Service imports for API calls and data management
 import { FormulaService } from '../../formula/services/formulaService';
 import { fetchMastersFresh } from '../../formula/services/mastersService'; // Always fetches fresh data, no caching
+import { FileNumberService } from '../../formula/services/fileNumberService';
 
 // Calculation engine imports for formula computations
 import { computeTinters, computeTinterRow } from '../../formula/calc/tinters';
@@ -160,6 +163,14 @@ const CreateFormula = () => {
   // Input state management
   const [qtyInput, setQtyInput] = useState({});                   // { [tinterId]: string[] } - Quantity input values
   const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string } - Additive input values
+
+  // ===== FILE NUMBER STATE =====
+  const [isFileNumberModalOpen, setIsFileNumberModalOpen] = useState(false); // File number edit modal state
+  const [isAccessKeyModalOpen, setIsAccessKeyModalOpen] = useState(false); // Access key verification modal state
+  const [hasAccessKeyVerified, setHasAccessKeyVerified] = useState(false); // Track if access key has been verified
+  const [isGeneratingFileNumber, setIsGeneratingFileNumber] = useState(false); // File number generation loading state
+  const [labelFileNo, setLabelFileNo] = useState(''); // Internal file number (e.g., 100000)
+  const [formattedFileNo, setFormattedFileNo] = useState(''); // Formatted file number (e.g., 100000-ABC-05)
 
   // ===== HELPER FUNCTIONS =====
   
@@ -298,6 +309,102 @@ const CreateFormula = () => {
     return out;
   }
 
+  // ===== FILE NUMBER GENERATION =====
+  
+  /**
+   * Generates a new file number for the formula
+   * Handles both automatic generation and manual updates
+   */
+  const generateFileNumber = async () => {
+    setIsGeneratingFileNumber(true);
+    try {
+      // Get current additive information
+      const currentAdditive = additives.length > 0 ? additives[0] : null;
+      const additiveId = currentAdditive?.additiveId || selectedAdditiveId;
+      const additivePercentage = currentAdditive?.percent || additivePercentageInput;
+
+      // Prepare data for file number generation
+      const fileNumberData = {
+        SubCategory: subCategory,
+        gloss: gloss,
+        matt: gloss, // Handle both gloss and matt
+        additiveId: additiveId,
+        AdditivePercentage: additivePercentage,
+        subcategories: subCategoryOptions,
+        additives: rawAdditives
+      };
+
+      // Generate file number
+      const result = await FileNumberService.generateFileNo(fileNumberData, true);
+      
+      setLabelFileNo(result.labelFileNo);
+      setFormattedFileNo(result.fileNo);
+      setMeta(prev => ({
+        ...prev,
+        fileNo: result.fileNo
+      }));
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Generated file number:', result);
+      }
+    } catch (error) {
+      console.error('Error generating file number:', error);
+      // Fallback to timestamp-based number
+      const fallbackNumber = Math.floor(Date.now() / 1000) % 1000000;
+      setLabelFileNo(fallbackNumber);
+      setFormattedFileNo(String(fallbackNumber));
+      setMeta(prev => ({
+        ...prev,
+        fileNo: String(fallbackNumber)
+      }));
+    } finally {
+      setIsGeneratingFileNumber(false);
+    }
+  };
+
+  /**
+   * Updates the file number when user edits it via modal
+   * @param {string} newLabelFileNo - New internal file number
+   * @param {string} newFormattedFileNo - New formatted file number
+   */
+  const handleFileNumberUpdate = (newLabelFileNo, newFormattedFileNo) => {
+    setLabelFileNo(newLabelFileNo);
+    setFormattedFileNo(newFormattedFileNo);
+    setMeta(prev => ({
+      ...prev,
+      fileNo: newFormattedFileNo
+    }));
+  };
+
+  /**
+   * Opens the file number edit modal
+   * Requires controlled access key verification first
+   */
+  const openFileNumberModal = () => {
+    if (hasAccessKeyVerified) {
+      // Access key already verified, open file number modal directly
+      setIsFileNumberModalOpen(true);
+    } else {
+      // Need to verify access key first
+      setIsAccessKeyModalOpen(true);
+    }
+  };
+
+  /**
+   * Handles successful access key verification
+   */
+  const handleAccessKeySuccess = () => {
+    setHasAccessKeyVerified(true);
+    // Now open the file number modal
+    setIsFileNumberModalOpen(true);
+  };
+
+  // Reset access key verification when component unmounts or user changes
+  useEffect(() => {
+    // Reset verification state when component mounts
+    setHasAccessKeyVerified(false);
+  }, []);
+
   // ===== DATA LOADING & INITIALIZATION =====
   
   /**
@@ -401,6 +508,11 @@ const CreateFormula = () => {
             ...metaDefaults,
             date: metaDefaults.date || m.date,
           }));
+
+          // Generate initial file number after form is initialized
+          if (!cancelled) {
+            generateFileNumber();
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -523,6 +635,49 @@ const CreateFormula = () => {
       });
     }
   }, [additives]);
+
+  // ===== FILE NUMBER REGENERATION =====
+  
+  /**
+   * Regenerates file number when subcategory, gloss, or additive information changes
+   * This ensures the file number format reflects the current formula configuration
+   */
+  useEffect(() => {
+    // Only regenerate if we have a labelFileNo (meaning initial generation has happened)
+    if (labelFileNo && !isGeneratingFileNumber) {
+      const currentAdditive = additives.length > 0 ? additives[0] : null;
+      const additiveId = currentAdditive?.additiveId || selectedAdditiveId;
+      const additivePercentage = currentAdditive?.percent || additivePercentageInput;
+
+      // Format the file number with current configuration
+      const newFormattedFileNo = FileNumberService.formulaFileFormat(
+        String(labelFileNo || ''),
+        String(subCategory || ''),
+        Number(gloss) || 0,
+        String(additiveId || ''),
+        Number(additivePercentage) || 0,
+        Array.isArray(subCategoryOptions) ? subCategoryOptions : [],
+        Array.isArray(rawAdditives) ? rawAdditives : []
+      );
+
+      setFormattedFileNo(newFormattedFileNo);
+      setMeta(prev => ({
+        ...prev,
+        fileNo: newFormattedFileNo
+      }));
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[File Number] Regenerated:', {
+          labelFileNo,
+          newFormattedFileNo,
+          subCategory,
+          gloss,
+          additiveId,
+          additivePercentage
+        });
+      }
+    }
+  }, [labelFileNo, subCategory, gloss, additives, selectedAdditiveId, additivePercentageInput, subCategoryOptions, rawAdditives, isGeneratingFileNumber]);
 
   // ===== PRODUCT SEARCH & SELECTION =====
   
@@ -1371,13 +1526,64 @@ const CreateFormula = () => {
                 </div>
                 {/* File Number - Unique identifier for the formula */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">File no.</label>
-                  <input
-                    type="text"
-                    value={meta.fileNo}
-                    onChange={(e) => updateMeta('fileNo', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-500 text-white"
-                  />
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    File no.
+                    {isGeneratingFileNumber && (
+                      <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                        Generating...
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={meta.fileNo}
+                      readOnly
+                      onClick={openFileNumberModal}
+                      className={`w-full px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer transition-colors ${
+                        hasAccessKeyVerified 
+                          ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                          : 'bg-gray-400 text-white hover:bg-gray-500'
+                      }`}
+                      title={hasAccessKeyVerified ? "Click to edit file number" : "Click to edit file number (requires access key)"}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                      {hasAccessKeyVerified ? (
+                        <svg 
+                          className="w-4 h-4 text-gray-400" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+                          />
+                        </svg>
+                      ) : (
+                        <svg 
+                          className="w-4 h-4 text-yellow-400" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  {!hasAccessKeyVerified && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                      ⚠️ Controlled access required to edit file number
+                    </p>
+                  )}
                 </div>
                 
                 {/* Customer Name - Client or customer information */}
@@ -2150,6 +2356,32 @@ const CreateFormula = () => {
           </div>
         </div>
       </div>
+
+      {/* Access Key Verification Modal */}
+      <AccessKeyModal
+        isOpen={isAccessKeyModalOpen}
+        onClose={() => setIsAccessKeyModalOpen(false)}
+        onSuccess={handleAccessKeySuccess}
+      />
+
+      {/* File Number Edit Modal */}
+      <FileNumberModal
+        isOpen={isFileNumberModalOpen}
+        onClose={() => {
+          setIsFileNumberModalOpen(false);
+          // Reset access key verification when modal is closed
+          setHasAccessKeyVerified(false);
+        }}
+        currentFileNo={labelFileNo}
+        onSave={handleFileNumberUpdate}
+        subcategoryId={subCategory}
+        gloss={gloss}
+        additiveId={selectedAdditiveId}
+        additivePercentage={additivePercentageInput}
+        subcategories={subCategoryOptions}
+        additives={rawAdditives}
+        isLoading={isGeneratingFileNumber}
+      />
     </div>
   );
 };

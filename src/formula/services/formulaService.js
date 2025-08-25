@@ -44,6 +44,18 @@ export const FormulaService = {
     return res.data;
   },
 
+  async fetchAllFormulas() {
+    const res = await api.get('/v1/formulations/formula', {
+      params: { 
+        page: 1, 
+        limit: 10000,
+        sortBy: 'FileNo',
+        sortOrder: 'desc'
+      }
+    });
+    return res.data;
+  },
+
   async createFormula(payload) {
     const res = await api.post('/admin/formula', payload);
     return res.data;
