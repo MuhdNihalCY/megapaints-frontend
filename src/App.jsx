@@ -12,8 +12,8 @@ import Orders from './features/user/Orders';
 import KanbanDashboard from './features/kanban/pages/KanbanDashboard';
 import KanbanTest from './features/kanban/components/KanbanTest';
 import BackendTest from './features/kanban/pages/BackendTest';
-import SessionStatus from './components/SessionStatus';
-import DebugCookies from './components/DebugCookies';
+// import SessionStatus from './components/SessionStatus';
+// import DebugCookies from './components/DebugCookies';
 
 
 function App() {
@@ -22,8 +22,8 @@ function App() {
       <ThemeProvider>
         <Router>
           <div className="App">
-            <SessionStatus />
-            <DebugCookies />
+            {/* <SessionStatus />
+            <DebugCookies /> */}
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
