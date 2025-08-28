@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import Cookies from 'js-cookie';
 import api, { setJwtToken, clearJwtToken, setUserRole } from '../utils/api';
+import tokenManager from '../utils/tokenManager';
+import sessionManager from '../utils/sessionManager';
 
 const AuthContext = createContext();
 
@@ -16,12 +18,47 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate session on first load using server-side validation
+  // Hydrate session on first load using refresh tokens
   const hydrateSession = useCallback(async () => {
     try {
-      // Prefer checking the last known role to avoid unnecessary 401s
-      const lastRole = localStorage.getItem('lastRole');
+      console.debug('[Auth] Hydrating session...');
+      
+      // Debug: Check what tokens are available
+      const accessToken = tokenManager.getAccessToken();
+      const refreshToken = tokenManager.getRefreshToken();
+      const role = tokenManager.getUserRole();
+      
+      console.debug('[Auth] Token check:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        role: role,
+        accessTokenLength: accessToken?.length || 0,
+        refreshTokenLength: refreshToken?.length || 0
+      });
+      
+      // Check if we have a valid session using refresh tokens
+      if (!tokenManager.hasValidSession()) {
+        console.warn('[Auth] No valid session found');
+        setUser(null);
+        return;
+      }
 
+      // Get user role from stored tokens
+      if (!role) {
+        console.warn('[Auth] No user role found in tokens');
+        setUser(null);
+        return;
+      }
+
+      // Try to extend session using refresh token
+      const sessionExtended = await tokenManager.extendSession(role);
+      if (!sessionExtended) {
+        console.warn('[Auth] Failed to extend session');
+        setUser(null);
+        return;
+      }
+
+      // Now try to get user info with fresh token
       const tryUserMe = async () => {
         console.debug('[Auth] Checking user session via /api/auth/me');
         try {
@@ -86,26 +123,79 @@ export const AuthProvider = ({ children }) => {
         }
       };
 
-      if (lastRole === 'user') {
+      // Try based on role
+      if (role === 'user') {
         try {
-          if (await tryUserMe()) return;
+          if (await tryUserMe()) {
+            // Start session extension for user
+            sessionManager.startSessionExtension('user');
+            return;
+          }
         } catch (_) {}
         try {
-          if (await tryAdminMe()) return;
+          if (await tryAdminMe()) {
+            // Start session extension for admin
+            sessionManager.startSessionExtension('admin');
+            return;
+          }
+        } catch (_) {}
+      } else if (role === 'admin') {
+        try {
+          if (await tryAdminMe()) {
+            // Start session extension for admin
+            sessionManager.startSessionExtension('admin');
+            return;
+          }
+        } catch (_) {}
+        try {
+          if (await tryUserMe()) {
+            // Start session extension for user
+            sessionManager.startSessionExtension('user');
+            return;
+          }
+        } catch (_) {}
+      }
+      
+      // Fallback: Try the old approach if TokenManager approach failed
+      console.warn('[Auth] TokenManager approach failed, trying fallback...');
+      const lastRole = localStorage.getItem('lastRole');
+      
+      if (lastRole === 'user') {
+        try {
+          if (await tryUserMe()) {
+            sessionManager.startSessionExtension('user');
+            return;
+          }
+        } catch (_) {}
+        try {
+          if (await tryAdminMe()) {
+            sessionManager.startSessionExtension('admin');
+            return;
+          }
         } catch (_) {}
       } else if (lastRole === 'admin') {
         try {
-          if (await tryAdminMe()) return;
+          if (await tryAdminMe()) {
+            sessionManager.startSessionExtension('admin');
+            return;
+          }
         } catch (_) {}
         try {
-          if (await tryUserMe()) return;
+          if (await tryUserMe()) {
+            sessionManager.startSessionExtension('user');
+            return;
+          }
         } catch (_) {}
       } else {
         // No hint; try only user to avoid noisy admin 401s on first load
         try {
-          if (await tryUserMe()) return;
+          if (await tryUserMe()) {
+            sessionManager.startSessionExtension('user');
+            return;
+          }
         } catch (_) {}
       }
+      
       // If neither worked, clear
       setUser(null);
     } finally {
@@ -158,16 +248,23 @@ export const AuthProvider = ({ children }) => {
           role: isAdmin ? 'admin' : 'user'
         };
         
-        // Store the token based on user type
-        const token = response.data.token || response.data.accessToken;
-        if (token) {
-          const role = isAdmin ? 'admin' : 'user';
-          setJwtToken(token, role); // Set for immediate use with role
+        // Store tokens using TokenManager
+        const accessToken = response.data.token || response.data.accessToken;
+        const refreshToken = response.data.refreshToken;
+        const role = isAdmin ? 'admin' : 'user';
+        
+        if (accessToken) {
+          tokenManager.storeTokens(accessToken, refreshToken, role);
+          setJwtToken(accessToken, role); // Set for immediate use with role
           setUserRole(role); // Set the role for token selection
         }
         
         setUser(userData);
         localStorage.setItem('lastRole', userData.role);
+        
+        // Start proactive session extension
+        sessionManager.startSessionExtension(role);
+        
         return { success: true, user: userData };
       } else {
         return { success: false, message: response.data.message || 'Login failed' };
@@ -190,16 +287,11 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       localStorage.removeItem('lastRole');
-      // Clear any stored tokens
-      try {
-        clearJwtToken(); // Clear in-memory token
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user_access_token');
-        localStorage.removeItem('admin_access_token');
-        Cookies.remove('access_token');
-        Cookies.remove('user_access_token');
-        Cookies.remove('admin_access_token');
-      } catch (_) {}
+      // Stop session extension
+      sessionManager.stopSessionExtension();
+      // Clear all tokens using TokenManager
+      tokenManager.clearTokens();
+      clearJwtToken(); // Clear in-memory token
     }
   }, [user?.role]);
 
@@ -217,3 +309,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+

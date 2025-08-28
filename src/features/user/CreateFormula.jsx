@@ -2072,9 +2072,9 @@ const CreateFormula = () => {
 
                 {/* Binders - aligned to quantity columns */}
                 <div className="bg-gray-500 text-white p-2">
-                  <div className="text-xs text-gray-200 mb-1">
+                  {/* <div className="text-xs text-gray-200 mb-1">
                     Binder names and calculations are automatically selected based on the chosen subcategory configuration.
-                  </div>
+                  </div> */}
                   <div className="text-sm font-medium mb-2">Binders</div>
                   
                   {/* Binder 1 - Show only if auto-selected for subcategory */}
@@ -2137,7 +2137,7 @@ const CreateFormula = () => {
                 {/* Additives - aligned to quantity columns */}
                 <div className="bg-gray-400 text-white p-2">
                   <div className="text-xs text-gray-200 mb-1">
-                    Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage for automatic calculation.
+                    {/* Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage for automatic calculation. */}
                     {isAddingAdditive && (
                       <span className="text-green-300 ml-2">✓ Updated!</span>
                     )}

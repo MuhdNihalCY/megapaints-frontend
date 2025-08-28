@@ -14,19 +14,38 @@ import api from '../../utils/api';
  */
 export const verifyAccessKey = async (accessKey) => {
   try {
+    console.log('[ControlledAccess] Verifying access key...');
     const response = await api.post('/v1/controlled_access/api/verify-access-key', {
       accessKey: accessKey.trim()
     });
     
+    console.log('[ControlledAccess] API Response:', response.data);
+    
+    // Handle different response formats
+    const success = response.data.success || response.data.status === 'success' || response.data.verified === true;
+    const message = response.data.message || response.data.msg || 
+      (success ? 'Access key verification successful' : 'Access key verification failed');
+    
+    console.log('[ControlledAccess] Processed result:', { success, message });
+    
     return {
-      success: response.data.success,
-      message: response.data.message || 'Access key verification successful'
+      success,
+      message
     };
   } catch (error) {
-    console.error('Error verifying access key:', error);
+    console.error('[ControlledAccess] Error verifying access key:', error);
+    console.error('[ControlledAccess] Error response:', error.response?.data);
+    
+    // Handle different error response formats
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.msg || 
+                        error.response?.data?.error ||
+                        error.message || 
+                        'Access key verification failed. Please try again.';
+    
     throw {
       success: false,
-      message: error.response?.data?.message || 'Access key verification failed. Please try again.'
+      message: errorMessage
     };
   }
 };

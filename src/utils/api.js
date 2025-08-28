@@ -35,28 +35,30 @@ function rejectPendingRequests(error) {
 }
 
 async function tryRefreshSession() {
-  // Try user and admin refresh; whichever succeeds first wins
-  const controllers = [new AbortController(), new AbortController()];
   try {
     console.info('[API] Attempting silent refresh...');
-    const results = await Promise.allSettled([
-          api.post('/auth/refresh', {}, { signal: controllers[0].signal, _noIntercept: true }),
-    api.post('/admin/auth/refresh', {}, { signal: controllers[1].signal, _noIntercept: true }),
-    ]);
-    const anyFulfilled = results.find(r => r.status === 'fulfilled' && r.value?.data?.status);
-    if (anyFulfilled) {
-      try {
-        const which = results.findIndex(r => r.status === 'fulfilled' && r.value?.data?.status);
-        console.info('[API] Silent refresh succeeded via', which === 0 ? '/auth/refresh' : '/admin/auth/refresh');
-      } catch {}
-      // Cancel the other one (best-effort)
-      controllers.forEach((c) => { try { c.abort(); } catch {} });
+    
+    // Import TokenManager dynamically to avoid circular dependency
+    const { default: tokenManager } = await import('./tokenManager');
+    
+    // Get user role from stored tokens
+    const role = tokenManager.getUserRole();
+    if (!role) {
+      console.warn('[API] No user role found for refresh');
+      return false;
+    }
+    
+    // Try to refresh using TokenManager
+    const result = await tokenManager.refreshAccessToken(role);
+    if (result.success) {
+      console.info('[API] Silent refresh succeeded via TokenManager');
       return true;
     }
-    console.warn('[API] Silent refresh failed (no endpoint succeeded)');
+    
+    console.warn('[API] Silent refresh failed via TokenManager');
     return false;
-  } catch {
-    console.error('[API] Silent refresh threw an error');
+  } catch (error) {
+    console.error('[API] Silent refresh threw an error:', error);
     return false;
   }
 }
@@ -122,8 +124,8 @@ function readJwtToken() {
   } catch (_) {}
   
   try {
-    // Non-HttpOnly fallbacks if server sets readable cookies (if HttpOnly, this will be undefined and we rely on cookies via withCredentials)
-    const ck = Cookies.get('access_token') || Cookies.get('user_access_token') || Cookies.get('admin_access_token');
+    // Check for the actual cookie names used by your backend
+    const ck = Cookies.get('auth_token') || Cookies.get('access_token') || Cookies.get('user_access_token') || Cookies.get('admin_access_token');
     if (ck) return ck;
   } catch (_) {}
   

@@ -15,13 +15,17 @@ const AccessKeyModal = ({
   const [accessKey, setAccessKey] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   // Handle access key input change
   const handleAccessKeyChange = (e) => {
     setAccessKey(e.target.value);
-    // Clear error when user starts typing
+    // Clear error and success when user starts typing
     if (error) {
       setError('');
+    }
+    if (success) {
+      setSuccess(false);
     }
   };
 
@@ -45,17 +49,28 @@ const AccessKeyModal = ({
     setError('');
 
     try {
+      console.log('[AccessKeyModal] Starting verification...');
       const result = await ControlledAccessService.verifyAccessKey(accessKey.trim());
+      
+      console.log('[AccessKeyModal] Verification result:', result);
       
       if (result.success) {
         // Access key verified successfully
-        onSuccess();
-        handleCancel();
+        console.log('[AccessKeyModal] Verification successful, calling onSuccess');
+        setSuccess(true);
+        setError('');
+        // Wait a moment to show success message, then proceed
+        setTimeout(() => {
+          onSuccess();
+          handleCancel();
+        }, 1000);
       } else {
+        console.log('[AccessKeyModal] Verification failed:', result.message);
         setError(result.message || 'Access key verification failed.');
+        setSuccess(false);
       }
     } catch (error) {
-      console.error('Error verifying access key:', error);
+      console.error('[AccessKeyModal] Error during verification:', error);
       setError(error.message || 'Access key verification failed. Please try again.');
     } finally {
       setIsVerifying(false);
@@ -66,6 +81,7 @@ const AccessKeyModal = ({
   const handleCancel = () => {
     setAccessKey('');
     setError('');
+    setSuccess(false);
     setIsVerifying(false);
     onClose();
   };
@@ -120,6 +136,13 @@ const AccessKeyModal = ({
             {error && (
               <p className="text-sm text-red-600 dark:text-red-400 mt-1">
                 {error}
+              </p>
+            )}
+            
+            {/* Success message */}
+            {success && (
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                ✓ Access key verified successfully! Opening file number editor...
               </p>
             )}
           </div>
