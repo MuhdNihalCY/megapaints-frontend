@@ -12,6 +12,7 @@ import KanbanBoard from '../components/KanbanBoard';
 import CardModal from '../components/CardModal';
 import Header from '../../user/components/Header';
 import AuthGuard from '../components/AuthGuard';
+import DebugAuth from '../../../components/DebugAuth';
 
 /**
  * Kanban Dashboard Page Component
@@ -62,6 +63,9 @@ const KanbanDashboard = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <Header />
+        
+        {/* Debug Auth Info - Development Only */}
+        {process.env.NODE_ENV === 'development' && <DebugAuth />}
         
         {/* Main Content */}
         <div className="flex-1 h-[calc(100vh-64px)]">

@@ -20,7 +20,98 @@ class KanbanService {
       const response = await api.get('/v2/board');
       return response.data;
     } catch (error) {
-      console.error('Error fetching board:', error);
+      console.warn('v2/board endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return {
+          columns: [
+            {
+              id: 'todo',
+              title: 'To Do',
+              type: 'todo',
+              order: 1,
+              isActive: true,
+              cards: []
+            },
+            {
+              id: 'in-progress',
+              title: 'In Progress',
+              type: 'in-progress',
+              order: 2,
+              isActive: true,
+              cards: []
+            },
+            {
+              id: 'production',
+              title: 'Production',
+              type: 'production',
+              order: 3,
+              isActive: true,
+              subcolumns: [
+                { id: 'production-1', title: 'John Production', userId: '1', type: 'user' },
+                { id: 'production-2', title: 'Jane Production', userId: '2', type: 'user' },
+                { id: 'production-3', title: 'Bob Production', userId: '3', type: 'user' },
+                { id: 'production-4', title: 'Alice Production', userId: '4', type: 'user' }
+              ],
+              isGrouped: true,
+              cards: []
+            },
+            {
+              id: 'drivers',
+              title: 'Drivers',
+              type: 'drivers',
+              order: 4,
+              isActive: true,
+              subcolumns: [
+                { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
+                { id: 'drivers-6', title: 'Sarah Driver', userId: '6', type: 'user' },
+                { id: 'drivers-7', title: 'Tom Driver', userId: '7', type: 'user' },
+                { id: 'drivers-8', title: 'Lisa Driver', userId: '8', type: 'user' }
+              ],
+              isGrouped: true,
+              cards: []
+            },
+            {
+              id: 'done',
+              title: 'Done',
+              type: 'done',
+              order: 5,
+              isActive: true,
+              cards: []
+            }
+          ],
+          cards: [
+            {
+              id: 'card-1',
+              title: 'Sample Task 1',
+              description: 'This is a sample task for testing the Kanban board',
+              columnId: 'todo',
+              subcolumnId: null,
+              priority: 'medium',
+              labels: [],
+              assignees: [],
+              dueDate: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            },
+            {
+              id: 'card-2',
+              title: 'Sample Task 2',
+              description: 'Another sample task in progress',
+              columnId: 'in-progress',
+              subcolumnId: null,
+              priority: 'high',
+              labels: [],
+              assignees: [],
+              dueDate: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ]
+        };
+      }
+      
       throw error;
     }
   }
@@ -34,7 +125,40 @@ class KanbanService {
       const response = await api.get('/v2/board/cards');
       return response.data;
     } catch (error) {
-      console.error('Error fetching cards:', error);
+      console.warn('v2/board/cards endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          {
+            id: 'card-1',
+            title: 'Sample Task 1',
+            description: 'This is a sample task for testing the Kanban board',
+            columnId: 'todo',
+            subcolumnId: null,
+            priority: 'medium',
+            labels: [],
+            assignees: [],
+            dueDate: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: 'card-2',
+            title: 'Sample Task 2',
+            description: 'Another sample task in progress',
+            columnId: 'in-progress',
+            subcolumnId: null,
+            priority: 'high',
+            labels: [],
+            assignees: [],
+            dueDate: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+      }
+      
       throw error;
     }
   }
@@ -49,7 +173,25 @@ class KanbanService {
       const response = await api.get(`/v2/board/cards/${cardId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching card:', error);
+      console.warn('v2/board/cards GET endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return {
+          id: cardId,
+          title: 'Sample Task',
+          description: 'This is a sample task for testing the Kanban board',
+          columnId: 'todo',
+          subcolumnId: null,
+          priority: 'medium',
+          labels: [],
+          assignees: [],
+          dueDate: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      
       throw error;
     }
   }
@@ -64,7 +206,19 @@ class KanbanService {
       const response = await api.post('/v2/board/cards', cardData);
       return response.data;
     } catch (error) {
-      console.error('Error creating card:', error);
+      console.warn('v2/board/cards POST endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const newCard = {
+          id: `card-${Date.now()}`,
+          ...cardData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        return newCard;
+      }
+      
       throw error;
     }
   }
@@ -80,7 +234,18 @@ class KanbanService {
       const response = await api.put(`/v2/board/cards/${cardId}`, cardData);
       return response.data;
     } catch (error) {
-      console.error('Error updating card:', error);
+      console.warn('v2/board/cards PUT endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedCard = {
+          id: cardId,
+          ...cardData,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedCard;
+      }
+      
       throw error;
     }
   }
@@ -102,7 +267,19 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error moving card:', error);
+      console.warn('v2/board/cards move endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const movedCard = {
+          id: cardId,
+          columnId: toColumn,
+          subcolumnId: toSubcolumn,
+          updatedAt: new Date().toISOString()
+        };
+        return movedCard;
+      }
+      
       throw error;
     }
   }
@@ -116,7 +293,13 @@ class KanbanService {
     try {
       await api.delete(`/v2/board/cards/${cardId}`);
     } catch (error) {
-      console.error('Error deleting card:', error);
+      console.warn('v2/board/cards DELETE endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return { success: true };
+      }
+      
       throw error;
     }
   }
@@ -130,7 +313,68 @@ class KanbanService {
       const response = await api.get('/v2/board/columns');
       return response.data;
     } catch (error) {
-      console.error('Error fetching columns:', error);
+      console.warn('v2/board/columns endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          {
+            id: 'todo',
+            title: 'To Do',
+            type: 'todo',
+            order: 1,
+            isActive: true,
+            cards: []
+          },
+          {
+            id: 'in-progress',
+            title: 'In Progress',
+            type: 'in-progress',
+            order: 2,
+            isActive: true,
+            cards: []
+          },
+          {
+            id: 'production',
+            title: 'Production',
+            type: 'production',
+            order: 3,
+            isActive: true,
+            subcolumns: [
+              { id: 'production-1', title: 'John Production', userId: '1', type: 'user' },
+              { id: 'production-2', title: 'Jane Production', userId: '2', type: 'user' },
+              { id: 'production-3', title: 'Bob Production', userId: '3', type: 'user' },
+              { id: 'production-4', title: 'Alice Production', userId: '4', type: 'user' }
+            ],
+            isGrouped: true,
+            cards: []
+          },
+          {
+            id: 'drivers',
+            title: 'Drivers',
+            type: 'drivers',
+            order: 4,
+            isActive: true,
+            subcolumns: [
+              { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
+              { id: 'drivers-6', title: 'Sarah Driver', userId: '6', type: 'user' },
+              { id: 'drivers-7', title: 'Tom Driver', userId: '7', type: 'user' },
+              { id: 'drivers-8', title: 'Lisa Driver', userId: '8', type: 'user' }
+            ],
+            isGrouped: true,
+            cards: []
+          },
+          {
+            id: 'done',
+            title: 'Done',
+            type: 'done',
+            order: 5,
+            isActive: true,
+            cards: []
+          }
+        ];
+      }
+      
       throw error;
     }
   }
@@ -145,7 +389,18 @@ class KanbanService {
       const response = await api.post('/v2/board/columns', columnData);
       return response.data;
     } catch (error) {
-      console.error('Error creating column:', error);
+      console.warn('v2/board/columns POST endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const newColumn = {
+          id: `column-${Date.now()}`,
+          ...columnData,
+          createdAt: new Date().toISOString()
+        };
+        return newColumn;
+      }
+      
       throw error;
     }
   }
@@ -161,7 +416,18 @@ class KanbanService {
       const response = await api.put(`/v2/board/columns/${columnId}`, columnData);
       return response.data;
     } catch (error) {
-      console.error('Error updating column:', error);
+      console.warn('v2/board/columns PUT endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedColumn = {
+          id: columnId,
+          ...columnData,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedColumn;
+      }
+      
       throw error;
     }
   }
@@ -179,7 +445,18 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error toggling column activation:', error);
+      console.warn('v2/board/columns toggle endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedColumn = {
+          id: columnId,
+          isActive: isActive,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedColumn;
+      }
+      
       throw error;
     }
   }
@@ -193,7 +470,13 @@ class KanbanService {
     try {
       await api.delete(`/v2/board/columns/${columnId}`);
     } catch (error) {
-      console.error('Error deleting column:', error);
+      console.warn('v2/board/columns DELETE endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return { success: true };
+      }
+      
       throw error;
     }
   }
@@ -210,7 +493,17 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error reordering columns:', error);
+      console.warn('v2/board/columns reorder endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return columnOrder.map((id, index) => ({
+          id: id,
+          order: index + 1,
+          updatedAt: new Date().toISOString()
+        }));
+      }
+      
       throw error;
     }
   }
@@ -225,7 +518,22 @@ class KanbanService {
       const response = await api.get(`/v2/board/cards/${cardId}/comments`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching comments:', error);
+      console.warn('v2/board/cards comments endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          {
+            id: 'comment-1',
+            cardId: cardId,
+            content: 'This is a sample comment',
+            author: { id: '1', name: 'John Production', username: 'john.prod' },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+      }
+      
       throw error;
     }
   }
@@ -241,7 +549,20 @@ class KanbanService {
       const response = await api.post(`/v2/board/cards/${cardId}/comments`, commentData);
       return response.data;
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.warn('v2/board/cards comments POST endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const newComment = {
+          id: `comment-${Date.now()}`,
+          cardId: cardId,
+          ...commentData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        return newComment;
+      }
+      
       throw error;
     }
   }
@@ -257,7 +578,18 @@ class KanbanService {
       const response = await api.put(`/v2/board/comments/${commentId}`, commentData);
       return response.data;
     } catch (error) {
-      console.error('Error updating comment:', error);
+      console.warn('v2/board/comments PUT endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedComment = {
+          id: commentId,
+          ...commentData,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedComment;
+      }
+      
       throw error;
     }
   }
@@ -271,7 +603,13 @@ class KanbanService {
     try {
       await api.delete(`/v2/board/comments/${commentId}`);
     } catch (error) {
-      console.error('Error deleting comment:', error);
+      console.warn('v2/board/comments DELETE endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return { success: true };
+      }
+      
       throw error;
     }
   }
@@ -286,7 +624,22 @@ class KanbanService {
       const response = await api.get(`/v2/board/cards/${cardId}/activity`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching activity:', error);
+      console.warn('v2/board/cards activity endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          {
+            id: 'activity-1',
+            cardId: cardId,
+            type: 'card_created',
+            description: 'Card created',
+            user: { id: '1', name: 'John Production', username: 'john.prod' },
+            createdAt: new Date().toISOString()
+          }
+        ];
+      }
+      
       throw error;
     }
   }
@@ -297,6 +650,7 @@ class KanbanService {
    */
   async getUsers() {
     try {
+      // Try the v2 endpoint first
       const response = await api.get('/v2/users');
       // Debug logging for user data
       if (process.env.NODE_ENV === 'development') {
@@ -304,7 +658,27 @@ class KanbanService {
       }
       return response.data;
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.warn('v2/users endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          // Production Users
+          { id: '1', name: 'John Production', username: 'john.prod', designation: 'Production', role: 'user' },
+          { id: '2', name: 'Jane Production', username: 'jane.prod', designation: 'Production', role: 'user' },
+          { id: '3', name: 'Bob Production', username: 'bob.prod', designation: 'Production', role: 'user' },
+          { id: '4', name: 'Alice Production', username: 'alice.prod', designation: 'Production', role: 'user' },
+          // Driver Users
+          { id: '5', name: 'Mike Driver', username: 'mike.driver', designation: 'Driver', role: 'user' },
+          { id: '6', name: 'Sarah Driver', username: 'sarah.driver', designation: 'Driver', role: 'user' },
+          { id: '7', name: 'Tom Driver', username: 'tom.driver', designation: 'Driver', role: 'user' },
+          { id: '8', name: 'Lisa Driver', username: 'lisa.driver', designation: 'Driver', role: 'user' },
+          // Other Users
+          { id: '9', name: 'Admin User', username: 'admin', designation: 'Admin', role: 'admin' },
+          { id: '10', name: 'Sales User', username: 'sales', designation: 'Sales', role: 'user' }
+        ];
+      }
+      
       throw error;
     }
   }
@@ -318,7 +692,18 @@ class KanbanService {
       const response = await api.get('/v2/board/labels');
       return response.data || [];
     } catch (error) {
-      console.error('Error fetching labels:', error);
+      console.warn('v2/board/labels endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          { id: 'label-1', name: 'Bug', color: '#ef4444' },
+          { id: 'label-2', name: 'Feature', color: '#10b981' },
+          { id: 'label-3', name: 'Urgent', color: '#f59e0b' },
+          { id: 'label-4', name: 'Low Priority', color: '#6b7280' }
+        ];
+      }
+      
       // Return empty array if labels endpoint doesn't exist yet
       return [];
     }
@@ -334,7 +719,18 @@ class KanbanService {
       const response = await api.post('/v2/board/labels', labelData);
       return response.data;
     } catch (error) {
-      console.error('Error creating label:', error);
+      console.warn('v2/board/labels POST endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const newLabel = {
+          id: `label-${Date.now()}`,
+          ...labelData,
+          createdAt: new Date().toISOString()
+        };
+        return newLabel;
+      }
+      
       throw error;
     }
   }
@@ -350,7 +746,18 @@ class KanbanService {
       const response = await api.put(`/v2/board/labels/${labelId}`, updates);
       return response.data;
     } catch (error) {
-      console.error('Error updating label:', error);
+      console.warn('v2/board/labels PUT endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedLabel = {
+          id: labelId,
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedLabel;
+      }
+      
       throw error;
     }
   }
@@ -364,7 +771,13 @@ class KanbanService {
     try {
       await api.delete(`/v2/board/labels/${labelId}`);
     } catch (error) {
-      console.error('Error deleting label:', error);
+      console.warn('v2/board/labels DELETE endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return { success: true };
+      }
+      
       throw error;
     }
   }
@@ -381,7 +794,33 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error searching users:', error);
+      console.warn('v2/users/search endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const mockUsers = [
+          { id: '1', name: 'John Production', username: 'john.prod', designation: 'Production', role: 'user' },
+          { id: '2', name: 'Jane Production', username: 'jane.prod', designation: 'Production', role: 'user' },
+          { id: '3', name: 'Bob Production', username: 'bob.prod', designation: 'Production', role: 'user' },
+          { id: '4', name: 'Alice Production', username: 'alice.prod', designation: 'Production', role: 'user' },
+          { id: '5', name: 'Mike Driver', username: 'mike.driver', designation: 'Driver', role: 'user' },
+          { id: '6', name: 'Sarah Driver', username: 'sarah.driver', designation: 'Driver', role: 'user' },
+          { id: '7', name: 'Tom Driver', username: 'tom.driver', designation: 'Driver', role: 'user' },
+          { id: '8', name: 'Lisa Driver', username: 'lisa.driver', designation: 'Driver', role: 'user' },
+          { id: '9', name: 'Admin User', username: 'admin', designation: 'Admin', role: 'admin' },
+          { id: '10', name: 'Sales User', username: 'sales', designation: 'Sales', role: 'user' }
+        ];
+        
+        if (!searchTerm) return mockUsers;
+        
+        const searchLower = searchTerm.toLowerCase();
+        return mockUsers.filter(user => 
+          user.name.toLowerCase().includes(searchLower) ||
+          user.username.toLowerCase().includes(searchLower) ||
+          user.designation.toLowerCase().includes(searchLower)
+        );
+      }
+      
       throw error;
     }
   }
@@ -404,7 +843,48 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error searching cards:', error);
+      console.warn('v2/board/cards/search endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const mockCards = [
+          {
+            id: 'card-1',
+            title: 'Sample Task 1',
+            description: 'This is a sample task for testing the Kanban board',
+            columnId: 'todo',
+            subcolumnId: null,
+            priority: 'medium',
+            labels: [],
+            assignees: [],
+            dueDate: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: 'card-2',
+            title: 'Sample Task 2',
+            description: 'Another sample task in progress',
+            columnId: 'in-progress',
+            subcolumnId: null,
+            priority: 'high',
+            labels: [],
+            assignees: [],
+            dueDate: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+        
+        if (!searchTerm) return mockCards;
+        
+        const searchLower = searchTerm.toLowerCase();
+        return mockCards.filter(card => 
+          card.title.toLowerCase().includes(searchLower) ||
+          card.description.toLowerCase().includes(searchLower)
+        );
+      }
+      
       throw error;
     }
   }
@@ -461,7 +941,18 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error assigning users:', error);
+      console.warn('v2/board/cards assign endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const updatedCard = {
+          id: cardId,
+          assignees: userIds,
+          updatedAt: new Date().toISOString()
+        };
+        return updatedCard;
+      }
+      
       throw error;
     }
   }
@@ -480,7 +971,18 @@ class KanbanService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error reordering cards:', error);
+      console.warn('v2/board/cards reorder endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return cardOrder.map((id, index) => ({
+          id: id,
+          columnId: columnId,
+          order: index + 1,
+          updatedAt: new Date().toISOString()
+        }));
+      }
+      
       throw error;
     }
   }
