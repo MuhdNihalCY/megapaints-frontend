@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useUserAuth } from '../contexts/UserAuthContext';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 import tokenManager from '../utils/tokenManager';
 import sessionManager from '../utils/sessionManager';
 
@@ -8,7 +9,9 @@ import sessionManager from '../utils/sessionManager';
  * Shows current session state and token information for debugging
  */
 const SessionStatus = () => {
-  const { user } = useAuth();
+  const { user } = useUserAuth();
+  const { admin } = useAdminAuth();
+  const currentUser = user || admin;
   const [sessionStatus, setSessionStatus] = useState(null);
   const [tokenInfo, setTokenInfo] = useState(null);
 
@@ -49,9 +52,9 @@ const SessionStatus = () => {
     const interval = setInterval(updateStatus, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [currentUser]);
 
-  if (!user) {
+  if (!currentUser) {
     return null; // Don't show when not logged in
   }
 

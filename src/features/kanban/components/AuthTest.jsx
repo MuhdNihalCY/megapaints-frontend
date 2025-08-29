@@ -4,11 +4,11 @@
  */
 
 import { useState } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUserAuth } from '../../../contexts/UserAuthContext';
 import api from '../../../utils/api';
 
 const AuthTest = () => {
-  const { user } = useAuth();
+  const { user } = useUserAuth();
   const [loginData, setLoginData] = useState({
     username: '',
     password: ''

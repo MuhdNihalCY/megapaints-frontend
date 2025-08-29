@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { 
   COLUMN_TYPES, 
@@ -432,7 +432,7 @@ const KanbanContext = createContext();
 // Provider component
 export const KanbanProvider = ({ children }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
-  const { user } = useAuth();
+  const { user } = useUserAuth();
 
   // Load initial board data
   const loadBoardData = useCallback(async () => {

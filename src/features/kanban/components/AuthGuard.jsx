@@ -3,10 +3,10 @@
  * Ensures the Kanban board only renders for authenticated users
  */
 
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUserAuth } from '../../../contexts/UserAuthContext';
 
 const AuthGuard = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useUserAuth();
 
   if (loading) {
     return (

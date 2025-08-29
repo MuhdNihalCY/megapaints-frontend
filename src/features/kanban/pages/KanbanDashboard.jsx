@@ -6,19 +6,20 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { KanbanProvider } from '../contexts/KanbanContext';
 import KanbanBoard from '../components/KanbanBoard';
 import CardModal from '../components/CardModal';
 import Header from '../../user/components/Header';
 import AuthGuard from '../components/AuthGuard';
 import DebugAuth from '../../../components/DebugAuth';
+import AuthSystemTest from '../../../components/AuthSystemTest';
 
 /**
  * Kanban Dashboard Page Component
  */
 const KanbanDashboard = () => {
-  const { user } = useAuth();
+  const { user } = useUserAuth();
   const [modalState, setModalState] = useState({
     isOpen: false,
     card: null,
@@ -65,7 +66,12 @@ const KanbanDashboard = () => {
         <Header />
         
         {/* Debug Auth Info - Development Only */}
-        {process.env.NODE_ENV === 'development' && <DebugAuth />}
+        {process.env.NODE_ENV === 'development' && (
+          <>
+            <DebugAuth />
+            <AuthSystemTest />
+          </>
+        )}
         
         {/* Main Content */}
         <div className="flex-1 h-[calc(100vh-64px)]">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUserAuth } from '../../contexts/UserAuthContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -10,7 +10,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { login } = useUserAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -33,7 +33,7 @@ const Login = () => {
     }
 
     try {
-      const result = await login(formData, false); // false = not admin
+      const result = await login(formData);
       if (result.success) {
         navigate('/dashboard');
       } else {
@@ -55,7 +55,7 @@ const Login = () => {
     setError('');
     
     try {
-      const result = await login({ username: 'demo', password: 'demo' }, false);
+      const result = await login({ username: 'demo', password: 'demo' });
       if (result.success) {
         navigate('/dashboard');
       } else {

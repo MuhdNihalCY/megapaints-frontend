@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const navLinkClass = ({ isActive }) =>
@@ -10,13 +10,13 @@ const navLinkClass = ({ isActive }) =>
   }`;
 
 const AdminHeader = () => {
-  const { user, logout } = useAuth();
+  const { admin, logout } = useAdminAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   return (
@@ -33,7 +33,7 @@ const AdminHeader = () => {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-700 dark:text-gray-300">{user?.username || 'Administrator'}</span>
+            <span className="text-gray-700 dark:text-gray-300">{admin?.username || 'Administrator'}</span>
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"

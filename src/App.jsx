@@ -1,11 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { UserAuthProvider } from './contexts/UserAuthContext';
+import { AdminAuthProvider } from './contexts/AdminAuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './features/user/Login';
 import AdminLogin from './features/admin/Login';
 import UserDashboard from './features/user/Dashboard';
 import AdminDashboard from './features/admin/Dashboard';
-import ProtectedRoute from './components/ProtectedRoute';
+import UserProtectedRoute from './components/UserProtectedRoute';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 import CreateFormula from './features/user/CreateFormula';
 import Order from './features/user/Order';
 import Orders from './features/user/Orders';
@@ -18,97 +20,97 @@ import BackendTest from './features/kanban/pages/BackendTest';
 
 function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <div className="App">
-            {/* <SessionStatus />
-            <DebugCookies /> */}
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              
-              {/* Protected Routes */}
-              {/* Back-compat: old user path redirects to new clean path */}
-              <Route path="/user/dashboard" element={<Navigate to="/dashboard" replace />} />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <KanbanDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/admin/dashboard" 
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* User-only additional routes */}
-              <Route 
-                path="/old-dashboard" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <UserDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/kanban-test" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <KanbanTest />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/backend-test" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <BackendTest />
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/create-formula" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <CreateFormula />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/order" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <Order />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/orders" 
-                element={
-                  <ProtectedRoute requiredRole="user">
-                    <Orders />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Default redirect */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </div>
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+    <UserAuthProvider>
+      <AdminAuthProvider>
+        <ThemeProvider>
+          <Router>
+            <div className="App">
+              {/* <SessionStatus />
+              <DebugCookies /> */}
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                
+                {/* User Protected Routes */}
+                <Route path="/user/dashboard" element={<Navigate to="/dashboard" replace />} />
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <UserProtectedRoute>
+                      <KanbanDashboard />
+                    </UserProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/old-dashboard" 
+                  element={
+                    <UserProtectedRoute>
+                      <UserDashboard />
+                    </UserProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/kanban-test" 
+                  element={
+                    <UserProtectedRoute>
+                      <KanbanTest />
+                    </UserProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/backend-test" 
+                  element={
+                    <UserProtectedRoute>
+                      <BackendTest />
+                    </UserProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/create-formula" 
+                  element={
+                    <UserProtectedRoute>
+                      <CreateFormula />
+                    </UserProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/order" 
+                  element={
+                    <UserProtectedRoute>
+                      <Order />
+                    </UserProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/orders" 
+                  element={
+                    <UserProtectedRoute>
+                      <Orders />
+                    </UserProtectedRoute>
+                  } 
+                />
+                
+                {/* Admin Protected Routes */}
+                <Route 
+                  path="/admin/dashboard" 
+                  element={
+                    <AdminProtectedRoute>
+                      <AdminDashboard />
+                    </AdminProtectedRoute>
+                  } 
+                />
+                
+                {/* Default redirect */}
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </div>
+          </Router>
+        </ThemeProvider>
+      </AdminAuthProvider>
+    </UserAuthProvider>
   );
 }
 

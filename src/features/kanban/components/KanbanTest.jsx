@@ -4,12 +4,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { logTokenStatus } from '../../../utils/tokenDebug';
 
 const KanbanTest = () => {
-  const { user } = useAuth();
+  const { user } = useUserAuth();
   const [testResults, setTestResults] = useState({});
   const [loading, setLoading] = useState(false);
 
