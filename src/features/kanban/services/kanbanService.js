@@ -27,17 +27,17 @@ class KanbanService {
         return {
           columns: [
             {
-              id: 'todo',
-              title: 'To Do',
-              type: 'todo',
+              id: 'sales',
+              title: 'Sales',
+              type: 'sales',
               order: 1,
               isActive: true,
               cards: []
             },
             {
-              id: 'in-progress',
-              title: 'In Progress',
-              type: 'in-progress',
+              id: 'office',
+              title: 'Office',
+              type: 'office',
               order: 2,
               isActive: true,
               cards: []
@@ -58,10 +58,23 @@ class KanbanService {
               cards: []
             },
             {
+              id: 'ready',
+              title: 'Ready',
+              type: 'ready',
+              order: 4,
+              isActive: true,
+              subcolumns: [
+                { id: 'for-dispatch', title: 'For Dispatch' },
+                { id: 'for-customer-collection', title: 'For Customer Collection' }
+              ],
+              isGrouped: true,
+              cards: []
+            },
+            {
               id: 'drivers',
               title: 'Drivers',
               type: 'drivers',
-              order: 4,
+              order: 5,
               isActive: true,
               subcolumns: [
                 { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
@@ -76,8 +89,14 @@ class KanbanService {
               id: 'done',
               title: 'Done',
               type: 'done',
-              order: 5,
+              order: 6,
               isActive: true,
+              subcolumns: [
+                { id: 'done-today', title: 'Done Today' },
+                { id: 'less-than-7-days', title: '< 7 Days' },
+                { id: 'more-than-7-days', title: '> 7 Days' }
+              ],
+              isGrouped: true,
               cards: []
             }
           ],
@@ -86,7 +105,7 @@ class KanbanService {
               id: 'card-1',
               title: 'Sample Task 1',
               description: 'This is a sample task for testing the Kanban board',
-              columnId: 'todo',
+              columnId: 'sales',
               subcolumnId: null,
               priority: 'medium',
               labels: [],
@@ -99,7 +118,7 @@ class KanbanService {
               id: 'card-2',
               title: 'Sample Task 2',
               description: 'Another sample task in progress',
-              columnId: 'in-progress',
+              columnId: 'office',
               subcolumnId: null,
               priority: 'high',
               labels: [],
@@ -134,7 +153,7 @@ class KanbanService {
             id: 'card-1',
             title: 'Sample Task 1',
             description: 'This is a sample task for testing the Kanban board',
-            columnId: 'todo',
+            columnId: 'sales',
             subcolumnId: null,
             priority: 'medium',
             labels: [],
@@ -147,7 +166,7 @@ class KanbanService {
             id: 'card-2',
             title: 'Sample Task 2',
             description: 'Another sample task in progress',
-            columnId: 'in-progress',
+            columnId: 'office',
             subcolumnId: null,
             priority: 'high',
             labels: [],
@@ -319,17 +338,17 @@ class KanbanService {
       if (process.env.NODE_ENV === 'development') {
         return [
           {
-            id: 'todo',
-            title: 'To Do',
-            type: 'todo',
+            id: 'sales',
+            title: 'Sales',
+            type: 'sales',
             order: 1,
             isActive: true,
             cards: []
           },
           {
-            id: 'in-progress',
-            title: 'In Progress',
-            type: 'in-progress',
+            id: 'office',
+            title: 'Office',
+            type: 'office',
             order: 2,
             isActive: true,
             cards: []
@@ -350,10 +369,23 @@ class KanbanService {
             cards: []
           },
           {
+            id: 'ready',
+            title: 'Ready',
+            type: 'ready',
+            order: 4,
+            isActive: true,
+            subcolumns: [
+              { id: 'for-dispatch', title: 'For Dispatch' },
+              { id: 'for-customer-collection', title: 'For Customer Collection' }
+            ],
+            isGrouped: true,
+            cards: []
+          },
+          {
             id: 'drivers',
             title: 'Drivers',
             type: 'drivers',
-            order: 4,
+            order: 5,
             isActive: true,
             subcolumns: [
               { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
@@ -368,8 +400,14 @@ class KanbanService {
             id: 'done',
             title: 'Done',
             type: 'done',
-            order: 5,
+            order: 6,
             isActive: true,
+            subcolumns: [
+              { id: 'done-today', title: 'Done Today' },
+              { id: 'less-than-7-days', title: '< 7 Days' },
+              { id: 'more-than-7-days', title: '> 7 Days' }
+            ],
+            isGrouped: true,
             cards: []
           }
         ];
@@ -826,17 +864,17 @@ class KanbanService {
   }
 
   /**
-   * Search cards
-   * @param {string} boardId - The board ID
+   * Search cards within a specific column
+   * @param {string} columnId - The column ID to search within
    * @param {string} searchTerm - The search term
    * @param {Object} filters - Search filters
    * @returns {Promise<Array>} Array of matching cards
    */
-  async searchCards(boardId, searchTerm, filters = {}) {
+  async searchCards(columnId, searchTerm, filters = {}) {
     try {
       const response = await api.get('/v2/board/cards/search', {
         params: { 
-          boardId, 
+          columnId, 
           searchTerm, 
           ...filters 
         }
@@ -852,7 +890,7 @@ class KanbanService {
             id: 'card-1',
             title: 'Sample Task 1',
             description: 'This is a sample task for testing the Kanban board',
-            columnId: 'todo',
+            columnId: 'sales',
             subcolumnId: null,
             priority: 'medium',
             labels: [],
@@ -865,7 +903,7 @@ class KanbanService {
             id: 'card-2',
             title: 'Sample Task 2',
             description: 'Another sample task in progress',
-            columnId: 'in-progress',
+            columnId: 'office',
             subcolumnId: null,
             priority: 'high',
             labels: [],
@@ -883,6 +921,32 @@ class KanbanService {
           card.title.toLowerCase().includes(searchLower) ||
           card.description.toLowerCase().includes(searchLower)
         );
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Log activity for audit trail
+   * @param {Object} activityData - The activity data
+   * @returns {Promise<Object>} Logged activity
+   */
+  async logActivity(activityData) {
+    try {
+      const response = await api.post('/v2/board/activity', activityData);
+      return response.data;
+    } catch (error) {
+      console.warn('v2/board/activity endpoint not available, using mock data:', error.message);
+      
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        const loggedActivity = {
+          id: `activity-${Date.now()}`,
+          ...activityData,
+          createdAt: new Date().toISOString()
+        };
+        return loggedActivity;
       }
       
       throw error;

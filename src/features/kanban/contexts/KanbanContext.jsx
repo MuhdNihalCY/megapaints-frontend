@@ -19,6 +19,7 @@ import {
   canEditCard, 
   canMoveCard,
   canManageColumn,
+  canToggleColumnActivation,
   PERMISSIONS
 } from '../utils/permissions';
 
@@ -585,7 +586,12 @@ export const KanbanProvider = ({ children }) => {
       throw new Error('Insufficient permissions to move card');
     }
 
-    // Check DnD restrictions
+    // Check DnD restrictions - cannot move from restricted source columns
+    if (DND_RESTRICTIONS.RESTRICTED_SOURCE_COLUMNS.includes(fromColumn)) {
+      throw new Error('Cannot move card from restricted column');
+    }
+
+    // Check DnD restrictions - cannot move to restricted destination columns
     if (DND_RESTRICTIONS.RESTRICTED_COLUMNS.includes(toColumn)) {
       throw new Error('Cannot move card to restricted column');
     }
@@ -667,8 +673,15 @@ export const KanbanProvider = ({ children }) => {
 
   // Toggle column activation
   const toggleColumnActivation = useCallback(async (columnId, isActive) => {
-    if (!user || !canManageColumn(user.role, columnId)) {
-      throw new Error('Insufficient permissions to manage column');
+    // Find the column to get its type
+    const column = state.columns.find(col => col.id === columnId);
+    if (!column) {
+      throw new Error('Column not found');
+    }
+
+    // Check if user can toggle activation for this column type
+    if (!user || !canToggleColumnActivation(user.role, column.type)) {
+      throw new Error('Insufficient permissions to toggle column activation');
     }
 
     try {
@@ -681,13 +694,25 @@ export const KanbanProvider = ({ children }) => {
         type: ACTIONS.TOGGLE_COLUMN_ACTIVATION,
         payload: { columnId, isActive }
       });
+
+      // Log activity
+      const activityType = isActive ? ACTIVITY_TYPES.COLUMN_ACTIVATED : ACTIVITY_TYPES.COLUMN_DEACTIVATED;
+      await kanbanService.logActivity({
+        type: activityType,
+        columnId,
+        userId: user.username,
+        details: {
+          columnTitle: column.title,
+          isActive
+        }
+      });
       
       return updatedColumn;
     } catch (error) {
       console.error('Error toggling column activation:', error);
       throw error;
     }
-  }, [user]);
+  }, [user, state.columns]);
 
   // Add comment
   const addComment = useCallback(async (cardId, commentText) => {
@@ -940,6 +965,7 @@ export const KanbanProvider = ({ children }) => {
     clearFilters,
     setSearchTerm,
     loadBoardData,
+    searchCards: kanbanService.searchCards.bind(kanbanService),
     
     // Computed values
     getFilteredCards,
@@ -958,6 +984,7 @@ export const KanbanProvider = ({ children }) => {
     canEditCard: (card) => canEditCard(user?.role, card, user?.username),
     canMoveCard: (fromColumn, toColumn) => canMoveCard(user?.role, fromColumn, toColumn),
     canManageColumn: (columnId) => canManageColumn(user?.role, columnId),
+    canToggleColumnActivation: (columnType) => canToggleColumnActivation(user?.role, columnType),
     canAssignUsers: () => hasPermission(user?.role, PERMISSIONS.ASSIGN_USERS),
     canChangeDue: () => hasPermission(user?.role, PERMISSIONS.CHANGE_DUE),
     canChangeLabels: () => hasPermission(user?.role, PERMISSIONS.CHANGE_LABELS),

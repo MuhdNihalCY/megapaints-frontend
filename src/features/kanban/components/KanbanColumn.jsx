@@ -9,15 +9,16 @@ import { Settings, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 
 import { useKanban } from '../contexts/KanbanContext';
-import { COLUMN_TYPES } from '../utils/constants';
+import { COLUMN_TYPES, DONE_SUBCOLUMNS } from '../utils/constants';
 import KanbanCard from './KanbanCard';
 import CreateCardButton from './CreateCardButton';
 import ColumnHeader from './ColumnHeader';
+import ColumnSearch from './ColumnSearch';
 
 /**
  * Subcolumn Component for grouped columns
  */
-const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard }) => {
+const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard, canToggleColumnActivation }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: subcolumn.id,
   });
@@ -25,6 +26,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
   const isSubcolumnActive = subcolumn.isActive !== false;
   const isActivatingSubcolumn = isActivating(subcolumn.id);
   const isUserSubcolumn = subcolumn.type === 'user';
+  const isMoreThan7DaysColumn = subcolumn.id === DONE_SUBCOLUMNS.MORE_THAN_7_DAYS;
 
   const handleToggleActivation = async (subcolumnId, isActive) => {
     try {
@@ -65,8 +67,8 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
               {cards.length}
             </span>
             
-            {/* Activation Toggle */}
-            {canManageColumn && (
+            {/* Activation Toggle - Only for Production and Drivers user subcolumns */}
+            {isUserSubcolumn && canToggleColumnActivation && canToggleColumnActivation(columnType) && (
               <button
                 onClick={() => handleToggleActivation(subcolumn.id, !isSubcolumnActive)}
                 disabled={isActivatingSubcolumn}
@@ -90,6 +92,24 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
       {/* Subcolumn Content */}
       {isSubcolumnActive && (
         <div className="flex-1 p-2 space-y-2">
+          {/* Search Bar for > 7 Days column */}
+          {isMoreThan7DaysColumn && (
+            <div className="mb-3">
+              <ColumnSearch
+                columnId={subcolumn.id}
+                placeholder="Search completed cards..."
+                onSearch={(results) => {
+                  // Handle search results if needed
+                  console.log('Search results:', results);
+                }}
+                onClear={() => {
+                  // Handle search clear if needed
+                  console.log('Search cleared');
+                }}
+              />
+            </div>
+          )}
+          
           <SortableContext 
             items={cards.map(card => card.id)} 
             strategy={verticalListSortingStrategy}
@@ -122,6 +142,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
     toggleColumnActivation,
     canCreateCard,
     canManageColumn,
+    canToggleColumnActivation,
     isActivating,
     getCardsBySubcolumn
   } = useKanban();
@@ -226,6 +247,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
                 toggleColumnActivation={toggleColumnActivation}
                 columnType={column.type}
                 canCreateCard={canCreateCard}
+                canToggleColumnActivation={canToggleColumnActivation}
               />
             );
           })}

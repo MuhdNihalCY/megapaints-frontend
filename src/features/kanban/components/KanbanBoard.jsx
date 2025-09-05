@@ -182,7 +182,13 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       toSubcolumn = targetContainer.id;
     }
 
-    // Check DnD restrictions
+    // Check DnD restrictions - cannot move from restricted source columns
+    if (DND_RESTRICTIONS.RESTRICTED_SOURCE_COLUMNS.includes(fromColumn)) {
+      endDrag();
+      return;
+    }
+
+    // Check DnD restrictions - cannot move to restricted destination columns
     if (DND_RESTRICTIONS.RESTRICTED_COLUMNS.includes(toColumn)) {
       endDrag();
       return;

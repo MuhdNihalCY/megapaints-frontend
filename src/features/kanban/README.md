@@ -39,26 +39,30 @@ src/features/kanban/
 ### Column Structure
 - **Non-grouped columns**: Sales, Office
 - **Grouped columns**:
-  - **Production**: One column per production-designated user
+  - **Production**: One column per production-designated user (with activation toggles)
   - **Ready**: For Dispatch, For Customer Collection
-  - **Drivers**: One column per driver-designated user
-  - **Done**: Done Today, < 7 Days, > 7 Days (with search)
+  - **Drivers**: One column per driver-designated user (with activation toggles)
+  - **Done**: Done Today, < 7 Days, > 7 Days (with search bar in > 7 Days)
 
 ### Column Activation
-- Lightweight tick-mark toggles for Production and Driver columns
-- Deactivated columns are hidden but preserved in data
-- Permission-gated and activity-logged
+- Lightweight tick-mark toggles (eye icons) for Production and Driver user subcolumns
+- Deactivated columns are hidden from the board but preserved in data (no deletion)
+- Toggling is permission-gated (Production/Driver Leads + Admin only)
+- All activation/deactivation events are logged in activity trail
+- Visual indicators show active/inactive state with opacity changes
 
 ## 🔄 Drag & Drop Rules
 
 ### Restrictions
-- Cards cannot be moved to/from `< 7 Days` and `> 7 Days` columns
+- Cards cannot be moved **from** `< 7 Days` and `> 7 Days` columns (restricted source)
+- Cards cannot be moved **to** `< 7 Days` and `> 7 Days` columns (restricted destination)
 - Server-side permission checks with optimistic updates
 - Automatic rollback on permission failures
 
 ### Allowed Moves
-- Sales ↔ Office ↔ Production ↔ Ready ↔ Drivers
-- Done columns are restricted (read-only for moves)
+- Sales ↔ Office ↔ Production ↔ Ready ↔ Drivers ↔ Done Today
+- Done Today can receive cards from any main column
+- `< 7 Days` and `> 7 Days` are read-only for moves (system-managed)
 
 ## 🃏 Cards
 
@@ -109,9 +113,10 @@ src/features/kanban/
 ## 🎛️ Features & UX
 
 ### Search & Filters
-- **> 7 Days column**: Debounced search (server-backed)
-- **Filters panel**: URL-shareable state
+- **> 7 Days column**: Dedicated search bar with debounced server-side search
+- **Global filters panel**: URL-shareable state
 - **Filter options**: Text, labels, assignees, due ranges, groups/columns
+- **Search features**: Real-time results, search result count, clear functionality
 
 ### Performance
 - Virtualized lists for large boards
@@ -250,6 +255,9 @@ toggleColumnActivation(columnId, isActive)
 
 // Search
 searchCards(columnId, searchTerm)
+
+// Activity Logging
+logActivity(activityData)
 ```
 
 ### Context Hooks
@@ -259,7 +267,8 @@ const {
   cards, columns, users,
   createCard, updateCard, moveCard,
   addComment, setFilters,
-  canCreateCard, canEditCard
+  toggleColumnActivation, searchCards,
+  canCreateCard, canEditCard, canToggleColumnActivation
 } = useKanban();
 
 // Custom hooks

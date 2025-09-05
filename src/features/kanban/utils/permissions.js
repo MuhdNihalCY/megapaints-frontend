@@ -3,7 +3,7 @@
  * Role-based and attribute-based access control for the Kanban board
  */
 
-import { PERMISSIONS, USER_ROLES, COLUMN_TYPES } from './constants';
+import { PERMISSIONS, USER_ROLES, COLUMN_TYPES, DND_RESTRICTIONS, DONE_SUBCOLUMNS } from './constants';
 
 /**
  * Permission matrix defining what each role can do
@@ -175,8 +175,22 @@ export const canMoveCard = (userRole, fromColumn, toColumn) => {
   // Check basic move permission
   if (!hasPermission(userRole, PERMISSIONS.MOVE_CARD)) return false;
   
+  // Check DnD restrictions - cannot move from restricted source columns
+  if (DND_RESTRICTIONS.RESTRICTED_SOURCE_COLUMNS.includes(fromColumn)) {
+    return false;
+  }
+  
+  // Check DnD restrictions - cannot move to restricted destination columns
+  if (DND_RESTRICTIONS.RESTRICTED_COLUMNS.includes(toColumn)) {
+    return false;
+  }
+  
   // Check if the move is allowed by DnD rules
-  // This would typically be checked against DND_RESTRICTIONS
+  const allowedMoves = DND_RESTRICTIONS.ALLOWED_MOVES[fromColumn];
+  if (allowedMoves && !allowedMoves.includes(toColumn)) {
+    return false;
+  }
+  
   return true;
 };
 
@@ -276,6 +290,27 @@ export const canComment = (userRole) => {
  */
 export const canMention = (userRole) => {
   return hasPermission(userRole, PERMISSIONS.MENTION);
+};
+
+/**
+ * Check if a user can toggle column activation for Production/Drivers user subcolumns
+ * @param {string} userRole - The user's role
+ * @param {string} columnType - The column type (production or drivers)
+ * @returns {boolean} Whether the user can toggle column activation
+ */
+export const canToggleColumnActivation = (userRole, columnType) => {
+  if (!userRole || !columnType) return false;
+  
+  // Check basic manage permission
+  if (!hasPermission(userRole, PERMISSIONS.MANAGE_COLUMNS)) return false;
+  
+  // Only Production and Drivers columns support activation toggles
+  if (columnType !== COLUMN_TYPES.PRODUCTION && columnType !== COLUMN_TYPES.DRIVERS) {
+    return false;
+  }
+  
+  // Check column-specific permissions
+  return canPerformColumnAction(userRole, columnType, 'manageColumn');
 };
 
 // Re-export PERMISSIONS for use in other modules
