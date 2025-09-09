@@ -8,19 +8,80 @@ import api from '../../../utils/api';
 import { API_ENDPOINTS, ACTIVITY_TYPES } from '../utils/constants';
 
 /**
- * Kanban Board Service Class
+ * Kanban Board Service Class with request deduplication
  */
 class KanbanService {
+  constructor() {
+    // Request deduplication cache
+    this.pendingRequests = new Map();
+    this.cache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  }
+
+  /**
+   * Deduplicate requests to prevent multiple identical API calls
+   * @param {string} key - Unique key for the request
+   * @param {Function} requestFn - Function that makes the actual request
+   * @returns {Promise} Promise that resolves to the request result
+   */
+  async deduplicateRequest(key, requestFn) {
+    // Check if request is already pending
+    if (this.pendingRequests.has(key)) {
+      console.log(`Deduplicating request: ${key}`);
+      return this.pendingRequests.get(key);
+    }
+
+    // Check cache first
+    const cached = this.cache.get(key);
+    if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+      console.log(`Using cached result for: ${key}`);
+      return cached.data;
+    }
+
+    // Make the request
+    const requestPromise = requestFn();
+    this.pendingRequests.set(key, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      
+      // Cache the result
+      this.cache.set(key, {
+        data: result,
+        timestamp: Date.now()
+      });
+      
+      return result;
+    } finally {
+      // Remove from pending requests
+      this.pendingRequests.delete(key);
+    }
+  }
+
+  /**
+   * Clear cache for a specific key or all cache
+   * @param {string} key - Optional key to clear specific cache entry
+   */
+  clearCache(key = null) {
+    if (key) {
+      this.cache.delete(key);
+    } else {
+      this.cache.clear();
+    }
+  }
   /**
    * Get the entire Kanban board data
    * @returns {Promise<Object>} Board data including columns and cards
    */
   async getBoard() {
-    try {
-      const response = await api.get('/v2/board');
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board endpoint not available, using mock data:', error.message);
+    return this.deduplicateRequest('board', async () => {
+      console.log('Getting board data...');
+      try {
+        const response = await api.get('/board/v2/board');
+        console.log('Response from getBoard:', response.data);
+        return response.data;
+      } catch (error) {
+        console.warn('/board/v2/board endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -132,7 +193,8 @@ class KanbanService {
       }
       
       throw error;
-    }
+      }
+    });
   }
 
   /**
@@ -141,10 +203,10 @@ class KanbanService {
    */
   async getCards() {
     try {
-      const response = await api.get('/v2/board/cards');
+      const response = await api.get('/board/v2/card');
       return response.data;
     } catch (error) {
-      console.warn('v2/board/cards endpoint not available, using mock data:', error.message);
+      console.warn('/board/v2/card endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -222,7 +284,7 @@ class KanbanService {
    */
   async createCard(cardData) {
     try {
-      const response = await api.post('/v2/board/cards', cardData);
+      const response = await api.post('/board/v2/card', cardData);
       return response.data;
     } catch (error) {
       console.warn('v2/board/cards POST endpoint not available, using mock data:', error.message);
@@ -323,99 +385,6 @@ class KanbanService {
     }
   }
 
-  /**
-   * Get all columns
-   * @returns {Promise<Array>} Array of columns
-   */
-  async getColumns() {
-    try {
-      const response = await api.get('/v2/board/columns');
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/columns endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          {
-            id: 'sales',
-            title: 'Sales',
-            type: 'sales',
-            order: 1,
-            isActive: true,
-            cards: []
-          },
-          {
-            id: 'office',
-            title: 'Office',
-            type: 'office',
-            order: 2,
-            isActive: true,
-            cards: []
-          },
-          {
-            id: 'production',
-            title: 'Production',
-            type: 'production',
-            order: 3,
-            isActive: true,
-            subcolumns: [
-              { id: 'production-1', title: 'John Production', userId: '1', type: 'user' },
-              { id: 'production-2', title: 'Jane Production', userId: '2', type: 'user' },
-              { id: 'production-3', title: 'Bob Production', userId: '3', type: 'user' },
-              { id: 'production-4', title: 'Alice Production', userId: '4', type: 'user' }
-            ],
-            isGrouped: true,
-            cards: []
-          },
-          {
-            id: 'ready',
-            title: 'Ready',
-            type: 'ready',
-            order: 4,
-            isActive: true,
-            subcolumns: [
-              { id: 'for-dispatch', title: 'For Dispatch' },
-              { id: 'for-customer-collection', title: 'For Customer Collection' }
-            ],
-            isGrouped: true,
-            cards: []
-          },
-          {
-            id: 'drivers',
-            title: 'Drivers',
-            type: 'drivers',
-            order: 5,
-            isActive: true,
-            subcolumns: [
-              { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
-              { id: 'drivers-6', title: 'Sarah Driver', userId: '6', type: 'user' },
-              { id: 'drivers-7', title: 'Tom Driver', userId: '7', type: 'user' },
-              { id: 'drivers-8', title: 'Lisa Driver', userId: '8', type: 'user' }
-            ],
-            isGrouped: true,
-            cards: []
-          },
-          {
-            id: 'done',
-            title: 'Done',
-            type: 'done',
-            order: 6,
-            isActive: true,
-            subcolumns: [
-              { id: 'done-today', title: 'Done Today' },
-              { id: 'less-than-7-days', title: '< 7 Days' },
-              { id: 'more-than-7-days', title: '> 7 Days' }
-            ],
-            isGrouped: true,
-            cards: []
-          }
-        ];
-      }
-      
-      throw error;
-    }
-  }
 
   /**
    * Create a new column
@@ -424,7 +393,7 @@ class KanbanService {
    */
   async createColumn(columnData) {
     try {
-      const response = await api.post('/v2/board/columns', columnData);
+      const response = await api.post('/board/v2/board/columns', columnData);
       return response.data;
     } catch (error) {
       console.warn('v2/board/columns POST endpoint not available, using mock data:', error.message);
@@ -526,7 +495,7 @@ class KanbanService {
    */
   async reorderColumns(columnOrder) {
     try {
-      const response = await api.put('/v2/board/columns/reorder', {
+      const response = await api.put('/board/v2/board/columns/reorder', {
         columnOrder
       });
       return response.data;
@@ -687,16 +656,17 @@ class KanbanService {
    * @returns {Promise<Array>} Array of users
    */
   async getUsers() {
-    try {
-      // Try the v2 endpoint first
-      const response = await api.get('/v2/users');
-      // Debug logging for user data
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Response from getUsers:', response.data);
-      }
-      return response.data;
+    return this.deduplicateRequest('users', async () => {
+      try {
+        // Try the v2 endpoint first
+        const response = await api.get('/board/v2/users');
+        // Debug logging for user data
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Response from getUsers:', response.data);
+        }
+        return response.data;
     } catch (error) {
-      console.warn('v2/users endpoint not available, using mock data:', error.message);
+      console.warn('/board/v2/users endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -718,7 +688,8 @@ class KanbanService {
       }
       
       throw error;
-    }
+      }
+    });
   }
 
   /**
@@ -726,11 +697,12 @@ class KanbanService {
    * @returns {Promise<Array>} Array of labels
    */
   async getLabels() {
-    try {
-      const response = await api.get('/v2/board/labels');
-      return response.data || [];
-    } catch (error) {
-      console.warn('v2/board/labels endpoint not available, using mock data:', error.message);
+    return this.deduplicateRequest('labels', async () => {
+      try {
+        const response = await api.get('/board/v2/label');
+        return response.data || [];
+      } catch (error) {
+        console.warn('v2/labels endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -744,7 +716,8 @@ class KanbanService {
       
       // Return empty array if labels endpoint doesn't exist yet
       return [];
-    }
+      }
+    });
   }
 
   /**
@@ -754,10 +727,10 @@ class KanbanService {
    */
   async createLabel(labelData) {
     try {
-      const response = await api.post('/v2/board/labels', labelData);
+      const response = await api.post('/board/v2/label', labelData);
       return response.data;
     } catch (error) {
-      console.warn('v2/board/labels POST endpoint not available, using mock data:', error.message);
+      console.warn('v2/labels POST endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -781,10 +754,10 @@ class KanbanService {
    */
   async updateLabel(labelId, updates) {
     try {
-      const response = await api.put(`/v2/board/labels/${labelId}`, updates);
+      const response = await api.put(`/v2/labels/${labelId}`, updates);
       return response.data;
     } catch (error) {
-      console.warn('v2/board/labels PUT endpoint not available, using mock data:', error.message);
+      console.warn('v2/labels PUT endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -807,9 +780,9 @@ class KanbanService {
    */
   async deleteLabel(labelId) {
     try {
-      await api.delete(`/v2/board/labels/${labelId}`);
+      await api.delete(`/v2/labels/${labelId}`);
     } catch (error) {
-      console.warn('v2/board/labels DELETE endpoint not available, using mock data:', error.message);
+      console.warn('v2/labels DELETE endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -827,12 +800,12 @@ class KanbanService {
    */
   async searchUsers(searchTerm) {
     try {
-      const response = await api.get('/v2/users/search', {
+      const response = await api.get('/board/v2/users/search', {
         params: { q: searchTerm }
       });
       return response.data;
     } catch (error) {
-      console.warn('v2/users/search endpoint not available, using mock data:', error.message);
+      console.warn('/board/v2/users/search endpoint not available, using mock data:', error.message);
       
       // Return mock data for development
       if (process.env.NODE_ENV === 'development') {
@@ -872,7 +845,7 @@ class KanbanService {
    */
   async searchCards(columnId, searchTerm, filters = {}) {
     try {
-      const response = await api.get('/v2/board/cards/search', {
+      const response = await api.get('/board/v2/card/search', {
         params: { 
           columnId, 
           searchTerm, 
@@ -934,7 +907,7 @@ class KanbanService {
    */
   async logActivity(activityData) {
     try {
-      const response = await api.post('/v2/board/activity', activityData);
+      const response = await api.post('/board/v2/board/activity', activityData);
       return response.data;
     } catch (error) {
       console.warn('v2/board/activity endpoint not available, using mock data:', error.message);
@@ -1107,7 +1080,7 @@ class KanbanService {
    */
   async createBoard(boardData) {
     try {
-      const response = await api.post('/v2/board', boardData);
+      const response = await api.post('/board/v2/board', boardData);
       return response.data;
     } catch (error) {
       console.error('Error creating board:', error);

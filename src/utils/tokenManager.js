@@ -17,21 +17,31 @@ class TokenManager {
    */
     getRefreshToken() {
         try {
+            console.debug('[TokenManager] Getting refresh token...');
+            
             // Try js-cookie first
             let refreshToken = Cookies.get('refresh_token');
+            console.debug('[TokenManager] js-cookie result:', refreshToken ? 'Found' : 'Not found');
 
             // If js-cookie didn't find it, try direct document.cookie parsing
             if (!refreshToken) {
-                const allCookies = document.cookie.split(';');
-                for (const cookie of allCookies) {
+                console.debug('[TokenManager] Trying manual cookie parsing...');
+                const allCookies = document.cookie;
+                console.debug('[TokenManager] All cookies:', allCookies);
+                
+                const cookieArray = allCookies.split(';');
+                for (const cookie of cookieArray) {
                     const [name, value] = cookie.trim().split('=');
+                    console.debug('[TokenManager] Checking cookie:', name, '=', value ? 'has value' : 'no value');
                     if (name === 'refresh_token' && value) {
                         refreshToken = value;
+                        console.debug('[TokenManager] Found refresh token via manual parsing');
                         break;
                     }
                 }
             }
 
+            console.debug('[TokenManager] Final refresh token result:', refreshToken ? 'Found' : 'Not found');
             return refreshToken;
         } catch (error) {
             console.error('[TokenManager] Error reading refresh token:', error);
@@ -146,15 +156,13 @@ class TokenManager {
      * @returns {Promise<Object>} Result with success status and tokens
      */
     async refreshAccessToken(role = 'user') {
-        const refreshToken = this.getRefreshToken();
-
-        if (!refreshToken) {
-            console.warn('[TokenManager] No refresh token available');
-            return { success: false, message: 'No refresh token available' };
-        }
+        // For HttpOnly cookies, we don't need to read the refresh token
+        // The backend will automatically use the HttpOnly refresh_token cookie
+        console.info('[TokenManager] Refreshing access token for role:', role);
 
         if (this.isRefreshing) {
             // If already refreshing, wait for the current refresh to complete
+            console.debug('[TokenManager] Already refreshing, queuing request');
             return new Promise((resolve) => {
                 this.pendingRequests.push(resolve);
             });
@@ -163,19 +171,31 @@ class TokenManager {
         this.isRefreshing = true;
 
         try {
-            console.info('[TokenManager] Refreshing access token...');
-
             const endpoint = role === 'admin' ? '/admin/auth/refresh' : '/auth/refresh';
-            const response = await api.post(endpoint, {
-                refreshToken: refreshToken
-            }, {
-                _noIntercept: true // Prevent infinite loop
+            console.debug('[TokenManager] Calling endpoint:', endpoint);
+            
+            // For HttpOnly cookies, we don't send the refresh token in the body
+            // The backend will automatically use the HttpOnly refresh_token cookie
+            const response = await api.post(endpoint, {}, {
+                _noIntercept: true, // Prevent infinite loop
+                timeout: 10000 // 10 second timeout
             });
 
-            if (response.data.status) {
+            console.debug('[TokenManager] Refresh response:', {
+                status: response.status,
+                dataStatus: response.data?.status,
+                hasAccessToken: !!response.data?.accessToken,
+                hasRefreshToken: !!response.data?.refreshToken
+            });
+
+            if (response.data && response.data.status) {
                 const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-                // Store new tokens
+                if (!accessToken) {
+                    throw new Error('No access token in refresh response');
+                }
+
+                // Store new tokens (the backend will handle refresh token storage)
                 this.storeTokens(accessToken, newRefreshToken, role);
 
                 console.info('[TokenManager] Access token refreshed successfully');
@@ -190,10 +210,17 @@ class TokenManager {
 
                 return { success: true, accessToken, refreshToken: newRefreshToken };
             } else {
-                throw new Error(response.data.message || 'Refresh failed');
+                const errorMsg = response.data?.message || 'Refresh failed - invalid response';
+                console.error('[TokenManager] Refresh failed:', errorMsg, response.data);
+                throw new Error(errorMsg);
             }
         } catch (error) {
-            console.error('[TokenManager] Token refresh failed:', error);
+            console.error('[TokenManager] Token refresh failed:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                url: error.config?.url
+            });
 
             // Clear tokens on refresh failure
             this.clearTokens();
@@ -220,13 +247,14 @@ class TokenManager {
      */
     hasValidSession() {
         const accessToken = this.getAccessToken();
-        const refreshToken = this.getRefreshToken();
+        // For HttpOnly cookies, we can't check the refresh token directly
+        // We'll assume we have a valid session if we have any access token
+        // The backend will handle refresh token validation
 
         console.debug('[TokenManager] hasValidSession check:', {
             hasAccessToken: !!accessToken,
-            hasRefreshToken: !!refreshToken,
             accessTokenExpired: accessToken ? this.isTokenExpired(accessToken) : true,
-            refreshTokenExpired: refreshToken ? this.isTokenExpired(refreshToken) : true
+            note: 'Refresh token is HttpOnly, cannot check directly'
         });
 
         // If we have a valid access token, session is valid
@@ -235,9 +263,10 @@ class TokenManager {
             return true;
         }
 
-        // If we have a refresh token, we can potentially refresh the session
-        if (refreshToken && !this.isTokenExpired(refreshToken)) {
-            console.debug('[TokenManager] Valid refresh token found');
+        // For HttpOnly refresh tokens, we assume we can try to refresh
+        // The backend will validate the refresh token
+        if (accessToken) {
+            console.debug('[TokenManager] Access token expired, but will try refresh with HttpOnly cookie');
             return true;
         }
 
@@ -289,6 +318,13 @@ class TokenManager {
      */
     async extendSession(role = 'user') {
         const accessToken = this.getAccessToken();
+        // For HttpOnly cookies, we can't check the refresh token directly
+
+        console.debug('[TokenManager] Extending session for role:', role, {
+            hasAccessToken: !!accessToken,
+            accessTokenExpired: accessToken ? this.isTokenExpired(accessToken) : true,
+            note: 'Refresh token is HttpOnly, backend will validate'
+        });
 
         // If access token is still valid, no need to refresh
         if (accessToken && !this.isTokenExpired(accessToken)) {
@@ -296,8 +332,22 @@ class TokenManager {
             return true;
         }
 
+        // For HttpOnly refresh tokens, we try to refresh and let the backend validate
+        if (!accessToken) {
+            console.warn('[TokenManager] No access token available for session extension');
+            return false;
+        }
+
         // Try to refresh the token
+        console.info('[TokenManager] Access token expired, attempting refresh with HttpOnly cookie...');
         const result = await this.refreshAccessToken(role);
+        
+        if (result.success) {
+            console.info('[TokenManager] Session extended successfully');
+        } else {
+            console.error('[TokenManager] Failed to extend session:', result.message);
+        }
+        
         return result.success;
     }
 }

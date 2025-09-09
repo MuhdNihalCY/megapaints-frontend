@@ -138,9 +138,13 @@ api.interceptors.request.use(
     // Avoid infinite loop for refresh calls
     if (!config.headers) config.headers = {};
     
-    // Skip token for login endpoints
+    // Skip token for login and refresh endpoints
     const isLoginEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/admin/auth/login');
-    if (isLoginEndpoint) {
+    const isRefreshEndpoint = config.url?.includes('/auth/refresh') || config.url?.includes('/admin/auth/refresh');
+    const shouldSkipToken = isLoginEndpoint || isRefreshEndpoint || config._noIntercept;
+    
+    if (shouldSkipToken) {
+      console.debug('[API] Skipping token for:', config.url);
       return config;
     }
     

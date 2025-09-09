@@ -47,7 +47,9 @@ const ACTIONS = {
   SET_FILTERS: 'SET_FILTERS',
   SET_SEARCH_TERM: 'SET_SEARCH_TERM',
   OPTIMISTIC_UPDATE: 'OPTIMISTIC_UPDATE',
-  ROLLBACK_UPDATE: 'ROLLBACK_UPDATE'
+  ROLLBACK_UPDATE: 'ROLLBACK_UPDATE',
+  SET_CACHE_INFO: 'SET_CACHE_INFO',
+  MARK_INITIALIZED: 'MARK_INITIALIZED'
 };
 
 /**
@@ -215,7 +217,11 @@ const initialState = {
     text: ''
   },
   searchTerm: '',
-  optimisticUpdates: new Map()
+  optimisticUpdates: new Map(),
+  // Cache management
+  lastFetchTime: null,
+  dataVersion: 0,
+  isInitialized: false
 };
 
 // Reducer function
@@ -422,6 +428,19 @@ function kanbanReducer(state, action) {
         optimisticUpdates: newOptimisticUpdates
       };
 
+    case ACTIONS.SET_CACHE_INFO:
+      return {
+        ...state,
+        lastFetchTime: action.payload.lastFetchTime,
+        dataVersion: action.payload.dataVersion
+      };
+
+    case ACTIONS.MARK_INITIALIZED:
+      return {
+        ...state,
+        isInitialized: true
+      };
+
     default:
       return state;
   }
@@ -435,10 +454,23 @@ export const KanbanProvider = ({ children }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
   const { user } = useUserAuth();
 
-  // Load initial board data
-  const loadBoardData = useCallback(async () => {
+  // Load initial board data with caching
+  const loadBoardData = useCallback(async (forceRefresh = false) => {
     if (!user) {
       dispatch({ type: ACTIONS.SET_ERROR, payload: 'Authentication required' });
+      return;
+    }
+
+    // Check if we should skip loading due to recent fetch
+    const now = Date.now();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+    const shouldUseCache = !forceRefresh && 
+                          state.isInitialized && 
+                          state.lastFetchTime && 
+                          (now - state.lastFetchTime) < CACHE_DURATION;
+
+    if (shouldUseCache) {
+      console.log('Using cached data, skipping API calls');
       return;
     }
 
@@ -523,22 +555,42 @@ export const KanbanProvider = ({ children }) => {
       
       dispatch({ type: ACTIONS.SET_BOARD_DATA, payload: boardData });
       dispatch({ type: ACTIONS.SET_LABELS, payload: labels });
+      
+      // Update cache information
+      dispatch({ 
+        type: ACTIONS.SET_CACHE_INFO, 
+        payload: { 
+          lastFetchTime: Date.now(), 
+          dataVersion: state.dataVersion + 1 
+        } 
+      });
+      dispatch({ type: ACTIONS.MARK_INITIALIZED });
+      
     } catch (error) {
       console.error('Error loading board data:', error);
       dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
     }
-  }, [user]);
+  }, [user, state.isInitialized, state.lastFetchTime, state.dataVersion]);
 
-  // Load data on mount and when user changes
+  // Load data on mount and when user changes (optimized)
   useEffect(() => {
     if (user) {
-      loadBoardData();
+      // Only load if not already initialized or if user changed
+      if (!state.isInitialized) {
+        loadBoardData();
+      }
     } else {
       // Clear data when user is not authenticated
       dispatch({ type: ACTIONS.SET_BOARD_DATA, payload: { cards: [], columns: [] } });
       dispatch({ type: ACTIONS.SET_USERS, payload: [] });
+      dispatch({ type: ACTIONS.SET_ERROR, payload: null });
     }
-  }, [loadBoardData, user]);
+  }, [user?.id]); // Only depend on user ID, not the entire user object
+
+  // Refresh data (force reload)
+  const refreshData = useCallback(() => {
+    loadBoardData(true);
+  }, [loadBoardData]);
 
   // Create a new card
   const createCard = useCallback(async (cardData) => {
@@ -553,12 +605,20 @@ export const KanbanProvider = ({ children }) => {
       });
       
       dispatch({ type: ACTIONS.ADD_CARD, payload: newCard });
+      // Invalidate cache after creating card
+      dispatch({ 
+        type: ACTIONS.SET_CACHE_INFO, 
+        payload: { 
+          lastFetchTime: Date.now(), 
+          dataVersion: state.dataVersion + 1 
+        } 
+      });
       return newCard;
     } catch (error) {
       console.error('Error creating card:', error);
       throw error;
     }
-  }, [user]);
+  }, [user, state.dataVersion]);
 
   // Update a card
   const updateCard = useCallback(async (cardId, updates) => {
@@ -965,6 +1025,7 @@ export const KanbanProvider = ({ children }) => {
     clearFilters,
     setSearchTerm,
     loadBoardData,
+    refreshData,
     searchCards: kanbanService.searchCards.bind(kanbanService),
     
     // Computed values

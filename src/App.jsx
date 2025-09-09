@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { UserAuthProvider } from './contexts/UserAuthContext';
 import { AdminAuthProvider } from './contexts/AdminAuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -12,19 +14,30 @@ import CreateFormula from './features/user/CreateFormula';
 import Order from './features/user/Order';
 import Orders from './features/user/Orders';
 import KanbanDashboard from './features/kanban/pages/KanbanDashboard';
-import KanbanTest from './features/kanban/components/KanbanTest';
-import BackendTest from './features/kanban/pages/BackendTest';
+import RefreshTokenDebug from './components/RefreshTokenDebug';
 // import SessionStatus from './components/SessionStatus';
 // import DebugCookies from './components/DebugCookies';
 
 
+// Create query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <UserAuthProvider>
-      <AdminAuthProvider>
-        <ThemeProvider>
-          <Router>
+    <QueryClientProvider client={queryClient}>
+      <UserAuthProvider>
+        <AdminAuthProvider>
+          <ThemeProvider>
+            <Router>
             <div className="App">
+              {/* <RefreshTokenDebug /> */}
               {/* <SessionStatus />
               <DebugCookies /> */}
               <Routes>
@@ -48,22 +61,6 @@ function App() {
                   element={
                     <UserProtectedRoute>
                       <UserDashboard />
-                    </UserProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/kanban-test" 
-                  element={
-                    <UserProtectedRoute>
-                      <KanbanTest />
-                    </UserProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/backend-test" 
-                  element={
-                    <UserProtectedRoute>
-                      <BackendTest />
                     </UserProtectedRoute>
                   } 
                 />
@@ -111,6 +108,12 @@ function App() {
         </ThemeProvider>
       </AdminAuthProvider>
     </UserAuthProvider>
+    
+    {/* Add React Query DevTools in development */}
+    {process.env.NODE_ENV === 'development' && (
+      <ReactQueryDevtools initialIsOpen={false} />
+    )}
+  </QueryClientProvider>
   );
 }
 

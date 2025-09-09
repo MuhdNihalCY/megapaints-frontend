@@ -40,10 +40,34 @@ export const ACTIVATION_TYPES = {
 
 // Card Priorities
 export const CARD_PRIORITIES = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  URGENT: 'urgent'
+  low: {
+    label: 'Low',
+    color: '#6b7280',
+    icon: '⬇️',
+    bgColor: '#f3f4f6',
+    textColor: '#374151'
+  },
+  medium: {
+    label: 'Medium',
+    color: '#3b82f6',
+    icon: '➡️',
+    bgColor: '#dbeafe',
+    textColor: '#1e40af'
+  },
+  high: {
+    label: 'High',
+    color: '#f59e0b',
+    icon: '⬆️',
+    bgColor: '#fef3c7',
+    textColor: '#92400e'
+  },
+  urgent: {
+    label: 'Urgent',
+    color: '#ef4444',
+    icon: '🚨',
+    bgColor: '#fee2e2',
+    textColor: '#991b1b'
+  }
 };
 
 // Card Labels
@@ -183,12 +207,12 @@ export const USER_ROLES = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  KANBAN: '/v2/board',
-  CARDS: '/v2/board/cards',
-  COLUMNS: '/v2/board/columns',
-  COMMENTS: '/v2/board/comments',
-  ACTIVITY: '/v2/board/activity',
-  USERS: '/v2/users'
+  KANBAN: '/board/v2/board',
+  CARDS: '/board/v2/card',
+  COLUMNS: '/board/v2/board/columns',
+  COMMENTS: '/board/v2/board/comments',
+  ACTIVITY: '/board/v2/board/activity',
+  USERS: '/board/v2/users'
 };
 
 // UI Constants

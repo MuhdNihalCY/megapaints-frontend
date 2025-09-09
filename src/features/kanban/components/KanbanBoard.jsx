@@ -237,7 +237,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
           <div className="text-red-600 text-lg font-semibold mb-2">
             Error loading Kanban board
           </div>
-          <div className="text-gray-600">{error}</div>
+          <div className="text-gray-600">{error?.message || error?.toString() || 'Unknown error'}</div>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
