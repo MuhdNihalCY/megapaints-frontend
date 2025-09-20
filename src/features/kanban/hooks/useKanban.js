@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { format, isAfter, isBefore, isEqual, startOfDay } from 'date-fns';
-import { CARD_PRIORITIES, CARD_LABELS } from '../utils/constants';
+import { CARD_PRIORITIES } from '../utils/constants';
 
 /**
  * Hook for managing drag and drop functionality

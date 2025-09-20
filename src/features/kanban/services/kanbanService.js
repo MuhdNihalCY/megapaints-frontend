@@ -1,1123 +1,562 @@
 /**
- * Kanban Board Service
- * Handles all API calls and data management for the Kanban board
- * Uses live backend API instead of mock data
+ * Kanban Board API Service
+ * Handles all API calls for the Kanban board based on the API documentation
  */
 
 import api from '../../../utils/api';
-import { API_ENDPOINTS, ACTIVITY_TYPES } from '../utils/constants';
 
 /**
- * Kanban Board Service Class with request deduplication
+ * Kanban Board Service Class
  */
 class KanbanService {
   constructor() {
-    // Request deduplication cache
-    this.pendingRequests = new Map();
-    this.cache = new Map();
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    this.baseURL = '/board/v2';
   }
 
   /**
-   * Deduplicate requests to prevent multiple identical API calls
-   * @param {string} key - Unique key for the request
-   * @param {Function} requestFn - Function that makes the actual request
-   * @returns {Promise} Promise that resolves to the request result
+   * Handle API response and extract data
    */
-  async deduplicateRequest(key, requestFn) {
-    // Check if request is already pending
-    if (this.pendingRequests.has(key)) {
-      console.log(`Deduplicating request: ${key}`);
-      return this.pendingRequests.get(key);
+  handleResponse(response) {
+    if (response.data?.success !== false) {
+      return response.data?.data || response.data;
     }
-
-    // Check cache first
-    const cached = this.cache.get(key);
-    if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
-      console.log(`Using cached result for: ${key}`);
-      return cached.data;
-    }
-
-    // Make the request
-    const requestPromise = requestFn();
-    this.pendingRequests.set(key, requestPromise);
-
-    try {
-      const result = await requestPromise;
-      
-      // Cache the result
-      this.cache.set(key, {
-        data: result,
-        timestamp: Date.now()
-      });
-      
-      return result;
-    } finally {
-      // Remove from pending requests
-      this.pendingRequests.delete(key);
-    }
+    throw new Error(response.data?.message || 'API request failed');
   }
 
   /**
-   * Clear cache for a specific key or all cache
-   * @param {string} key - Optional key to clear specific cache entry
+   * Handle API errors
    */
-  clearCache(key = null) {
-    if (key) {
-      this.cache.delete(key);
-    } else {
-      this.cache.clear();
+  handleError(error) {
+    console.error('API Error:', error);
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
     }
+    throw error;
   }
+
+  // ==================== BOARD MANAGEMENT ====================
+
   /**
-   * Get the entire Kanban board data
-   * @returns {Promise<Object>} Board data including columns and cards
+   * Get complete board structure with columns and cards
    */
   async getBoard() {
-    return this.deduplicateRequest('board', async () => {
-      console.log('Getting board data...');
-      try {
-        const response = await api.get('/board/v2/board');
-        console.log('Response from getBoard:', response.data);
-        return response.data;
-      } catch (error) {
-        console.warn('/board/v2/board endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return {
-          columns: [
-            {
-              id: 'sales',
-              title: 'Sales',
-              type: 'sales',
-              order: 1,
-              isActive: true,
-              cards: []
-            },
-            {
-              id: 'office',
-              title: 'Office',
-              type: 'office',
-              order: 2,
-              isActive: true,
-              cards: []
-            },
-            {
-              id: 'production',
-              title: 'Production',
-              type: 'production',
-              order: 3,
-              isActive: true,
-              subcolumns: [
-                { id: 'production-1', title: 'John Production', userId: '1', type: 'user' },
-                { id: 'production-2', title: 'Jane Production', userId: '2', type: 'user' },
-                { id: 'production-3', title: 'Bob Production', userId: '3', type: 'user' },
-                { id: 'production-4', title: 'Alice Production', userId: '4', type: 'user' }
-              ],
-              isGrouped: true,
-              cards: []
-            },
-            {
-              id: 'ready',
-              title: 'Ready',
-              type: 'ready',
-              order: 4,
-              isActive: true,
-              subcolumns: [
-                { id: 'for-dispatch', title: 'For Dispatch' },
-                { id: 'for-customer-collection', title: 'For Customer Collection' }
-              ],
-              isGrouped: true,
-              cards: []
-            },
-            {
-              id: 'drivers',
-              title: 'Drivers',
-              type: 'drivers',
-              order: 5,
-              isActive: true,
-              subcolumns: [
-                { id: 'drivers-5', title: 'Mike Driver', userId: '5', type: 'user' },
-                { id: 'drivers-6', title: 'Sarah Driver', userId: '6', type: 'user' },
-                { id: 'drivers-7', title: 'Tom Driver', userId: '7', type: 'user' },
-                { id: 'drivers-8', title: 'Lisa Driver', userId: '8', type: 'user' }
-              ],
-              isGrouped: true,
-              cards: []
-            },
-            {
-              id: 'done',
-              title: 'Done',
-              type: 'done',
-              order: 6,
-              isActive: true,
-              subcolumns: [
-                { id: 'done-today', title: 'Done Today' },
-                { id: 'less-than-7-days', title: '< 7 Days' },
-                { id: 'more-than-7-days', title: '> 7 Days' }
-              ],
-              isGrouped: true,
-              cards: []
-            }
-          ],
-          cards: [
-            {
-              id: 'card-1',
-              title: 'Sample Task 1',
-              description: 'This is a sample task for testing the Kanban board',
-              columnId: 'sales',
-              subcolumnId: null,
-              priority: 'medium',
-              labels: [],
-              assignees: [],
-              dueDate: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            },
-            {
-              id: 'card-2',
-              title: 'Sample Task 2',
-              description: 'Another sample task in progress',
-              columnId: 'office',
-              subcolumnId: null,
-              priority: 'high',
-              labels: [],
-              assignees: [],
-              dueDate: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }
-          ]
-        };
-      }
-      
-      throw error;
-      }
-    });
-  }
-
-  /**
-   * Get all cards
-   * @returns {Promise<Array>} Array of cards
-   */
-  async getCards() {
     try {
-      const response = await api.get('/board/v2/card');
-      return response.data;
+      const response = await api.get(`${this.baseURL}/board`);
+      console.log('getBoard response:', response);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('/board/v2/card endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          {
-            id: 'card-1',
-            title: 'Sample Task 1',
-            description: 'This is a sample task for testing the Kanban board',
-            columnId: 'sales',
-            subcolumnId: null,
-            priority: 'medium',
-            labels: [],
-            assignees: [],
-            dueDate: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: 'card-2',
-            title: 'Sample Task 2',
-            description: 'Another sample task in progress',
-            columnId: 'office',
-            subcolumnId: null,
-            priority: 'high',
-            labels: [],
-            assignees: [],
-            dueDate: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Get a specific card by ID
-   * @param {string} cardId - The card ID
-   * @returns {Promise<Object>} Card data
+   * Get branch board activity
+   */
+  async getBoardActivity(params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/board/branch/activity`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get branch board members
+   */
+  async getBoardMembers() {
+    try {
+      const response = await api.get(`${this.baseURL}/board/branch/members`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== CARD MANAGEMENT ====================
+
+  /**
+   * List branch cards with filtering and pagination
+   */
+  async getCards(params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/card`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get all branch cards
+   */
+  async getAllBranchCards() {
+    try {
+      const response = await api.get(`${this.baseURL}/card/branch`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get cards for a specific column
+   */
+  async getColumnCards(columnId) {
+    try {
+      const response = await api.get(`${this.baseURL}/card/column/${columnId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get card details by ID
    */
   async getCard(cardId) {
     try {
-      const response = await api.get(`/v2/board/cards/${cardId}`);
-      return response.data;
+      const response = await api.get(`${this.baseURL}/card/${cardId}`);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/cards GET endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return {
-          id: cardId,
-          title: 'Sample Task',
-          description: 'This is a sample task for testing the Kanban board',
-          columnId: 'todo',
-          subcolumnId: null,
-          priority: 'medium',
-          labels: [],
-          assignees: [],
-          dueDate: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
    * Create a new card
-   * @param {Object} cardData - The card data
-   * @returns {Promise<Object>} Created card
    */
   async createCard(cardData) {
     try {
-      const response = await api.post('/board/v2/card', cardData);
-      return response.data;
+      const response = await api.post(`${this.baseURL}/card`, cardData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/cards POST endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const newCard = {
-          id: `card-${Date.now()}`,
-          ...cardData,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        return newCard;
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
    * Update an existing card
-   * @param {string} cardId - The card ID
-   * @param {Object} cardData - The updated card data
-   * @returns {Promise<Object>} Updated card
    */
   async updateCard(cardId, cardData) {
     try {
-      const response = await api.put(`/v2/board/cards/${cardId}`, cardData);
-      return response.data;
+      const response = await api.put(`${this.baseURL}/card/${cardId}`, cardData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/cards PUT endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedCard = {
-          id: cardId,
-          ...cardData,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedCard;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Move a card to a different column
-   * @param {string} cardId - The card ID
-   * @param {string} fromColumn - Source column
-   * @param {string} toColumn - Destination column
-   * @param {string} toSubcolumn - Destination subcolumn (optional)
-   * @returns {Promise<Object>} Updated card
-   */
-  async moveCard(cardId, fromColumn, toColumn, toSubcolumn = null) {
-    try {
-      const response = await api.post(`/v2/board/cards/${cardId}/move`, {
-        fromColumn,
-        toColumn,
-        toSubcolumn
-      });
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards move endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const movedCard = {
-          id: cardId,
-          columnId: toColumn,
-          subcolumnId: toSubcolumn,
-          updatedAt: new Date().toISOString()
-        };
-        return movedCard;
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
    * Delete a card
-   * @param {string} cardId - The card ID
-   * @returns {Promise<void>}
    */
   async deleteCard(cardId) {
     try {
-      await api.delete(`/v2/board/cards/${cardId}`);
+      const response = await api.delete(`${this.baseURL}/card/${cardId}`);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/cards DELETE endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return { success: true };
-      }
-      
-      throw error;
-    }
-  }
-
-
-  /**
-   * Create a new column
-   * @param {Object} columnData - The column data
-   * @returns {Promise<Object>} Created column
-   */
-  async createColumn(columnData) {
-    try {
-      const response = await api.post('/board/v2/board/columns', columnData);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/columns POST endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const newColumn = {
-          id: `column-${Date.now()}`,
-          ...columnData,
-          createdAt: new Date().toISOString()
-        };
-        return newColumn;
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Update column configuration
-   * @param {string} columnId - The column ID
-   * @param {Object} columnData - The updated column data
-   * @returns {Promise<Object>} Updated column
+   * Move a card to a different column/list
    */
-  async updateColumn(columnId, columnData) {
+  async moveCard(cardId, moveData) {
     try {
-      const response = await api.put(`/v2/board/columns/${columnId}`, columnData);
-      return response.data;
+      const response = await api.post(`${this.baseURL}/card/${cardId}/move`, moveData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/columns PUT endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedColumn = {
-          id: columnId,
-          ...columnData,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedColumn;
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Toggle column activation
-   * @param {string} columnId - The column ID
-   * @param {boolean} isActive - Whether the column should be active
-   * @returns {Promise<Object>} Updated column
+   * Bulk move multiple cards
    */
-  async toggleColumnActivation(columnId, isActive) {
+  async bulkMoveCards(moveData) {
     try {
-      const response = await api.post(`/v2/board/columns/${columnId}/toggle`, {
-        isActive
-      });
-      return response.data;
+      const response = await api.post(`${this.baseURL}/card/bulk-move`, moveData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/columns toggle endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedColumn = {
-          id: columnId,
-          isActive: isActive,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedColumn;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a column
-   * @param {string} columnId - The column ID
-   * @returns {Promise<void>}
-   */
-  async deleteColumn(columnId) {
-    try {
-      await api.delete(`/v2/board/columns/${columnId}`);
-    } catch (error) {
-      console.warn('v2/board/columns DELETE endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return { success: true };
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Reorder columns
-   * @param {Array} columnOrder - Array of column IDs in new order
-   * @returns {Promise<Array>} Updated columns
-   */
-  async reorderColumns(columnOrder) {
-    try {
-      const response = await api.put('/board/v2/board/columns/reorder', {
-        columnOrder
-      });
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/columns reorder endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return columnOrder.map((id, index) => ({
-          id: id,
-          order: index + 1,
-          updatedAt: new Date().toISOString()
-        }));
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Get comments for a card
-   * @param {string} cardId - The card ID
-   * @returns {Promise<Array>} Array of comments
-   */
-  async getComments(cardId) {
-    try {
-      const response = await api.get(`/v2/board/cards/${cardId}/comments`);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards comments endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          {
-            id: 'comment-1',
-            cardId: cardId,
-            content: 'This is a sample comment',
-            author: { id: '1', name: 'John Production', username: 'john.prod' },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Add a comment to a card
-   * @param {string} cardId - The card ID
-   * @param {Object} commentData - The comment data
-   * @returns {Promise<Object>} Created comment
-   */
-  async addComment(cardId, commentData) {
-    try {
-      const response = await api.post(`/v2/board/cards/${cardId}/comments`, commentData);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards comments POST endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const newComment = {
-          id: `comment-${Date.now()}`,
-          cardId: cardId,
-          ...commentData,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        return newComment;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Update a comment
-   * @param {string} commentId - The comment ID
-   * @param {Object} commentData - The updated comment data
-   * @returns {Promise<Object>} Updated comment
-   */
-  async updateComment(commentId, commentData) {
-    try {
-      const response = await api.put(`/v2/board/comments/${commentId}`, commentData);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/comments PUT endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedComment = {
-          id: commentId,
-          ...commentData,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedComment;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a comment
-   * @param {string} commentId - The comment ID
-   * @returns {Promise<void>}
-   */
-  async deleteComment(commentId) {
-    try {
-      await api.delete(`/v2/board/comments/${commentId}`);
-    } catch (error) {
-      console.warn('v2/board/comments DELETE endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return { success: true };
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Get activity log for a card
-   * @param {string} cardId - The card ID
-   * @returns {Promise<Array>} Array of activity entries
-   */
-  async getActivity(cardId) {
-    try {
-      const response = await api.get(`/v2/board/cards/${cardId}/activity`);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards activity endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          {
-            id: 'activity-1',
-            cardId: cardId,
-            type: 'card_created',
-            description: 'Card created',
-            user: { id: '1', name: 'John Production', username: 'john.prod' },
-            createdAt: new Date().toISOString()
-          }
-        ];
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Get all users for mentions and assignments
-   * @returns {Promise<Array>} Array of users
-   */
-  async getUsers() {
-    return this.deduplicateRequest('users', async () => {
-      try {
-        // Try the v2 endpoint first
-        const response = await api.get('/board/v2/users');
-        // Debug logging for user data
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Response from getUsers:', response.data);
-        }
-        return response.data;
-    } catch (error) {
-      console.warn('/board/v2/users endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          // Production Users
-          { id: '1', name: 'John Production', username: 'john.prod', designation: 'Production', role: 'user' },
-          { id: '2', name: 'Jane Production', username: 'jane.prod', designation: 'Production', role: 'user' },
-          { id: '3', name: 'Bob Production', username: 'bob.prod', designation: 'Production', role: 'user' },
-          { id: '4', name: 'Alice Production', username: 'alice.prod', designation: 'Production', role: 'user' },
-          // Driver Users
-          { id: '5', name: 'Mike Driver', username: 'mike.driver', designation: 'Driver', role: 'user' },
-          { id: '6', name: 'Sarah Driver', username: 'sarah.driver', designation: 'Driver', role: 'user' },
-          { id: '7', name: 'Tom Driver', username: 'tom.driver', designation: 'Driver', role: 'user' },
-          { id: '8', name: 'Lisa Driver', username: 'lisa.driver', designation: 'Driver', role: 'user' },
-          // Other Users
-          { id: '9', name: 'Admin User', username: 'admin', designation: 'Admin', role: 'admin' },
-          { id: '10', name: 'Sales User', username: 'sales', designation: 'Sales', role: 'user' }
-        ];
-      }
-      
-      throw error;
-      }
-    });
-  }
-
-  /**
-   * Get all labels
-   * @returns {Promise<Array>} Array of labels
-   */
-  async getLabels() {
-    return this.deduplicateRequest('labels', async () => {
-      try {
-        const response = await api.get('/board/v2/label');
-        return response.data || [];
-      } catch (error) {
-        console.warn('v2/labels endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          { id: 'label-1', name: 'Bug', color: '#ef4444' },
-          { id: 'label-2', name: 'Feature', color: '#10b981' },
-          { id: 'label-3', name: 'Urgent', color: '#f59e0b' },
-          { id: 'label-4', name: 'Low Priority', color: '#6b7280' }
-        ];
-      }
-      
-      // Return empty array if labels endpoint doesn't exist yet
-      return [];
-      }
-    });
-  }
-
-  /**
-   * Create a new label
-   * @param {Object} labelData - The label data
-   * @returns {Promise<Object>} Created label
-   */
-  async createLabel(labelData) {
-    try {
-      const response = await api.post('/board/v2/label', labelData);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/labels POST endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const newLabel = {
-          id: `label-${Date.now()}`,
-          ...labelData,
-          createdAt: new Date().toISOString()
-        };
-        return newLabel;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Update a label
-   * @param {string} labelId - The label ID
-   * @param {Object} updates - The updates to apply
-   * @returns {Promise<Object>} Updated label
-   */
-  async updateLabel(labelId, updates) {
-    try {
-      const response = await api.put(`/v2/labels/${labelId}`, updates);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/labels PUT endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedLabel = {
-          id: labelId,
-          ...updates,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedLabel;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a label
-   * @param {string} labelId - The label ID
-   * @returns {Promise<void>}
-   */
-  async deleteLabel(labelId) {
-    try {
-      await api.delete(`/v2/labels/${labelId}`);
-    } catch (error) {
-      console.warn('v2/labels DELETE endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return { success: true };
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Search users for mentions
-   * @param {string} searchTerm - The search term
-   * @returns {Promise<Array>} Array of matching users
-   */
-  async searchUsers(searchTerm) {
-    try {
-      const response = await api.get('/board/v2/users/search', {
-        params: { q: searchTerm }
-      });
-      return response.data;
-    } catch (error) {
-      console.warn('/board/v2/users/search endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const mockUsers = [
-          { id: '1', name: 'John Production', username: 'john.prod', designation: 'Production', role: 'user' },
-          { id: '2', name: 'Jane Production', username: 'jane.prod', designation: 'Production', role: 'user' },
-          { id: '3', name: 'Bob Production', username: 'bob.prod', designation: 'Production', role: 'user' },
-          { id: '4', name: 'Alice Production', username: 'alice.prod', designation: 'Production', role: 'user' },
-          { id: '5', name: 'Mike Driver', username: 'mike.driver', designation: 'Driver', role: 'user' },
-          { id: '6', name: 'Sarah Driver', username: 'sarah.driver', designation: 'Driver', role: 'user' },
-          { id: '7', name: 'Tom Driver', username: 'tom.driver', designation: 'Driver', role: 'user' },
-          { id: '8', name: 'Lisa Driver', username: 'lisa.driver', designation: 'Driver', role: 'user' },
-          { id: '9', name: 'Admin User', username: 'admin', designation: 'Admin', role: 'admin' },
-          { id: '10', name: 'Sales User', username: 'sales', designation: 'Sales', role: 'user' }
-        ];
-        
-        if (!searchTerm) return mockUsers;
-        
-        const searchLower = searchTerm.toLowerCase();
-        return mockUsers.filter(user => 
-          user.name.toLowerCase().includes(searchLower) ||
-          user.username.toLowerCase().includes(searchLower) ||
-          user.designation.toLowerCase().includes(searchLower)
-        );
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Search cards within a specific column
-   * @param {string} columnId - The column ID to search within
-   * @param {string} searchTerm - The search term
-   * @param {Object} filters - Search filters
-   * @returns {Promise<Array>} Array of matching cards
-   */
-  async searchCards(columnId, searchTerm, filters = {}) {
-    try {
-      const response = await api.get('/board/v2/card/search', {
-        params: { 
-          columnId, 
-          searchTerm, 
-          ...filters 
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards/search endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const mockCards = [
-          {
-            id: 'card-1',
-            title: 'Sample Task 1',
-            description: 'This is a sample task for testing the Kanban board',
-            columnId: 'sales',
-            subcolumnId: null,
-            priority: 'medium',
-            labels: [],
-            assignees: [],
-            dueDate: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: 'card-2',
-            title: 'Sample Task 2',
-            description: 'Another sample task in progress',
-            columnId: 'office',
-            subcolumnId: null,
-            priority: 'high',
-            labels: [],
-            assignees: [],
-            dueDate: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-        
-        if (!searchTerm) return mockCards;
-        
-        const searchLower = searchTerm.toLowerCase();
-        return mockCards.filter(card => 
-          card.title.toLowerCase().includes(searchLower) ||
-          card.description.toLowerCase().includes(searchLower)
-        );
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Log activity for audit trail
-   * @param {Object} activityData - The activity data
-   * @returns {Promise<Object>} Logged activity
-   */
-  async logActivity(activityData) {
-    try {
-      const response = await api.post('/board/v2/board/activity', activityData);
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/activity endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const loggedActivity = {
-          id: `activity-${Date.now()}`,
-          ...activityData,
-          createdAt: new Date().toISOString()
-        };
-        return loggedActivity;
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Upload attachment for a card
-   * @param {string} cardId - The card ID
-   * @param {File} file - The file to upload
-   * @returns {Promise<Object>} Uploaded attachment data
-   */
-  async uploadAttachment(cardId, file) {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await api.post(`/v2/board/cards/${cardId}/attachments`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error('Error uploading attachment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete attachment from a card
-   * @param {string} cardId - The card ID
-   * @param {string} attachmentId - The attachment ID
-   * @returns {Promise<void>}
-   */
-  async deleteAttachment(cardId, attachmentId) {
-    try {
-      await api.delete(`/v2/board/cards/${cardId}/attachments/${attachmentId}`);
-    } catch (error) {
-      console.error('Error deleting attachment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Assign users to a card
-   * @param {string} cardId - The card ID
-   * @param {Array} userIds - Array of user IDs to assign
-   * @returns {Promise<Object>} Updated card
-   */
-  async assignUsers(cardId, userIds) {
-    try {
-      const response = await api.post(`/v2/board/cards/${cardId}/assign`, {
-        userIds
-      });
-      return response.data;
-    } catch (error) {
-      console.warn('v2/board/cards assign endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        const updatedCard = {
-          id: cardId,
-          assignees: userIds,
-          updatedAt: new Date().toISOString()
-        };
-        return updatedCard;
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
    * Reorder cards within a column
-   * @param {string} columnId - The column ID
-   * @param {Array} cardOrder - Array of card IDs in new order
-   * @returns {Promise<Array>} Updated cards
    */
-  async reorderCards(columnId, cardOrder) {
+  async reorderCards(columnId, reorderData) {
     try {
-      const response = await api.put(`/v2/board/cards/reorder`, {
-        columnId,
-        cardOrder
-      });
-      return response.data;
+      const response = await api.put(`${this.baseURL}/card/${columnId}/reorder`, reorderData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.warn('v2/board/cards reorder endpoint not available, using mock data:', error.message);
-      
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return cardOrder.map((id, index) => ({
-          id: id,
-          columnId: columnId,
-          order: index + 1,
-          updatedAt: new Date().toISOString()
-        }));
-      }
-      
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Get board members
-   * @param {string} boardId - The board ID
-   * @returns {Promise<Array>} Array of board members
+   * Assign users to a card
    */
-  async getBoardMembers(boardId) {
+  async assignUsers(cardId, assignmentData) {
     try {
-      const response = await api.get(`/v2/board/${boardId}/members`);
-      return response.data;
+      const response = await api.post(`${this.baseURL}/card/${cardId}/assign`, assignmentData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error fetching board members:', error);
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Add member to board
-   * @param {string} boardId - The board ID
-   * @param {string} userId - The user ID to add
-   * @returns {Promise<Object>} Updated board
+   * Search cards
    */
-  async addBoardMember(boardId, userId) {
+  async searchCards(params = {}) {
     try {
-      const response = await api.post(`/v2/board/${boardId}/members`, {
-        userId
-      });
-      return response.data;
+      const response = await api.get(`${this.baseURL}/card/search`, { params });
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error adding board member:', error);
-      throw error;
+      this.handleError(error);
+    }
+  }
+
+  // ==================== COLUMN MANAGEMENT ====================
+
+  /**
+   * Get board columns
+   */
+  async getColumns(boardId) {
+    try {
+      const response = await api.get(`${this.baseURL}/column/board/${boardId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
     }
   }
 
   /**
-   * Remove member from board
-   * @param {string} boardId - The board ID
-   * @param {string} userId - The user ID to remove
-   * @returns {Promise<Object>} Updated board
+   * Create a new column
    */
-  async removeBoardMember(boardId, userId) {
+  async createColumn(columnData) {
     try {
-      const response = await api.delete(`/v2/board/${boardId}/members/${userId}`);
-      return response.data;
+      const response = await api.post(`${this.baseURL}/column`, columnData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error removing board member:', error);
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Create a new board
-   * @param {Object} boardData - The board data
-   * @returns {Promise<Object>} Created board
+   * Update a column
    */
-  async createBoard(boardData) {
+  async updateColumn(columnId, columnData) {
     try {
-      const response = await api.post('/board/v2/board', boardData);
-      return response.data;
+      const response = await api.put(`${this.baseURL}/column/${columnId}`, columnData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error creating board:', error);
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Update board settings
-   * @param {string} boardId - The board ID
-   * @param {Object} boardData - The updated board data
-   * @returns {Promise<Object>} Updated board
+   * Delete a column
    */
-  async updateBoard(boardId, boardData) {
+  async deleteColumn(columnId) {
     try {
-      const response = await api.put(`/v2/board/${boardId}`, boardData);
-      return response.data;
+      const response = await api.delete(`${this.baseURL}/column/${columnId}`);
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error updating board:', error);
-      throw error;
+      this.handleError(error);
     }
   }
 
   /**
-   * Delete a board
-   * @param {string} boardId - The board ID
-   * @returns {Promise<void>}
+   * Toggle column activation
    */
-  async deleteBoard(boardId) {
+  async toggleColumnActivation(columnId, activationData) {
     try {
-      await api.delete(`/v2/board/${boardId}`);
+      const response = await api.post(`${this.baseURL}/column/${columnId}/toggle`, activationData);
+      return this.handleResponse(response);
     } catch (error) {
-      console.error('Error deleting board:', error);
-      throw error;
+      this.handleError(error);
     }
+  }
+
+  /**
+   * Reorder columns
+   */
+  async reorderColumns(boardId, reorderData) {
+    try {
+      const response = await api.put(`${this.baseURL}/column/${boardId}/reorder`, reorderData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== COMMENT MANAGEMENT ====================
+
+  /**
+   * Get comments for a card
+   */
+  async getComments(cardId, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/comment/card/${cardId}`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Add a comment to a card
+   */
+  async addComment(cardId, commentData) {
+    try {
+      const response = await api.post(`${this.baseURL}/comment/card/${cardId}`, commentData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update a comment
+   */
+  async updateComment(commentId, commentData) {
+    try {
+      const response = await api.put(`${this.baseURL}/comment/${commentId}`, commentData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete a comment
+   */
+  async deleteComment(commentId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/comment/${commentId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get card timeline (comments + activities)
+   */
+  async getCardTimeline(cardId, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/comment/card/${cardId}/timeline`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get user comments
+   */
+  async getUserComments(userId, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/comment/user/${userId}`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== LABEL MANAGEMENT ====================
+
+  /**
+   * Get all labels
+   */
+  async getLabels() {
+    try {
+      const response = await api.get(`${this.baseURL}/label`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Create a new label
+   */
+  async createLabel(labelData) {
+    try {
+      const response = await api.post(`${this.baseURL}/label`, labelData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update a label
+   */
+  async updateLabel(labelId, labelData) {
+    try {
+      const response = await api.put(`${this.baseURL}/label/${labelId}`, labelData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete a label
+   */
+  async deleteLabel(labelId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/label/${labelId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get branch labels
+   */
+  async getBranchLabels(branchId) {
+    try {
+      const response = await api.get(`${this.baseURL}/label/branch/${branchId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== USER MANAGEMENT ====================
+
+  /**
+   * Get users (for mentions and assignments)
+   * Note: This might be a different endpoint depending on your user service
+   */
+  async getUsers() {
+    try {
+      // This endpoint might be different in your system
+      const response = await api.get('/users') || await api.get('/auth/users');
+      return this.handleResponse(response);
+    } catch (error) {
+      // Fallback for development
+      console.warn('Users endpoint not available:', error.message);
+      return [];
+    }
+  }
+
+  // ==================== UTILITY METHODS ====================
+
+  /**
+   * Transform API card data to frontend format if needed
+   */
+  transformCardData(apiCard) {
+    return {
+      id: apiCard._id || apiCard.id,
+      title: apiCard.title || apiCard.Name || 'Untitled Card',
+      description: apiCard.description || '',
+      cardId: apiCard.cardId || apiCard.OrderIDNumber,
+      columnId: apiCard.columnId || this.mapListToColumn(apiCard.CurrentList),
+      subcolumnId: apiCard.subcolumnId || null,
+      priority: apiCard.priority || 'medium',
+      labels: apiCard.labels || (apiCard.Labels || []).map(label => ({
+        id: label.Name || label.id || 'unknown',
+        name: label.Name || label.name || 'Unknown',
+        color: label.Color || label.color || '#6b7280'
+      })),
+      assignees: apiCard.assignees || [],
+      dueDate: apiCard.dueDate || null,
+      createdAt: apiCard.createdAt || (apiCard.Card_Created?.Time ? new Date(apiCard.Card_Created.Time).toISOString() : new Date().toISOString()),
+      updatedAt: apiCard.updatedAt || new Date().toISOString(),
+      createdBy: apiCard.createdBy || apiCard.Card_Created?.Name || 'user',
+      // Additional fields from your backend
+      customerName: apiCard.CustomerName,
+      contactPersonName: apiCard.ContactPersonName,
+      contactNumber: apiCard.ContactNumber,
+      comments: apiCard.comments || [],
+      activity: apiCard.Activity || [],
+      checklistItems: apiCard.CheckListItems?.checkItems || [],
+      readyProducts: apiCard.ReadyProducts || [],
+      isAttachments: apiCard.IsAttachments || false,
+      branch: apiCard.Branch,
+      branchId: apiCard.BranchID || apiCard.branchId,
+      productionPerson: apiCard.ProductionPerson,
+      position: apiCard.Position || 0
+    };
+  }
+
+  /**
+   * Map backend list names to frontend column IDs
+   */
+  mapListToColumn(currentList) {
+    const listToColumnMap = {
+      'ORDERS': 'sales',
+      'OFFICE SECTION': 'office',
+      'PRODUCTION': 'production',
+      'READY': 'ready',
+      'DONE TODAY': 'done',
+      'LESS THAN 7 DAYS': 'done',
+      'MORE THAN 7 DAYS': 'done'
+    };
+
+    return listToColumnMap[currentList] || 'sales';
+  }
+
+  /**
+   * Map frontend column IDs to backend list names
+   */
+  mapColumnToList(columnId, subcolumnId = null) {
+    if (columnId === 'done' && subcolumnId) {
+      const subcolumnMap = {
+        'done-today': 'DONE TODAY',
+        'less-than-7-days': 'LESS THAN 7 DAYS',
+        'more-than-7-days': 'MORE THAN 7 DAYS'
+      };
+      return subcolumnMap[subcolumnId] || 'DONE TODAY';
+    }
+
+    const columnToListMap = {
+      'sales': 'ORDERS',
+      'office': 'OFFICE SECTION',
+      'production': 'PRODUCTION',
+      'ready': 'READY',
+      'done': 'DONE TODAY'
+    };
+
+    return columnToListMap[columnId] || 'ORDERS';
+  }
+
+  /**
+   * Transform frontend card data to API format
+   */
+  transformCardToApi(frontendCard) {
+    return {
+      title: frontendCard.title,
+      description: frontendCard.description,
+      cardId: frontendCard.cardId,
+      priority: frontendCard.priority,
+      labels: frontendCard.labels?.map(label => label.name || label) || [],
+      assignees: frontendCard.assignees || [],
+      dueDate: frontendCard.dueDate,
+      columnId: frontendCard.columnId,
+      subcolumnId: frontendCard.subcolumnId,
+      // Map to backend list format
+      toList: this.mapColumnToList(frontendCard.columnId, frontendCard.subcolumnId),
+      // Additional fields
+      CustomerName: frontendCard.customerName,
+      ContactPersonName: frontendCard.contactPersonName,
+      ContactNumber: frontendCard.contactNumber,
+      ReadyProducts: frontendCard.readyProducts || [],
+      CheckListItems: { checkItems: frontendCard.checklistItems || [] },
+      ProductionPerson: frontendCard.productionPerson,
+      Position: frontendCard.position || 0
+    };
   }
 }
 
-// Export singleton instance
-export const kanbanService = new KanbanService();
+// Create singleton instance
+const kanbanService = new KanbanService();
+
+export { kanbanService };

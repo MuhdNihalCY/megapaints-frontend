@@ -1,27 +1,13 @@
 /**
  * Kanban Board Context
- * Provides state management and actions for the entire Kanban board
+ * Provides state management and API integration for the entire Kanban board
  */
 
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { kanbanService } from '../services/kanbanService';
-import { 
-  COLUMN_TYPES, 
-  DEFAULT_COLUMNS, 
-  DND_RESTRICTIONS,
-  ACTIVITY_TYPES 
-} from '../utils/constants';
-import { 
-  hasPermission, 
-  canCreateCard as canCreateCardPermission, 
-  canEditCard, 
-  canMoveCard,
-  canManageColumn,
-  canToggleColumnActivation,
-  PERMISSIONS
-} from '../utils/permissions';
+import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
 
 // Action types for the reducer
 const ACTIONS = {
@@ -32,183 +18,33 @@ const ACTIONS = {
   SET_COLUMNS: 'SET_COLUMNS',
   SET_USERS: 'SET_USERS',
   SET_LABELS: 'SET_LABELS',
-  ADD_LABEL: 'ADD_LABEL',
-  UPDATE_LABEL: 'UPDATE_LABEL',
-  DELETE_LABEL: 'DELETE_LABEL',
   ADD_CARD: 'ADD_CARD',
   UPDATE_CARD: 'UPDATE_CARD',
   MOVE_CARD: 'MOVE_CARD',
   DELETE_CARD: 'DELETE_CARD',
+  ADD_COLUMN: 'ADD_COLUMN',
   UPDATE_COLUMN: 'UPDATE_COLUMN',
+  DELETE_COLUMN: 'DELETE_COLUMN',
   TOGGLE_COLUMN_ACTIVATION: 'TOGGLE_COLUMN_ACTIVATION',
   ADD_COMMENT: 'ADD_COMMENT',
   UPDATE_COMMENT: 'UPDATE_COMMENT',
   DELETE_COMMENT: 'DELETE_COMMENT',
+  ADD_LABEL: 'ADD_LABEL',
+  UPDATE_LABEL: 'UPDATE_LABEL',
+  DELETE_LABEL: 'DELETE_LABEL',
   SET_FILTERS: 'SET_FILTERS',
   SET_SEARCH_TERM: 'SET_SEARCH_TERM',
-  OPTIMISTIC_UPDATE: 'OPTIMISTIC_UPDATE',
-  ROLLBACK_UPDATE: 'ROLLBACK_UPDATE',
-  SET_CACHE_INFO: 'SET_CACHE_INFO',
   MARK_INITIALIZED: 'MARK_INITIALIZED'
 };
 
-/**
- * Generate dynamic subcolumns based on user designations
- * @param {Array} users - Array of users
- * @returns {Object} Updated columns with dynamic subcolumns
- */
-const generateDynamicColumns = (users) => {
-  const columns = Object.values(DEFAULT_COLUMNS);
-  
-  // Ensure users is an array
-  if (!Array.isArray(users)) {
-    console.warn('generateDynamicColumns: users is not an array:', users);
-    return columns;
-  }
-  
-  // Debug: Log all user designations
-  console.log('All user designations:', users.map(user => ({
-    id: user.id,
-    name: user.name,
-    username: user.username,
-    designation: user.designation,
-    role: user.role,
-    allKeys: Object.keys(user)
-  })));
-  
-  // Debug: Show all possible field values that might indicate user type
-  console.log('User field analysis:', users.map(user => ({
-    id: user.id,
-    name: user.name,
-    designation: user.designation,
-    role: user.role,
-    department: user.department,
-    position: user.position,
-    jobTitle: user.jobTitle,
-    title: user.title,
-    type: user.type,
-    category: user.category
-  })));
-  
-  // Helper function to check if user is of a specific type
-  const isUserOfType = (user, type) => {
-    if (!user) return false;
-    
-    const typeLower = type.toLowerCase();
-    const fieldsToCheck = [
-      user.designation,
-      user.role,
-      user.department,
-      user.position,
-      user.jobTitle,
-      user.title,
-      user.type,
-      user.category
-    ];
-    
-    return fieldsToCheck.some(field => 
-      field && field.toLowerCase().includes(typeLower)
-    );
-  };
-  
-  // Filter users by designation or role
-  const productionUsers = users.filter(user => isUserOfType(user, 'production'));
-  const driverUsers = users.filter(user => isUserOfType(user, 'driver'));
-  
-  console.log('Filtered users:', {
-    productionUsers: productionUsers.map(u => ({ id: u.id, name: u.name, designation: u.designation })),
-    driverUsers: driverUsers.map(u => ({ id: u.id, name: u.name, designation: u.designation }))
-  });
-
-  // Debug logging for dynamic column generation
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Generating dynamic columns:', {
-      totalUsers: users.length,
-      productionUsersCount: productionUsers.length,
-      driverUsersCount: driverUsers.length,
-      productionUsersList: productionUsers.map(u => ({ id: u.id, name: u.name, username: u.username, designation: u.designation })),
-      driverUsersList: driverUsers.map(u => ({ id: u.id, name: u.name, username: u.username, designation: u.designation }))
-    });
-  }
-
-  // Debug: Log all columns and their types
-  console.log('All columns before update:', columns.map(col => ({ id: col.id, type: col.type, title: col.title })));
-  console.log('Looking for columns with types:', { production: COLUMN_TYPES.PRODUCTION, drivers: COLUMN_TYPES.DRIVERS });
-  console.log('COLUMN_TYPES values:', COLUMN_TYPES);
-
-  // Update Production column with user subcolumns
-  const productionColumn = columns.find(col => col.type === COLUMN_TYPES.PRODUCTION);
-  if (productionColumn) {
-    productionColumn.subcolumns = productionUsers.map(user => ({
-      id: `production-${user.id}`,
-      title: user.name || user.username,
-      userId: user.id,
-      type: 'user'
-    }));
-    // Mark as grouped if there are subcolumns
-    if (productionColumn.subcolumns.length > 0) {
-      productionColumn.isGrouped = true;
-    }
-    console.log('Production column updated:', {
-      columnId: productionColumn.id,
-      type: productionColumn.type,
-      subcolumnsCount: productionColumn.subcolumns.length,
-      isGrouped: productionColumn.isGrouped,
-      subcolumns: productionColumn.subcolumns
-    });
-  } else {
-    console.warn('Production column not found in columns:', columns.map(col => ({ id: col.id, type: col.type })));
-  }
-
-  // Update Drivers column with user subcolumns
-  const driversColumn = columns.find(col => col.type === COLUMN_TYPES.DRIVERS);
-  if (driversColumn) {
-    driversColumn.subcolumns = driverUsers.map(user => ({
-      id: `driver-${user.id}`,
-      title: user.name || user.username,
-      userId: user.id,
-      type: 'user'
-    }));
-    // Mark as grouped if there are subcolumns
-    if (driversColumn.subcolumns.length > 0) {
-      driversColumn.isGrouped = true;
-    }
-    console.log('Drivers column updated:', {
-      columnId: driversColumn.id,
-      type: driversColumn.type,
-      subcolumnsCount: driversColumn.subcolumns.length,
-      isGrouped: driversColumn.isGrouped,
-      subcolumns: driversColumn.subcolumns
-    });
-  } else {
-    console.warn('Drivers column not found in columns:', columns.map(col => ({ id: col.id, type: col.type })));
-  }
-
-  // Debug logging for generated columns
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Generated columns:', columns.map(col => ({
-      type: col.type,
-      title: col.title,
-      subcolumnsCount: col.subcolumns ? col.subcolumns.length : 0,
-      subcolumns: col.subcolumns
-    })));
-  }
-
-  return columns;
-};
-
 // Initial state
-const getInitialColumns = () => {
-  return Object.values(DEFAULT_COLUMNS);
-};
-
 const initialState = {
   loading: true,
   error: null,
   cards: [],
-  columns: getInitialColumns(),
+  columns: [],
   users: [],
-  labels: [], // Dynamic labels created by users
+  labels: [],
   filters: {
     labels: [],
     assignees: [],
@@ -217,10 +53,6 @@ const initialState = {
     text: ''
   },
   searchTerm: '',
-  optimisticUpdates: new Map(),
-  // Cache management
-  lastFetchTime: null,
-  dataVersion: 0,
   isInitialized: false
 };
 
@@ -234,32 +66,10 @@ function kanbanReducer(state, action) {
       return { ...state, error: action.payload, loading: false };
 
     case ACTIONS.SET_BOARD_DATA:
-      // Preserve dynamic subcolumns from state if they exist
-      let updatedColumns = action.payload.columns || state.columns || Object.values(DEFAULT_COLUMNS);
-      
-      console.log('SET_BOARD_DATA - Initial columns:', updatedColumns.map(col => ({ id: col.id, type: col.type, subcolumnsCount: col.subcolumns ? col.subcolumns.length : 0 })));
-      console.log('SET_BOARD_DATA - State users count:', state.users ? state.users.length : 0);
-      
-      // If we have dynamic columns in state, merge them with board data
-      if (state.columns && state.users && state.users.length > 0) {
-        console.log('SET_BOARD_DATA - Regenerating dynamic columns');
-        const dynamicColumns = generateDynamicColumns(state.users);
-        updatedColumns = updatedColumns.map(boardColumn => {
-          const dynamicColumn = dynamicColumns.find(dc => dc.id === boardColumn.id);
-          if (dynamicColumn && dynamicColumn.subcolumns && dynamicColumn.subcolumns.length > 0) {
-            console.log(`SET_BOARD_DATA - Merging subcolumns for ${boardColumn.id}:`, dynamicColumn.subcolumns.length);
-            return { ...boardColumn, subcolumns: dynamicColumn.subcolumns };
-          }
-          return boardColumn;
-        });
-      }
-      
-      console.log('SET_BOARD_DATA - Final columns:', updatedColumns.map(col => ({ id: col.id, type: col.type, subcolumnsCount: col.subcolumns ? col.subcolumns.length : 0 })));
-      
       return {
         ...state,
+        columns: action.payload.columns || [],
         cards: action.payload.cards || [],
-        columns: updatedColumns,
         loading: false,
         error: null
       };
@@ -271,45 +81,10 @@ function kanbanReducer(state, action) {
       return { ...state, columns: action.payload };
 
     case ACTIONS.SET_USERS:
-      try {
-        const processedUsers = action.payload || [];
-        const dynamicColumns = generateDynamicColumns(processedUsers);
-        return { 
-          ...state, 
-          users: processedUsers,
-          columns: dynamicColumns
-        };
-      } catch (error) {
-        console.error('Error generating dynamic columns:', error);
-        return { 
-          ...state, 
-          users: action.payload || [],
-          columns: Object.values(DEFAULT_COLUMNS)
-        };
-      }
+      return { ...state, users: action.payload };
 
     case ACTIONS.SET_LABELS:
-      return { ...state, labels: action.payload || [] };
-
-    case ACTIONS.ADD_LABEL:
-      return {
-        ...state,
-        labels: [...state.labels, action.payload]
-      };
-
-    case ACTIONS.UPDATE_LABEL:
-      return {
-        ...state,
-        labels: state.labels.map(label => 
-          label.id === action.payload.id ? action.payload : label
-        )
-      };
-
-    case ACTIONS.DELETE_LABEL:
-      return {
-        ...state,
-        labels: state.labels.filter(label => label.id !== action.payload)
-      };
+      return { ...state, labels: Array.isArray(action.payload) ? action.payload : [] };
 
     case ACTIONS.ADD_CARD:
       return {
@@ -345,12 +120,24 @@ function kanbanReducer(state, action) {
         cards: state.cards.filter(card => card.id !== action.payload)
       };
 
+    case ACTIONS.ADD_COLUMN:
+      return {
+        ...state,
+        columns: [...state.columns, action.payload]
+      };
+
     case ACTIONS.UPDATE_COLUMN:
       return {
         ...state,
         columns: state.columns.map(column =>
           column.id === action.payload.id ? { ...column, ...action.payload } : column
         )
+      };
+
+    case ACTIONS.DELETE_COLUMN:
+      return {
+        ...state,
+        columns: state.columns.filter(column => column.id !== action.payload)
       };
 
     case ACTIONS.TOGGLE_COLUMN_ACTIVATION:
@@ -405,41 +192,34 @@ function kanbanReducer(state, action) {
         )
       };
 
+    case ACTIONS.ADD_LABEL:
+      return {
+        ...state,
+        labels: [...state.labels, action.payload]
+      };
+
+    case ACTIONS.UPDATE_LABEL:
+      return {
+        ...state,
+        labels: state.labels.map(label => 
+          label.id === action.payload.id ? action.payload : label
+        )
+      };
+
+    case ACTIONS.DELETE_LABEL:
+      return {
+        ...state,
+        labels: state.labels.filter(label => label.id !== action.payload)
+      };
+
     case ACTIONS.SET_FILTERS:
       return { ...state, filters: { ...state.filters, ...action.payload } };
 
     case ACTIONS.SET_SEARCH_TERM:
       return { ...state, searchTerm: action.payload };
 
-    case ACTIONS.OPTIMISTIC_UPDATE:
-      return {
-        ...state,
-        optimisticUpdates: new Map(state.optimisticUpdates).set(
-          action.payload.id,
-          action.payload.data
-        )
-      };
-
-    case ACTIONS.ROLLBACK_UPDATE:
-      const newOptimisticUpdates = new Map(state.optimisticUpdates);
-      newOptimisticUpdates.delete(action.payload);
-      return {
-        ...state,
-        optimisticUpdates: newOptimisticUpdates
-      };
-
-    case ACTIONS.SET_CACHE_INFO:
-      return {
-        ...state,
-        lastFetchTime: action.payload.lastFetchTime,
-        dataVersion: action.payload.dataVersion
-      };
-
     case ACTIONS.MARK_INITIALIZED:
-      return {
-        ...state,
-        isInitialized: true
-      };
+      return { ...state, isInitialized: true };
 
     default:
       return state;
@@ -454,138 +234,65 @@ export const KanbanProvider = ({ children }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
   const { user } = useUserAuth();
 
-  // Load initial board data with caching
+  // Load board data from API
   const loadBoardData = useCallback(async (forceRefresh = false) => {
     if (!user) {
       dispatch({ type: ACTIONS.SET_ERROR, payload: 'Authentication required' });
       return;
     }
 
-    // Check if we should skip loading due to recent fetch
-    const now = Date.now();
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-    const shouldUseCache = !forceRefresh && 
-                          state.isInitialized && 
-                          state.lastFetchTime && 
-                          (now - state.lastFetchTime) < CACHE_DURATION;
-
-    if (shouldUseCache) {
-      console.log('Using cached data, skipping API calls');
+    // Skip loading if already initialized and not forcing refresh
+    if (state.isInitialized && !forceRefresh) {
       return;
     }
 
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       
-      // Load users first to generate dynamic columns
-      let users = await kanbanService.getUsers();
-      
-      // Handle different response formats
-      if (users && typeof users === 'object' && !Array.isArray(users)) {
-        // If users is an object, try to extract the array
-        if (users.users && Array.isArray(users.users)) {
-          users = users.users;
-        } else if (users.data && Array.isArray(users.data)) {
-          users = users.data;
-        } else if (users.results && Array.isArray(users.results)) {
-          users = users.results;
-        } else {
-          console.warn('Users data is not in expected format:', users);
-          users = [];
-        }
-      }
-      
-      // Ensure users is an array
-      if (!Array.isArray(users)) {
-        console.warn('Users is not an array after processing:', users);
-        users = [];
-      }
-      
-      // If no users found, provide some mock data for testing
-      if (users.length === 0 && process.env.NODE_ENV === 'development') {
-        console.log('No users found, using mock data for testing');
-        users = [
-          // Production Users
-          { id: '1', name: 'John Production', username: 'john.prod', designation: 'Production' },
-          { id: '2', name: 'Jane Production', username: 'jane.prod', designation: 'Production' },
-          { id: '3', name: 'Bob Production', username: 'bob.prod', designation: 'Production' },
-          { id: '4', name: 'Alice Production', username: 'alice.prod', designation: 'Production' },
-          // Driver Users
-          { id: '5', name: 'Mike Driver', username: 'mike.driver', designation: 'Driver' },
-          { id: '6', name: 'Sarah Driver', username: 'sarah.driver', designation: 'Driver' },
-          { id: '7', name: 'Tom Driver', username: 'tom.driver', designation: 'Driver' },
-          { id: '8', name: 'Lisa Driver', username: 'lisa.driver', designation: 'Driver' },
-          // Other Users (for testing)
-          { id: '9', name: 'Admin User', username: 'admin', designation: 'Admin' },
-          { id: '10', name: 'Sales User', username: 'sales', designation: 'Sales' }
-        ];
-      }
-      
-
-      
-        // Debug logging for user data structure
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Users data processed:', {
-      type: typeof users,
-      isArray: Array.isArray(users),
-      length: users?.length,
-      data: users
-    });
-    
-    // Log the first few users to see their structure
-    if (users && users.length > 0) {
-      console.log('Sample users:', users.slice(0, 3).map(user => ({
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        designation: user.designation,
-        role: user.role,
-        allKeys: Object.keys(user)
-      })));
-    }
-  }
-      
-      dispatch({ type: ACTIONS.SET_USERS, payload: users });
-      
-      // Then load board data and labels
-      const [boardData, labels] = await Promise.all([
+      // Load board, cards, labels, and users in parallel
+      const [boardData, cards, labels, users] = await Promise.all([
         kanbanService.getBoard(),
-        kanbanService.getLabels()
+        kanbanService.getCards(),
+        kanbanService.getLabels(),
+        kanbanService.getUsers().catch(() => []) // Users endpoint might not exist
       ]);
-      
-      dispatch({ type: ACTIONS.SET_BOARD_DATA, payload: boardData });
-      dispatch({ type: ACTIONS.SET_LABELS, payload: labels });
-      
-      // Update cache information
+
+      // Transform cards if needed
+      const transformedCards = Array.isArray(cards) 
+        ? cards.map(card => kanbanService.transformCardData(card))
+        : (cards?.data || []).map(card => kanbanService.transformCardData(card));
+
+      // Set board data
       dispatch({ 
-        type: ACTIONS.SET_CACHE_INFO, 
-        payload: { 
-          lastFetchTime: Date.now(), 
-          dataVersion: state.dataVersion + 1 
-        } 
+        type: ACTIONS.SET_BOARD_DATA, 
+        payload: {
+          columns: boardData?.columns || [],
+          cards: transformedCards
+        }
       });
+
+      // Set additional data
+      dispatch({ type: ACTIONS.SET_LABELS, payload: labels || [] });
+      dispatch({ type: ACTIONS.SET_USERS, payload: users || [] });
       dispatch({ type: ACTIONS.MARK_INITIALIZED });
       
     } catch (error) {
       console.error('Error loading board data:', error);
       dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
     }
-  }, [user, state.isInitialized, state.lastFetchTime, state.dataVersion]);
+  }, [user, state.isInitialized]);
 
-  // Load data on mount and when user changes (optimized)
+  // Load data on mount and when user changes
   useEffect(() => {
     if (user) {
-      // Only load if not already initialized or if user changed
-      if (!state.isInitialized) {
-        loadBoardData();
-      }
+      loadBoardData();
     } else {
       // Clear data when user is not authenticated
       dispatch({ type: ACTIONS.SET_BOARD_DATA, payload: { cards: [], columns: [] } });
       dispatch({ type: ACTIONS.SET_USERS, payload: [] });
       dispatch({ type: ACTIONS.SET_ERROR, payload: null });
     }
-  }, [user?.id]); // Only depend on user ID, not the entire user object
+  }, [user?.id, loadBoardData]);
 
   // Refresh data (force reload)
   const refreshData = useCallback(() => {
@@ -594,46 +301,44 @@ export const KanbanProvider = ({ children }) => {
 
   // Create a new card
   const createCard = useCallback(async (cardData) => {
-    if (!user || !canCreateCardPermission(user.role, cardData.columnId)) {
-      throw new Error('Insufficient permissions to create card');
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
     try {
-      const newCard = await kanbanService.createCard({
+      const apiCardData = kanbanService.transformCardToApi({
         ...cardData,
         createdBy: user.username
       });
       
-      dispatch({ type: ACTIONS.ADD_CARD, payload: newCard });
-      // Invalidate cache after creating card
-      dispatch({ 
-        type: ACTIONS.SET_CACHE_INFO, 
-        payload: { 
-          lastFetchTime: Date.now(), 
-          dataVersion: state.dataVersion + 1 
-        } 
-      });
-      return newCard;
+      const newCard = await kanbanService.createCard(apiCardData);
+      const transformedCard = kanbanService.transformCardData(newCard);
+      
+      dispatch({ type: ACTIONS.ADD_CARD, payload: transformedCard });
+      return transformedCard;
     } catch (error) {
       console.error('Error creating card:', error);
       throw error;
     }
-  }, [user, state.dataVersion]);
+  }, [user]);
 
   // Update a card
   const updateCard = useCallback(async (cardId, updates) => {
-    if (!user || !canEditCard(user.role, { id: cardId }, user.username)) {
-      throw new Error('Insufficient permissions to edit card');
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
     try {
-      const updatedCard = await kanbanService.updateCard(cardId, {
+      const apiUpdates = kanbanService.transformCardToApi({
         ...updates,
         updatedBy: user.username
       });
       
-      dispatch({ type: ACTIONS.UPDATE_CARD, payload: updatedCard });
-      return updatedCard;
+      const updatedCard = await kanbanService.updateCard(cardId, apiUpdates);
+      const transformedCard = kanbanService.transformCardData(updatedCard);
+      
+      dispatch({ type: ACTIONS.UPDATE_CARD, payload: transformedCard });
+      return transformedCard;
     } catch (error) {
       console.error('Error updating card:', error);
       throw error;
@@ -642,18 +347,8 @@ export const KanbanProvider = ({ children }) => {
 
   // Move a card
   const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null) => {
-    if (!user || !canMoveCard(user.role, fromColumn, toColumn)) {
-      throw new Error('Insufficient permissions to move card');
-    }
-
-    // Check DnD restrictions - cannot move from restricted source columns
-    if (DND_RESTRICTIONS.RESTRICTED_SOURCE_COLUMNS.includes(fromColumn)) {
-      throw new Error('Cannot move card from restricted column');
-    }
-
-    // Check DnD restrictions - cannot move to restricted destination columns
-    if (DND_RESTRICTIONS.RESTRICTED_COLUMNS.includes(toColumn)) {
-      throw new Error('Cannot move card to restricted column');
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
     try {
@@ -663,7 +358,16 @@ export const KanbanProvider = ({ children }) => {
         payload: { cardId, fromColumn, toColumn, toSubcolumn }
       });
 
-      const result = await kanbanService.moveCard(cardId, fromColumn, toColumn, toSubcolumn);
+      const moveData = {
+        toList: kanbanService.mapColumnToList(toColumn, toSubcolumn),
+        by: {
+          id: user.id || user.username,
+          name: user.name || user.username,
+          role: user.role || 'user'
+        }
+      };
+
+      const result = await kanbanService.moveCard(cardId, moveData);
       return result;
     } catch (error) {
       console.error('Error moving card:', error);
@@ -675,46 +379,6 @@ export const KanbanProvider = ({ children }) => {
       throw error;
     }
   }, [user]);
-
-  // Reorder cards within a column or subcolumn
-  const reorderCards = useCallback(async (containerId, oldIndex, newIndex) => {
-    try {
-      // Get cards for the container
-      let containerCards;
-      if (containerId.includes('production-') || containerId.includes('driver-')) {
-        // Subcolumn
-        containerCards = state.cards.filter(card => card.subcolumnId === containerId);
-      } else {
-        // Main column
-        containerCards = state.cards.filter(card => card.columnId === containerId);
-      }
-
-      if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0 || 
-          oldIndex >= containerCards.length || newIndex >= containerCards.length) {
-        return;
-      }
-
-      // Reorder the cards
-      const reorderedCards = arrayMove(containerCards, oldIndex, newIndex);
-      
-      // Update the order in the state
-      const updatedCards = state.cards.map(card => {
-        const reorderedCard = reorderedCards.find(rc => rc.id === card.id);
-        if (reorderedCard) {
-          return { ...card, order: reorderedCards.indexOf(reorderedCard) };
-        }
-        return card;
-      });
-
-      dispatch({ type: ACTIONS.SET_CARDS, payload: updatedCards });
-
-      // In a real implementation, you would also update the backend
-      // await kanbanService.reorderCards(containerId, oldIndex, newIndex);
-    } catch (error) {
-      console.error('Error reordering cards:', error);
-      throw error;
-    }
-  }, [state.cards]);
 
   // Delete a card
   const deleteCard = useCallback(async (cardId) => {
@@ -731,40 +395,65 @@ export const KanbanProvider = ({ children }) => {
     }
   }, [user]);
 
+  // Reorder cards within a column or subcolumn
+  const reorderCards = useCallback(async (containerId, oldIndex, newIndex) => {
+    try {
+      // Get cards for the container
+      let containerCards;
+      if (containerId.includes('production-') || containerId.includes('driver-')) {
+        // Subcolumn
+        containerCards = state.cards.filter(card => card.subcolumnId === containerId);
+      } else {
+        // Main column
+        containerCards = state.cards.filter(card => card.columnId === containerId && !card.subcolumnId);
+      }
+
+      if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0 || 
+          oldIndex >= containerCards.length || newIndex >= containerCards.length) {
+        return;
+      }
+
+      // Reorder the cards locally
+      const reorderedCards = arrayMove(containerCards, oldIndex, newIndex);
+      
+      // Update the order in the state
+      const updatedCards = state.cards.map(card => {
+        const reorderedCard = reorderedCards.find(rc => rc.id === card.id);
+        if (reorderedCard) {
+          return { ...card, order: reorderedCards.indexOf(reorderedCard) };
+        }
+        return card;
+      });
+
+      dispatch({ type: ACTIONS.SET_CARDS, payload: updatedCards });
+
+      // Send to API
+      const reorderData = {
+        cardOrders: reorderedCards.map((card, index) => ({
+          cardId: card.id,
+          order: index
+        }))
+      };
+
+      await kanbanService.reorderCards(containerId, reorderData);
+    } catch (error) {
+      console.error('Error reordering cards:', error);
+      throw error;
+    }
+  }, [state.cards]);
+
   // Toggle column activation
   const toggleColumnActivation = useCallback(async (columnId, isActive) => {
-    // Find the column to get its type
-    const column = state.columns.find(col => col.id === columnId);
-    if (!column) {
-      throw new Error('Column not found');
-    }
-
-    // Check if user can toggle activation for this column type
-    if (!user || !canToggleColumnActivation(user.role, column.type)) {
-      throw new Error('Insufficient permissions to toggle column activation');
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
     try {
-      const updatedColumn = await kanbanService.toggleColumnActivation(
-        columnId,
-        isActive
-      );
+      const updatedColumn = await kanbanService.toggleColumnActivation(columnId, { isActive });
       
       dispatch({
         type: ACTIONS.TOGGLE_COLUMN_ACTIVATION,
         payload: { columnId, isActive }
-      });
-
-      // Log activity
-      const activityType = isActive ? ACTIVITY_TYPES.COLUMN_ACTIVATED : ACTIVITY_TYPES.COLUMN_DEACTIVATED;
-      await kanbanService.logActivity({
-        type: activityType,
-        columnId,
-        userId: user.username,
-        details: {
-          columnTitle: column.title,
-          isActive
-        }
       });
       
       return updatedColumn;
@@ -772,7 +461,7 @@ export const KanbanProvider = ({ children }) => {
       console.error('Error toggling column activation:', error);
       throw error;
     }
-  }, [user, state.columns]);
+  }, [user]);
 
   // Add comment
   const addComment = useCallback(async (cardId, commentText) => {
@@ -783,8 +472,7 @@ export const KanbanProvider = ({ children }) => {
     try {
       const comment = await kanbanService.addComment(cardId, {
         text: commentText,
-        authorId: user.username,
-        authorName: user.username
+        mentions: [] // Extract mentions from text if needed
       });
       
       dispatch({
@@ -806,11 +494,7 @@ export const KanbanProvider = ({ children }) => {
     }
 
     try {
-      const updatedComment = await kanbanService.updateComment(commentId, {
-        ...updates,
-        cardId,
-        authorId: user.username
-      });
+      const updatedComment = await kanbanService.updateComment(commentId, updates);
       
       dispatch({
         type: ACTIONS.UPDATE_COMMENT,
@@ -831,7 +515,7 @@ export const KanbanProvider = ({ children }) => {
     }
 
     try {
-      await kanbanService.deleteComment(commentId, cardId, user.username);
+      await kanbanService.deleteComment(commentId);
       
       dispatch({
         type: ACTIONS.DELETE_COMMENT,
@@ -936,7 +620,7 @@ export const KanbanProvider = ({ children }) => {
     // Apply label filter
     if (state.filters.labels.length > 0) {
       filteredCards = filteredCards.filter(card =>
-        card.labels?.some(label => state.filters.labels.includes(label))
+        card.labels?.some(label => state.filters.labels.includes(label.id || label))
       );
     }
 
@@ -968,7 +652,7 @@ export const KanbanProvider = ({ children }) => {
   // Get cards by column
   const getCardsByColumn = useCallback((columnId) => {
     const filteredCards = getFilteredCards();
-    return filteredCards.filter(card => card.columnId === columnId);
+    return filteredCards.filter(card => card.columnId === columnId && !card.subcolumnId);
   }, [getFilteredCards]);
 
   // Get cards by subcolumn
@@ -977,20 +661,6 @@ export const KanbanProvider = ({ children }) => {
     return filteredCards.filter(card => card.subcolumnId === subcolumnId);
   }, [getFilteredCards]);
 
-  // Get user subcolumns for a specific column type
-  const getUserSubcolumns = useCallback((columnType) => {
-    const column = state.columns.find(col => col.type === columnType);
-    if (!column || !column.subcolumns) return [];
-    
-    return column.subcolumns.filter(subcol => subcol.type === 'user');
-  }, [state.columns]);
-
-  // Get user by subcolumn ID
-  const getUserBySubcolumnId = useCallback((subcolumnId) => {
-    const userId = subcolumnId.replace(/^(production|driver)-/, '');
-    return state.users.find(user => user.id === userId);
-  }, [state.users]);
-
   // Get active columns
   const getActiveColumns = useCallback(() => {
     return state.columns.filter(column => column.isActive !== false);
@@ -998,9 +668,30 @@ export const KanbanProvider = ({ children }) => {
 
   // Check if a column is currently being activated/deactivated
   const isActivating = useCallback((columnId) => {
-    // For now, return false as we don't have a loading state for column activation
-    // In a real implementation, you might track this in the state
-    return false;
+    return false; // No loading state for now
+  }, []);
+
+  // Search cards
+  const searchCards = useCallback(async (columnId, searchTerm, filters = {}) => {
+    try {
+      const params = {
+        q: searchTerm,
+        ...filters
+      };
+      
+      if (columnId) {
+        // If searching within a specific column, add column filter
+        params.columnId = columnId;
+      }
+      
+      const results = await kanbanService.searchCards(params);
+      return Array.isArray(results) 
+        ? results.map(card => kanbanService.transformCardData(card))
+        : [];
+    } catch (error) {
+      console.error('Error searching cards:', error);
+      return [];
+    }
   }, []);
 
   // Context value
@@ -1026,30 +717,25 @@ export const KanbanProvider = ({ children }) => {
     setSearchTerm,
     loadBoardData,
     refreshData,
-    searchCards: kanbanService.searchCards.bind(kanbanService),
+    searchCards,
     
     // Computed values
     getFilteredCards,
     getCardsByColumn,
     getCardsBySubcolumn,
-    getUserSubcolumns,
-    getUserBySubcolumnId,
     getActiveColumns,
     isActivating,
     
-    // Permissions
-    canCreateCard: (columnId, subcolumn = null) => {
-      const column = state.columns.find(col => col.id === columnId);
-      return canCreateCardPermission(user?.role, column?.type, subcolumn);
-    },
-    canEditCard: (card) => canEditCard(user?.role, card, user?.username),
-    canMoveCard: (fromColumn, toColumn) => canMoveCard(user?.role, fromColumn, toColumn),
-    canManageColumn: (columnId) => canManageColumn(user?.role, columnId),
-    canToggleColumnActivation: (columnType) => canToggleColumnActivation(user?.role, columnType),
-    canAssignUsers: () => hasPermission(user?.role, PERMISSIONS.ASSIGN_USERS),
-    canChangeDue: () => hasPermission(user?.role, PERMISSIONS.CHANGE_DUE),
-    canChangeLabels: () => hasPermission(user?.role, PERMISSIONS.CHANGE_LABELS),
-    hasPermission: (permission) => hasPermission(user?.role, permission)
+    // Permissions (simplified - all authenticated users can do everything for now)
+    canCreateCard: () => !!user,
+    canEditCard: () => !!user,
+    canMoveCard: () => !!user,
+    canManageColumn: () => !!user,
+    canToggleColumnActivation: () => !!user,
+    canAssignUsers: () => !!user,
+    canChangeDue: () => !!user,
+    canChangeLabels: () => !!user,
+    hasPermission: () => !!user
   };
 
   return (
@@ -1069,4 +755,3 @@ const useKanban = () => {
 };
 
 export { useKanban };
-

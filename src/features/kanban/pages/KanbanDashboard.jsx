@@ -68,8 +68,8 @@ const KanbanDashboard = () => {
         {/* Debug Auth Info - Development Only */}
         {process.env.NODE_ENV === 'development' && (
           <>
-            <DebugAuth />
-            <AuthSystemTest />
+            {/* <DebugAuth /> */}
+            {/* <AuthSystemTest /> */}
           </>
         )}
         

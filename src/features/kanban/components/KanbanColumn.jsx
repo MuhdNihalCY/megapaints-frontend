@@ -9,7 +9,7 @@ import { Settings, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 
 import { useKanban } from '../contexts/KanbanContext';
-import { COLUMN_TYPES, DONE_SUBCOLUMNS } from '../utils/constants';
+import { COLUMN_TYPES } from '../utils/constants';
 import KanbanCard from './KanbanCard';
 import CreateCardButton from './CreateCardButton';
 import ColumnHeader from './ColumnHeader';
@@ -26,7 +26,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
   const isSubcolumnActive = subcolumn.isActive !== false;
   const isActivatingSubcolumn = isActivating(subcolumn.id);
   const isUserSubcolumn = subcolumn.type === 'user';
-  const isMoreThan7DaysColumn = subcolumn.id === DONE_SUBCOLUMNS.MORE_THAN_7_DAYS;
+  const isMoreThan7DaysColumn = subcolumn.id === 'more-than-7-days';
 
   const handleToggleActivation = async (subcolumnId, isActive) => {
     try {
@@ -54,6 +54,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
+              {console.log('Subcolumn____:', subcolumn)}
               {subcolumn.title}
             </h4>
             {isUserSubcolumn && (

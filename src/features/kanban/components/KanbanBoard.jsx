@@ -22,7 +22,7 @@ import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
 
 import { useKanban } from '../contexts/KanbanContext';
 import { useDragAndDrop } from '../hooks/useKanban';
-import { COLUMN_TYPES, DND_RESTRICTIONS } from '../utils/constants';
+import { COLUMN_TYPES } from '../utils/constants';
 import KanbanColumn from './KanbanColumn';
 import KanbanCard from './KanbanCard';
 import FiltersPanel from './FiltersPanel';
@@ -180,18 +180,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     } else {
       toColumn = targetContainer.parentColumn;
       toSubcolumn = targetContainer.id;
-    }
-
-    // Check DnD restrictions - cannot move from restricted source columns
-    if (DND_RESTRICTIONS.RESTRICTED_SOURCE_COLUMNS.includes(fromColumn)) {
-      endDrag();
-      return;
-    }
-
-    // Check DnD restrictions - cannot move to restricted destination columns
-    if (DND_RESTRICTIONS.RESTRICTED_COLUMNS.includes(toColumn)) {
-      endDrag();
-      return;
     }
 
     // Check permissions

@@ -93,8 +93,8 @@ const FiltersPanel = () => {
               >
                 <option value="">All priorities</option>
                 {Object.entries(CARD_PRIORITIES).map(([key, value]) => (
-                  <option key={key} value={value}>
-                    {value.charAt(0).toUpperCase() + value.slice(1)}
+                  <option key={key} value={key}>
+                    {value.label}
                   </option>
                 ))}
               </select>

@@ -130,7 +130,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
         reset({
           title: '',
           description: '',
-          priority: CARD_PRIORITIES.MEDIUM,
+          priority: 'medium',
           labels: [],
           assignees: [],
           dueDate: '',
@@ -187,7 +187,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
         reset({
           title: card?.title || '',
           description: card?.description || '',
-          priority: card?.priority || CARD_PRIORITIES.MEDIUM,
+          priority: card?.priority || 'medium',
           labels: card?.labels || [],
           assignees: card?.assignees || [],
           dueDate: card?.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : '',
@@ -608,8 +608,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                   <div className="space-y-3">
                     {/* Selected Labels */}
                     <div className="flex flex-wrap gap-2">
-                      {selectedLabels.map((label) => (
-                        <div key={label.id} className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-600 rounded-lg px-2 py-1">
+                      {selectedLabels.map((label, index) => (
+                        <div key={label.id || `selected-label-${index}`} className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-600 rounded-lg px-2 py-1">
                           <span className="text-xs text-gray-800 dark:text-gray-200">{label.name}</span>
                           {isEditing && (
                             <button
@@ -644,8 +644,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                   </h3>
                   <div className="space-y-3">
                     {/* Existing Products */}
-                    {readyProducts.map((product) => (
-                      <div key={product.id} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    {readyProducts.map((product, index) => (
+                      <div key={product.id || `product-${index}`} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <span className="flex-1 text-sm text-gray-900 dark:text-white">
                           {product.name || 'Product Name'}
                         </span>
@@ -730,8 +730,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
 
                   <div className="space-y-3">
                     {/* Existing Production Items */}
-                    {filteredProductionItems.map((item) => (
-                      <div key={item.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700">
+                    {filteredProductionItems.map((item, index) => (
+                      <div key={item.id || `item-${index}`} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-2">
                             <input
@@ -862,8 +862,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                     
                     {/* Existing Comments */}
                     <div className="space-y-3 mb-4 max-h-32 overflow-y-auto">
-                      {card?.comments?.map((comment) => (
-                        <div key={comment.id} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      {card?.comments?.map((comment, index) => (
+                        <div key={comment.id || `comment-${index}`} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <span className="text-sm text-gray-900 dark:text-white">
                             {comment.authorName}
                           </span>
@@ -890,7 +890,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Add Comments
                       </h4>
-                      <form onSubmit={handleCommentSubmit} className="flex space-x-2">
+                      <div className="flex space-x-2">
                         <input
                           type="text"
                           value={newComment}
@@ -899,13 +899,14 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                           className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
                         <button
-                          type="submit"
+                          type="button"
+                          onClick={handleCommentSubmit}
                           disabled={!newComment.trim()}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Send size={16} />
                         </button>
-                      </form>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -924,8 +925,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     {Object.entries(CARD_PRIORITIES).map(([key, value]) => (
-                      <option key={key} value={value}>
-                        {value.charAt(0).toUpperCase() + value.slice(1)}
+                      <option key={key} value={key}>
+                        {value.label}
                       </option>
                     ))}
                   </select>
@@ -955,11 +956,11 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                     Labels
                   </label>
                   <div className="space-y-2">
-                    {labels.length === 0 ? (
+                    {!Array.isArray(labels) || labels.length === 0 ? (
                       <p className="text-sm text-gray-500 dark:text-gray-400">No labels available</p>
                     ) : (
-                      labels.map((label) => (
-                        <label key={label.id} className="flex items-center">
+                      labels.map((label, index) => (
+                        <label key={label.id || `label-${index}`} className="flex items-center">
                           <input
                             type="checkbox"
                             checked={watchedValues.labels?.includes(label.id) || false}
@@ -995,8 +996,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                     Assignees
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {users.map((user) => (
-                      <label key={user.id} className="flex items-center">
+                    {users.map((user, index) => (
+                      <label key={user.id || `user-${index}`} className="flex items-center">
                         <input
                           type="checkbox"
                           checked={watchedValues.assignees?.includes(user.id) || false}
