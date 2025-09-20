@@ -3,7 +3,7 @@
  * Main component that renders the entire Kanban board with drag and drop
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -23,8 +23,10 @@ import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
 import { useKanban } from '../contexts/KanbanContext';
 import { useDragAndDrop } from '../hooks/useKanban';
 import { COLUMN_TYPES } from '../utils/constants';
+import { kanbanService } from '../services/kanbanService';
 import KanbanColumn from './KanbanColumn';
 import KanbanCard from './KanbanCard';
+import EnhancedKanbanCard from './EnhancedKanbanCard';
 import FiltersPanel from './FiltersPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import HelpPanel from './HelpPanel';
@@ -176,20 +178,102 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
     if (targetContainer.type === 'column') {
       toColumn = targetContainer.id;
-      toSubcolumn = null;
-    } else {
+      toSubcolumn = null; // Moving to main column
+    } else if (targetContainer.type === 'subcolumn') {
       toColumn = targetContainer.parentColumn;
-      toSubcolumn = targetContainer.id;
+      toSubcolumn = targetContainer.id; // Moving to subcolumn
+    } else {
+      console.error('Unknown target container type:', targetContainer);
+      endDrag();
+      return;
+    }
+
+    // Debug logging
+    console.log('Card move details:', {
+      cardId: draggedCardId,
+      cardTitle: card.title,
+      fromColumn,
+      fromSubcolumn,
+      toColumn,
+      toSubcolumn,
+      targetContainer,
+      targetContainerType: targetContainer.type,
+      targetContainerId: targetContainer.id,
+      parentColumn: targetContainer.parentColumn,
+      cardData: {
+        id: card.id,
+        columnId: card.columnId,
+        subcolumnId: card.subcolumnId,
+        _originalData: card._originalData
+      }
+    });
+
+    // Handle case where card doesn't have a columnId
+    if (!fromColumn) {
+      console.warn('Card has no columnId, determining fallback column');
+      
+      // Try to determine from original data
+      let fallbackColumn = 'sales';
+      if (card._originalData?.determinedCurrentList) {
+        fallbackColumn = kanbanService.mapListToColumn(card._originalData.determinedCurrentList);
+      } else if (card._originalData?.CurrentList) {
+        fallbackColumn = kanbanService.mapListToColumn(card._originalData.CurrentList);
+      }
+      
+      console.log('Using fallback column:', fallbackColumn, 'from:', card._originalData);
+      
+      // Check permissions with fallback
+      if (!canMoveCard(fallbackColumn, toColumn)) {
+        console.warn('Cannot move card from fallback column');
+        endDrag();
+        return;
+      }
+
+      try {
+        // Calculate position for fallback move too
+        let position = null;
+        if (toSubcolumn) {
+          const subcolumnCards = getCardsBySubcolumn(toSubcolumn);
+          position = subcolumnCards.length;
+        } else {
+          const columnCards = getCardsByColumn(toColumn).filter(card => !card.subcolumnId);
+          position = columnCards.length;
+        }
+        
+        console.log('Fallback calculated position:', position);
+        
+        await moveCard(draggedCardId, fallbackColumn, toColumn, toSubcolumn, position);
+      } catch (error) {
+        console.error('Error moving card with fallback column:', error);
+      } finally {
+        endDrag();
+      }
+      return;
     }
 
     // Check permissions
     if (!canMoveCard(fromColumn, toColumn)) {
+      console.warn('Cannot move card due to permissions');
       endDrag();
       return;
     }
 
     try {
-      await moveCard(draggedCardId, fromColumn, toColumn, toSubcolumn);
+      // Calculate position - add to end of target column/subcolumn
+      let position = null;
+      if (toSubcolumn) {
+        // Moving to subcolumn - get count of cards in that subcolumn
+        const subcolumnCards = getCardsBySubcolumn(toSubcolumn);
+        position = subcolumnCards.length;
+      } else {
+        // Moving to main column - get count of cards in that column (excluding subcolumn cards)
+        const columnCards = getCardsByColumn(toColumn).filter(card => !card.subcolumnId);
+        position = columnCards.length;
+      }
+      
+      console.log('Calculated position:', position, 'for', toSubcolumn ? 'subcolumn' : 'column', toColumn);
+      
+      await moveCard(draggedCardId, fromColumn, toColumn, toSubcolumn, position);
     } catch (error) {
       console.error('Error moving card:', error);
     } finally {
@@ -259,15 +343,15 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
             <div className="flex gap-4 p-4 min-w-max">
               {activeColumns.map((column) => {
                 // Debug logging for column rendering
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('Rendering column:', {
-                    id: column.id,
-                    type: column.type,
-                    title: column.title,
-                    isGrouped: column.subcolumns && column.subcolumns.length > 0,
-                    subcolumnsCount: column.subcolumns ? column.subcolumns.length : 0
-                  });
-                }
+                // if (process.env.NODE_ENV === 'development') {
+                //   console.log('Rendering column:', {
+                //     id: column.id,
+                //     type: column.type,
+                //     title: column.title,
+                //     isGrouped: column.subcolumns && column.subcolumns.length > 0,
+                //     subcolumnsCount: column.subcolumns ? column.subcolumns.length : 0
+                //   });
+                // }
                 
                 return (
                   <KanbanColumn
@@ -285,7 +369,15 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
           {/* Drag Overlay */}
           <DragOverlay>
             {isDragging && draggedCard ? (
-              <KanbanCard card={draggedCard} isDragging />
+              <EnhancedKanbanCard 
+                card={draggedCard} 
+                isDragging 
+                getDragStyles={() => ({
+                  transform: 'rotate(5deg) scale(1.05)',
+                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+                  opacity: 0.9
+                })}
+              />
             ) : null}
           </DragOverlay>
         </DndContext>

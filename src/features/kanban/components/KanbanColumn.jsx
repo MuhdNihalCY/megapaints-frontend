@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import { useKanban } from '../contexts/KanbanContext';
 import { COLUMN_TYPES } from '../utils/constants';
 import KanbanCard from './KanbanCard';
+import EnhancedKanbanCard from './EnhancedKanbanCard';
 import CreateCardButton from './CreateCardButton';
 import ColumnHeader from './ColumnHeader';
 import ColumnSearch from './ColumnSearch';
@@ -18,7 +19,7 @@ import ColumnSearch from './ColumnSearch';
 /**
  * Subcolumn Component for grouped columns
  */
-const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard, canToggleColumnActivation }) => {
+const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard, canToggleColumnActivation, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: subcolumn.id,
   });
@@ -54,7 +55,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">
-              {console.log('Subcolumn____:', subcolumn)}
+              {/* {console.log('Subcolumn____:', subcolumn)} */}
               {subcolumn.title}
             </h4>
             {isUserSubcolumn && (
@@ -138,13 +139,14 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
 /**
  * Kanban Column Component
  */
-const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
+const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles }) => {
   const {
     toggleColumnActivation,
     canCreateCard,
     canManageColumn,
     canToggleColumnActivation,
     isActivating,
+    getCardsByColumn,
     getCardsBySubcolumn
   } = useKanban();
 
@@ -163,20 +165,13 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
   // Get subcolumns for grouped columns
   const subcolumns = isGrouped ? column.subcolumns : [];
 
-  // Debug logging for column structure
-  if (process.env.NODE_ENV === 'development' && (column.type === 'production' || column.type === 'drivers')) {
-    console.log(`Column ${column.title}:`, {
-      type: column.type,
-      isGrouped,
-      subcolumnsCount: subcolumns.length,
-      subcolumns: subcolumns
-    });
-  }
-
-  // Get cards for a specific subcolumn
+  // Get cards for a specific subcolumn (sorted)
   const getCardsForSubcolumn = (subcolumnId) => {
     return getCardsBySubcolumn(subcolumnId);
   };
+
+  // Get cards for non-grouped columns
+  const sortedCards = getCardsByColumn(column.id);
 
   // Render non-grouped column
   if (!isGrouped) {
@@ -190,14 +185,39 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
           column.isActive === false && 'opacity-50'
         )}
       >
-        {/* Column Header */}
-        <ColumnHeader column={column} cardCount={cards.length} />
+        {/* Column Header with Sort */}
+        <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600 dark:text-gray-300">{sortedCards.length} cards</span>
+              {typeof canManageColumn === 'function' && canManageColumn(column.id) && (
+                <button className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                  <Settings size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Search */}
+          <div className="flex items-center justify-end">
+            <ColumnSearch columnId={column.id} />
+          </div>
+        </div>
         
         {/* Column Content */}
         <div className="flex-1 p-2 space-y-2 overflow-y-auto">
-          <SortableContext items={cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((card) => (
-              <KanbanCard key={card.id} card={card} onCardClick={onCardClick} />
+          <SortableContext items={sortedCards.map(card => card.id)} strategy={verticalListSortingStrategy}>
+            {sortedCards.map((card) => (
+              <EnhancedKanbanCard 
+                key={card.id} 
+                card={card} 
+                onCardClick={onCardClick}
+                isSelected={selectedCards?.includes(card.id)}
+                onCardSelect={onCardSelect}
+                getDragStyles={getDragStyles}
+                isDragging={isDragging}
+              />
             ))}
           </SortableContext>
           
@@ -215,9 +235,9 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
   // Render grouped column
   return (
     <div className="flex flex-col bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 min-w-[600px] max-w-[1200px]">
-      {/* Group Header */}
+      {/* Group Header with Sort */}
       <div className="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 rounded-t-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600 dark:text-gray-300">{cards.length} cards</span>
@@ -228,6 +248,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
             )}
           </div>
         </div>
+        
       </div>
 
       {/* Subcolumns */}
@@ -249,6 +270,12 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard }) => {
                 columnType={column.type}
                 canCreateCard={canCreateCard}
                 canToggleColumnActivation={canToggleColumnActivation}
+                isDragging={isDragging}
+                dragOver={dragOver}
+                selectedCards={selectedCards}
+                onCardSelect={onCardSelect}
+                getDragStyles={getDragStyles}
+                getDropZoneStyles={getDropZoneStyles}
               />
             );
           })}

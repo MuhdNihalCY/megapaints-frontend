@@ -8,6 +8,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
+import { sortCards, getDefaultSortOption } from '../utils/sorting';
 
 // Action types for the reducer
 const ACTIONS = {
@@ -34,6 +35,8 @@ const ACTIONS = {
   DELETE_LABEL: 'DELETE_LABEL',
   SET_FILTERS: 'SET_FILTERS',
   SET_SEARCH_TERM: 'SET_SEARCH_TERM',
+  SET_COLUMN_SORT: 'SET_COLUMN_SORT',
+  RESET_COLUMN_SORT: 'RESET_COLUMN_SORT',
   MARK_INITIALIZED: 'MARK_INITIALIZED'
 };
 
@@ -53,6 +56,7 @@ const initialState = {
     text: ''
   },
   searchTerm: '',
+  columnSorts: {}, // { columnId: { sortOption, direction } }
   isInitialized: false
 };
 
@@ -218,6 +222,25 @@ function kanbanReducer(state, action) {
     case ACTIONS.SET_SEARCH_TERM:
       return { ...state, searchTerm: action.payload };
 
+    case ACTIONS.SET_COLUMN_SORT:
+      return {
+        ...state,
+        columnSorts: {
+          ...state.columnSorts,
+          [action.payload.columnId]: {
+            sortOption: action.payload.sortOption,
+            direction: action.payload.direction
+          }
+        }
+      };
+
+    case ACTIONS.RESET_COLUMN_SORT:
+      const { [action.payload]: removed, ...remainingSorts } = state.columnSorts;
+      return {
+        ...state,
+        columnSorts: remainingSorts
+      };
+
     case ACTIONS.MARK_INITIALIZED:
       return { ...state, isInitialized: true };
 
@@ -346,26 +369,79 @@ export const KanbanProvider = ({ children }) => {
   }, [user]);
 
   // Move a card
-  const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null) => {
+  const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null, position = null) => {
     if (!user) {
       throw new Error('User not authenticated');
     }
+
+    // Validate required parameters
+    if (!cardId) {
+      throw new Error('Card ID is required');
+    }
+    if (!fromColumn) {
+      throw new Error('From column is required');
+    }
+    if (!toColumn) {
+      throw new Error('To column is required');
+    }
+
+    // Find the card to get its current data
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card) {
+      throw new Error(`Card with ID ${cardId} not found`);
+    }
+
+    // Use card's actual columnId if fromColumn is undefined
+    const actualFromColumn = fromColumn || card.columnId;
+    if (!actualFromColumn) {
+      throw new Error('Unable to determine source column for card');
+    }
+
+    console.log('Moving card:', {
+      cardId,
+      fromColumn: actualFromColumn,
+      toColumn,
+      toSubcolumn,
+      cardData: {
+        id: card.id,
+        title: card.title,
+        columnId: card.columnId,
+        subcolumnId: card.subcolumnId
+      },
+      user: user
+    });
 
     try {
       // Optimistic update
       dispatch({
         type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn, toColumn, toSubcolumn }
+        payload: { cardId, fromColumn: actualFromColumn, toColumn, toSubcolumn }
       });
 
+      // Ensure we have proper user data
+      const userId = user?.id || user?.username || user?.userId || 'unknown';
+      const userName = user?.name || user?.username || user?.displayName || 'Unknown User';
+      const userRole = user?.role || user?.userRole || 'user';
+
+      const mappedToList = kanbanService.mapColumnToList(toColumn, toSubcolumn);
+      
       const moveData = {
-        toList: kanbanService.mapColumnToList(toColumn, toSubcolumn),
+        toList: mappedToList,
+        subcolumnId: toSubcolumn || null,
+        position: position, // Use provided position or let backend determine automatically
         by: {
-          id: user.id || user.username,
-          name: user.name || user.username,
-          role: user.role || 'user'
+          id: userId,
+          name: userName,
+          role: userRole
         }
       };
+
+      console.log('Move data details:', {
+        toColumn,
+        toSubcolumn,
+        mappedToList,
+        moveData
+      });
 
       const result = await kanbanService.moveCard(cardId, moveData);
       return result;
@@ -374,11 +450,11 @@ export const KanbanProvider = ({ children }) => {
       // Rollback optimistic update
       dispatch({
         type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn: toColumn, toColumn: fromColumn, toSubcolumn: null }
+        payload: { cardId, fromColumn: toColumn, toColumn: actualFromColumn, toSubcolumn: null }
       });
       throw error;
     }
-  }, [user]);
+  }, [user, state.cards]);
 
   // Delete a card
   const deleteCard = useCallback(async (cardId) => {
@@ -693,6 +769,133 @@ export const KanbanProvider = ({ children }) => {
       return [];
     }
   }, []);
+
+  // Column sorting functions
+  const setColumnSort = useCallback((columnId, sortOption, direction) => {
+    dispatch({
+      type: ACTIONS.SET_COLUMN_SORT,
+      payload: { columnId, sortOption, direction }
+    });
+  }, []);
+
+  const resetColumnSort = useCallback((columnId) => {
+    dispatch({
+      type: ACTIONS.RESET_COLUMN_SORT,
+      payload: columnId
+    });
+  }, []);
+
+  const getColumnSort = useCallback((columnId) => {
+    return state.columnSorts[columnId] || {
+      sortOption: getDefaultSortOption(state.columns.find(col => col.id === columnId)?.type || 'default'),
+      direction: 'desc'
+    };
+  }, [state.columnSorts, state.columns]);
+
+  // Get sorted cards for a column
+  const getSortedCardsByColumn = useCallback((columnId) => {
+    const columnCards = getCardsByColumn(columnId);
+    const sortConfig = getColumnSort(columnId);
+    
+    if (sortConfig.sortOption === 'custom') {
+      return columnCards; // Return in original order for custom sorting
+    }
+    
+    return sortCards(columnCards, sortConfig.sortOption, sortConfig.direction);
+  }, [getCardsByColumn, getColumnSort]);
+
+  // Get sorted cards for a subcolumn
+  const getSortedCardsBySubcolumn = useCallback((subcolumnId) => {
+    const subcolumnCards = getCardsBySubcolumn(subcolumnId);
+    
+    // Find the parent column to get its sort config
+    const parentColumn = state.columns.find(col => 
+      col.subcolumns?.some(sub => sub.id === subcolumnId)
+    );
+    
+    if (!parentColumn) return subcolumnCards;
+    
+    const sortConfig = getColumnSort(parentColumn.id);
+    
+    if (sortConfig.sortOption === 'custom') {
+      return subcolumnCards; // Return in original order for custom sorting
+    }
+    
+    return sortCards(subcolumnCards, sortConfig.sortOption, sortConfig.direction);
+  }, [getCardsBySubcolumn, getColumnSort, state.columns]);
+
+  // Debug function to show card distribution
+  const debugCardDistribution = useCallback(() => {
+    console.log('=== KANBAN CARD DISTRIBUTION DEBUG ===');
+    console.log('Total cards:', state.cards.length);
+    console.log('Total columns:', state.columns.length);
+    
+    state.columns.forEach(column => {
+      console.log(`\n--- Column: ${column.title} (${column.id}) ---`);
+      console.log('Type:', column.type);
+      console.log('Is Active:', column.isActive);
+      console.log('Is Grouped:', column.isGrouped);
+      
+      if (column.isGrouped && column.subcolumns) {
+        console.log('Subcolumns:', column.subcolumns.length);
+        column.subcolumns.forEach(subcolumn => {
+          const subcolumnCards = getCardsBySubcolumn(subcolumn.id);
+          console.log(`  └─ Subcolumn: ${subcolumn.title} (${subcolumn.id})`);
+          console.log(`     Cards: ${subcolumnCards.length}`);
+          subcolumnCards.forEach((card, index) => {
+            console.log(`       ${index + 1}. ${card.title} (${card.id})`);
+          });
+        });
+      } else {
+        const columnCards = getCardsByColumn(column.id);
+        console.log(`Cards: ${columnCards.length}`);
+        columnCards.forEach((card, index) => {
+          console.log(`  ${index + 1}. ${card.title} (${card.id})`);
+          if (card.subcolumnId) {
+            console.log(`      └─ In subcolumn: ${card.subcolumnId}`);
+          }
+        });
+      }
+    });
+    
+    console.log('\n=== UNASSIGNED CARDS ===');
+    const unassignedCards = state.cards.filter(card => !card.columnId);
+    console.log('Unassigned cards:', unassignedCards.length);
+    unassignedCards.forEach((card, index) => {
+      console.log(`  ${index + 1}. ${card.title} (${card.id})`);
+    });
+    
+    console.log('=== END DEBUG ===');
+  }, [state.cards, state.columns, getCardsByColumn, getCardsBySubcolumn]);
+
+  // Escape key handler - clear selections and close modals
+  const handleEscape = useCallback(() => {
+    // Clear any active filters or search
+    if (state.searchTerm) {
+      setSearchTerm('');
+    }
+    
+    // Reset any column sorts to default
+    if (Object.keys(state.columnSorts).length > 0) {
+      dispatch({ type: ACTIONS.SET_COLUMN_SORT, payload: {} });
+    }
+    
+    // Clear filters if any are active
+    const hasActiveFilters = Object.values(state.filters).some(filter => 
+      Array.isArray(filter) ? filter.length > 0 : filter
+    );
+    if (hasActiveFilters) {
+      clearFilters();
+    }
+    
+    // Dispatch custom event for other components to handle
+    window.dispatchEvent(new CustomEvent('kanban:escape', {
+      detail: { timestamp: Date.now() }
+    }));
+    
+    console.log('Kanban escape handler executed');
+    return true;
+  }, [state.searchTerm, state.columnSorts, state.filters, clearFilters]);
 
   // Context value
   const value = {

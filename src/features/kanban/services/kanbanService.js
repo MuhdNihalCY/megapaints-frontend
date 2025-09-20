@@ -453,13 +453,67 @@ class KanbanService {
    * Transform API card data to frontend format if needed
    */
   transformCardData(apiCard) {
+    // Debug logging
+    console.log('Transforming card data:', {
+      id: apiCard._id || apiCard.id,
+      name: apiCard.Name,
+      currentList: apiCard.CurrentList,
+      listArray: apiCard.ListArray
+    });
+
+    // Determine column ID from CurrentList or ListArray
+    let columnId = apiCard.columnId;
+    let currentListName = apiCard.CurrentList;
+    
+    if (!columnId) {
+      if (apiCard.CurrentList) {
+        columnId = this.mapListToColumn(apiCard.CurrentList);
+        currentListName = apiCard.CurrentList;
+      } else if (apiCard.ListArray && apiCard.ListArray.length > 0) {
+        // Use the most recent list from ListArray that has InTime but no OutTime
+        const activeList = apiCard.ListArray.find(list => list.InTime && !list.OutTime);
+        if (activeList && activeList.ListName) {
+          columnId = this.mapListToColumn(activeList.ListName);
+          currentListName = activeList.ListName;
+        } else {
+          // Fallback to the most recent list
+          const latestList = apiCard.ListArray[apiCard.ListArray.length - 1];
+          columnId = this.mapListToColumn(latestList.ListName);
+          currentListName = latestList.ListName;
+        }
+      } else {
+        // Default fallback - assume it's in ORDERS (sales)
+        columnId = 'sales';
+        currentListName = 'ORDERS';
+      }
+    }
+
+    // Determine subcolumn ID if needed
+    let subcolumnId = apiCard.subcolumnId || null;
+    if (!subcolumnId && currentListName) {
+      // Check if it's a done subcolumn
+      if (currentListName === 'DONE TODAY') {
+        subcolumnId = 'done-today';
+      } else if (currentListName === 'LESS THAN 7 DAYS') {
+        subcolumnId = 'less-than-7-days';
+      } else if (currentListName === 'MORE THAN 7 DAYS') {
+        subcolumnId = 'more-than-7-days';
+      }
+    }
+
+    console.log('Mapped column data:', {
+      columnId,
+      subcolumnId,
+      currentList: apiCard.CurrentList
+    });
+
     return {
       id: apiCard._id || apiCard.id,
       title: apiCard.title || apiCard.Name || 'Untitled Card',
       description: apiCard.description || '',
       cardId: apiCard.cardId || apiCard.OrderIDNumber,
-      columnId: apiCard.columnId || this.mapListToColumn(apiCard.CurrentList),
-      subcolumnId: apiCard.subcolumnId || null,
+      columnId: columnId,
+      subcolumnId: subcolumnId,
       priority: apiCard.priority || 'medium',
       labels: apiCard.labels || (apiCard.Labels || []).map(label => ({
         id: label.Name || label.id || 'unknown',
@@ -483,7 +537,13 @@ class KanbanService {
       branch: apiCard.Branch,
       branchId: apiCard.BranchID || apiCard.branchId,
       productionPerson: apiCard.ProductionPerson,
-      position: apiCard.Position || 0
+      position: apiCard.Position || 0,
+      // Keep original data for debugging
+      _originalData: {
+        CurrentList: apiCard.CurrentList,
+        ListArray: apiCard.ListArray,
+        determinedCurrentList: currentListName
+      }
     };
   }
 

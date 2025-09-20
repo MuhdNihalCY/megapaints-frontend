@@ -18,7 +18,7 @@ const KeyboardShortcuts = () => {
     columns, 
     cards,
     setFilters,
-    filters 
+    filters
   } = useKanban();
 
   const lastKeyTime = useRef(0);
@@ -105,16 +105,29 @@ const KeyboardShortcuts = () => {
         return;
       }
 
-      // Escape: Close modals, dropdowns, etc.
+      // Escape: Close modals, dropdowns, clear selections, etc.
       if (event.key === 'Escape') {
         console.log('Escape shortcut triggered');
-        // Close any open dropdowns or modals
+        
+        // Handle DOM elements
         const dropdowns = document.querySelectorAll('.dropdown-menu, .modal-overlay, .help-panel');
         dropdowns.forEach(dropdown => {
           if (dropdown.style.display !== 'none') {
             dropdown.style.display = 'none';
           }
         });
+        
+        // Close any React modals by dispatching a close event
+        const modals = document.querySelectorAll('[data-modal="true"], [role="dialog"]');
+        modals.forEach(modal => {
+          // Try to find a close button and click it
+          const closeButton = modal.querySelector('[data-close="true"], .close-button, [aria-label*="close" i]');
+          if (closeButton) {
+            closeButton.click();
+          }
+        });
+        
+        console.log(`Escape handler completed. DOM elements processed: ${dropdowns.length + modals.length}`);
         return;
       }
 
