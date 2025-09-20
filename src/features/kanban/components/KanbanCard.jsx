@@ -4,8 +4,7 @@
  */
 
 import { useState } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+// Removed @dnd-kit dependencies - using Pragmatic DND instead
 import { 
   MoreHorizontal, 
   Calendar, 
@@ -32,20 +31,8 @@ const KanbanCard = ({ card, isDragging = false, onCardClick }) => {
   const [showQuickActions, setShowQuickActions] = useState(false);
 
   // Set up sortable for drag and drop
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: isCardDragging
-  } = useSortable({
-    id: card.id,
-    data: {
-      type: 'card',
-      card
-    }
-  });
+  // Removed @dnd-kit useSortable - using Pragmatic DND instead
+  const isCardDragging = false; // Will be handled by Pragmatic DND
 
   // Get card display information
   const dueDateStatus = useDueDateStatus(card.dueDate);
@@ -79,8 +66,7 @@ const KanbanCard = ({ card, isDragging = false, onCardClick }) => {
 
   // Card style for drag and drop
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    // Removed @dnd-kit specific styles - using Pragmatic DND instead
     opacity: isCardDragging ? 0.5 : 1,
     zIndex: isCardDragging ? 1000 : 1
   };
@@ -93,10 +79,8 @@ const KanbanCard = ({ card, isDragging = false, onCardClick }) => {
 
   return (
     <div
-      ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      // Removed @dnd-kit attributes and listeners - using Pragmatic DND instead
       onClick={handleCardClick}
       data-card-id={card.id}
       className={clsx(

@@ -1,27 +1,26 @@
 /**
- * Kanban Board Component
- * Main component that renders the entire Kanban board with Pragmatic DND
+ * Pragmatic Drag and Drop Kanban Board
+ * Enhanced board component using Pragmatic DND for better drag experience
  */
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Filter, HelpCircle, Settings } from 'lucide-react';
 
 import { useKanban } from '../contexts/KanbanContext';
-import { usePragmaticDragAndDrop } from '../hooks/usePragmaticDragAndDrop';
-import { COLUMN_TYPES } from '../utils/constants';
+import { usePragmaticDragAndDrop, useDragMonitor } from '../hooks/usePragmaticDragAndDrop';
 import PragmaticKanbanCard from './PragmaticKanbanCard';
 import KanbanColumn from './KanbanColumn';
 import FiltersPanel from './FiltersPanel';
-import KeyboardShortcuts from './KeyboardShortcuts';
 import HelpPanel from './HelpPanel';
+import KeyboardShortcuts from './KeyboardShortcuts';
 
 import { LoadingOverlay } from '../../../components';
 
 /**
- * Main Kanban Board Component
+ * Pragmatic Drag and Drop Kanban Board Component
  */
-const KanbanBoard = ({ onCardClick, onCreateCard }) => {
+const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   const {
     loading,
     error,
@@ -52,6 +51,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     setupDropTarget,
     cleanup
   } = usePragmaticDragAndDrop();
+
+  const dragData = useDragMonitor();
 
   // UI State
   const [showFilters, setShowFilters] = useState(false);
@@ -103,6 +104,23 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     };
   }, [activeColumns, setupDropTarget, handleCardMove]);
 
+  // Handle drag end with proper move logic
+  const handleDragEnd = useCallback((source, destination) => {
+    if (!source || !destination) {
+      console.log('Pragmatic DND: No valid drop target');
+      return;
+    }
+
+    const cardId = source.data.cardId;
+    const fromColumn = source.data.card?.columnId;
+    const toColumn = destination.data.columnId;
+
+    if (cardId && fromColumn && toColumn && fromColumn !== toColumn) {
+      console.log('Pragmatic DND: Moving card from', fromColumn, 'to', toColumn);
+      handleCardMove(cardId, fromColumn, toColumn);
+    }
+  }, [handleCardMove]);
+
   // Handle card reorder
   const handleCardReorder = async (cardId, fromColumn, toColumn, newIndex) => {
     try {
@@ -117,10 +135,9 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   const getDragStyles = (cardId) => {
     if (isDragging && draggedCard?.id === cardId) {
       return {
-        transform: 'rotate(5deg) scale(1.05)',
+        transform: 'rotate(5deg)',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-        zIndex: 1000,
-        opacity: 0.9
+        zIndex: 1000
       };
     }
     return {};
@@ -172,13 +189,13 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">Kanban Board</h1>
-            <div className="text-sm text-gray-500">
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Kanban Board</h1>
+            <div className="text-sm text-gray-600 dark:text-gray-300">
               {cards.length} cards across {activeColumns.length} columns
             </div>
           </div>
@@ -186,13 +203,13 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
           <div className="flex items-center space-x-2">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search cards..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
 
@@ -200,7 +217,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-lg transition-colors ${
-                showFilters ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+                showFilters ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
               }`}
             >
               <Filter className="w-4 h-4" />
@@ -209,7 +226,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
             {/* Help */}
             <button
               onClick={() => setShowHelp(!showHelp)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
@@ -225,9 +242,19 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       {/* Board Content */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-x-auto">
-          <div className="flex gap-4 p-4 min-w-max h-full">
+          <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full">
             {activeColumns.map((column) => {
               const columnCards = getCardsByColumn(column.id);
+              const hasSubcolumns = column.subcolumns && column.subcolumns.length > 0;
+              const subcolumnCount = column.subcolumns ? column.subcolumns.length : 0;
+              
+              // Calculate width based on subcolumn count - each subcolumn is w-80 (320px) + gap (32px)
+              const columnWidth = hasSubcolumns ? `w-[${320 * subcolumnCount + 32 * Math.max(0, subcolumnCount - 1)}px]` : 'w-80';
+              
+              // Debug logging
+              if (hasSubcolumns) {
+                console.log(`Column ${column.title}: ${subcolumnCount} subcolumns, width: ${columnWidth}`);
+              }
               
               return (
                 <motion.div
@@ -237,7 +264,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                       columnRefs.current.set(column.id, el);
                     }
                   }}
-                  className="flex-shrink-0 w-80"
+                  className={`flex-shrink-0 ${columnWidth}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
@@ -254,7 +281,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     getDragStyles={getDragStyles}
                     getDropZoneStyles={getDropZoneStyles}
                     CardComponent={PragmaticKanbanCard}
-                    onDragEnd={handleCardMove}
+                    onDragEnd={handleDragEnd}
                   />
                 </motion.div>
               );
@@ -349,4 +376,4 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   );
 };
 
-export default KanbanBoard;
+export default PragmaticKanbanBoard;

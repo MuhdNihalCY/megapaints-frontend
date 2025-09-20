@@ -14,6 +14,7 @@ import Header from '../../user/components/Header';
 import AuthGuard from '../components/AuthGuard';
 import DebugAuth from '../../../components/DebugAuth';
 import AuthSystemTest from '../../../components/AuthSystemTest';
+import PragmaticKanbanBoard from '../components/PragmaticKanbanBoard';
 
 /**
  * Kanban Dashboard Page Component
@@ -76,7 +77,7 @@ const KanbanDashboard = () => {
         {/* Main Content */}
         <div className="flex-1 h-[calc(100vh-64px)]">
           <KanbanProvider>
-            <KanbanBoard onCardClick={handleCardClick} onCreateCard={handleCreateCard} />
+            <PragmaticKanbanBoard onCardClick={handleCardClick} onCreateCard={handleCreateCard} />
             <CardModal 
               isOpen={modalState.isOpen}
               card={modalState.card}

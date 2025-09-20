@@ -3,15 +3,13 @@
  * Renders a single Kanban column with support for grouped and non-grouped layouts
  */
 
-import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+// Removed @dnd-kit dependencies - using Pragmatic DND instead
 import { Settings, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 
 import { useKanban } from '../contexts/KanbanContext';
 import { COLUMN_TYPES } from '../utils/constants';
 import KanbanCard from './KanbanCard';
-import EnhancedKanbanCard from './EnhancedKanbanCard';
 import CreateCardButton from './CreateCardButton';
 import ColumnHeader from './ColumnHeader';
 import ColumnSearch from './ColumnSearch';
@@ -19,10 +17,8 @@ import ColumnSearch from './ColumnSearch';
 /**
  * Subcolumn Component for grouped columns
  */
-const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard, canToggleColumnActivation, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: subcolumn.id,
-  });
+const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColumn, isActivating, toggleColumnActivation, columnType, canCreateCard, canToggleColumnActivation, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles, CardComponent = KanbanCard, onDragEnd = null }) => {
+  // Removed @dnd-kit useDroppable - using Pragmatic DND instead
 
   const isSubcolumnActive = subcolumn.isActive !== false;
   const isActivatingSubcolumn = isActivating(subcolumn.id);
@@ -39,18 +35,18 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
 
   return (
     <div
-      ref={isSubcolumnActive ? setNodeRef : null}
+      // Removed @dnd-kit ref - using Pragmatic DND instead
       className={clsx(
-        'flex flex-col bg-white dark:bg-gray-800 rounded border-2 border-dashed min-w-[280px] max-w-[400px] min-h-[200px]',
-        isOver && isSubcolumnActive ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600',
+        'flex flex-col bg-white dark:bg-gray-800 rounded-lg border-2 border-solid w-80 min-h-[200px] shadow-lg hover:shadow-xl transition-all duration-200',
+        'border-blue-300 dark:border-gray-600',
         !isSubcolumnActive && 'opacity-50',
-        isUserSubcolumn && 'border-green-300 dark:border-green-600'
+        isUserSubcolumn && 'border-green-400 dark:border-green-500'
       )}
     >
       {/* Subcolumn Header */}
       <div className={clsx(
-        'p-2 border-b border-gray-200 dark:border-gray-600 rounded-t',
-        isUserSubcolumn ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-700'
+        'p-3 border-b border-blue-200 dark:border-gray-600 rounded-t-lg',
+        isUserSubcolumn ? 'bg-green-50 dark:bg-green-900/20' : 'bg-blue-50 dark:bg-gray-700'
       )}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -93,7 +89,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
 
       {/* Subcolumn Content */}
       {isSubcolumnActive && (
-        <div className="flex-1 p-2 space-y-2">
+        <div className="flex-1 p-3 space-y-3">
           {/* Search Bar for > 7 Days column */}
           {isMoreThan7DaysColumn && (
             <div className="mb-3">
@@ -112,14 +108,16 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
             </div>
           )}
           
-          <SortableContext 
-            items={cards.map(card => card.id)} 
-            strategy={verticalListSortingStrategy}
-          >
+          <div className="space-y-2">
             {cards.map((card) => (
-              <KanbanCard key={card.id} card={card} onCardClick={onCardClick} />
+              <CardComponent 
+                key={card.id} 
+                card={card} 
+                onCardClick={onCardClick}
+                onDragEnd={onDragEnd}
+              />
             ))}
-          </SortableContext>
+          </div>
           
           {/* Create Card Button for Production/Drivers and User Subcolumns */}
           {(columnType === COLUMN_TYPES.PRODUCTION || columnType === COLUMN_TYPES.DRIVERS) && 
@@ -139,7 +137,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
 /**
  * Kanban Column Component
  */
-const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles }) => {
+const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dragOver, selectedCards, onCardSelect, getDragStyles, getDropZoneStyles, CardComponent = KanbanCard, onDragEnd = null }) => {
   const {
     toggleColumnActivation,
     canCreateCard,
@@ -154,10 +152,7 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
 
 
 
-  // Set up droppable for non-grouped columns
-  const { setNodeRef, isOver } = useDroppable({
-    id: column.id,
-  });
+  // Removed @dnd-kit useDroppable - using Pragmatic DND instead
 
   // Check if this is a grouped column
   const isGrouped = column.subcolumns && column.subcolumns.length > 0;
@@ -177,20 +172,20 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
   if (!isGrouped) {
     return (
       <div
-        ref={setNodeRef}
+        // Removed @dnd-kit ref - using Pragmatic DND instead
         data-column-id={column.id}
         className={clsx(
-          'flex flex-col bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed min-w-[280px] max-w-[400px] kanban-column',
-          isOver ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600',
+          'flex flex-col bg-white dark:bg-gray-800 rounded-xl border-2 border-solid w-full kanban-column shadow-lg hover:shadow-xl transition-all duration-200',
+          'border-blue-300 dark:border-gray-600',
           column.isActive === false && 'opacity-50'
         )}
       >
         {/* Column Header with Sort */}
-        <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+        <div className="p-4 border-b border-blue-200 dark:border-gray-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-t-xl">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 dark:text-gray-300">{sortedCards.length} cards</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300 bg-white/50 dark:bg-gray-600/50 px-2 py-1 rounded-full">{sortedCards.length} cards</span>
               {typeof canManageColumn === 'function' && canManageColumn(column.id) && (
                 <button className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                   <Settings size={16} />
@@ -207,9 +202,9 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
         
         {/* Column Content */}
         <div className="flex-1 p-2 space-y-2 overflow-y-auto">
-          <SortableContext items={sortedCards.map(card => card.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
             {sortedCards.map((card) => (
-              <EnhancedKanbanCard 
+              <CardComponent 
                 key={card.id} 
                 card={card} 
                 onCardClick={onCardClick}
@@ -217,9 +212,10 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
                 onCardSelect={onCardSelect}
                 getDragStyles={getDragStyles}
                 isDragging={isDragging}
+                onDragEnd={onDragEnd}
               />
             ))}
-          </SortableContext>
+          </div>
           
           {/* Create Card Button */}
           {((typeof canCreateCard === 'function' && canCreateCard(column.id)) || column.type === 'sales') && (
@@ -234,9 +230,9 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
 
   // Render grouped column
   return (
-    <div className="flex flex-col bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 min-w-[600px] max-w-[1200px]">
+    <div className="flex flex-col bg-white dark:bg-gray-800 rounded-xl border-2 border-solid border-blue-300 dark:border-gray-600 w-full shadow-lg hover:shadow-xl transition-all duration-200">
       {/* Group Header with Sort */}
-      <div className="p-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 rounded-t-lg">
+      <div className="p-4 border-b border-blue-200 dark:border-gray-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-t-xl">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-gray-800 dark:text-white">{column.title}</h3>
           <div className="flex items-center space-x-2">
@@ -252,8 +248,8 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
       </div>
 
       {/* Subcolumns */}
-      <div className="flex-1 p-2 overflow-x-auto">
-        <div className="flex gap-4 min-w-max">
+      <div className="flex-1 p-4">
+        <div className="flex gap-4 h-full">
           {subcolumns.map((subcolumn) => {
             const subcolumnCards = getCardsForSubcolumn(subcolumn.id);
             
@@ -276,6 +272,8 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
                 onCardSelect={onCardSelect}
                 getDragStyles={getDragStyles}
                 getDropZoneStyles={getDropZoneStyles}
+                CardComponent={CardComponent}
+                onDragEnd={onDragEnd}
               />
             );
           })}

@@ -4,11 +4,17 @@
  */
 
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
+// Removed @dnd-kit dependency - using custom array move function
+const arrayMove = (array, from, to) => {
+  const newArray = [...array];
+  const item = newArray.splice(from, 1)[0];
+  newArray.splice(to, 0, item);
+  return newArray;
+};
 import { useUserAuth } from '../../../contexts/UserAuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
-import { sortCards, getDefaultSortOption } from '../utils/sorting';
+// Removed sorting utilities - using Pragmatic DND only
 
 // Action types for the reducer
 const ACTIONS = {
@@ -35,8 +41,7 @@ const ACTIONS = {
   DELETE_LABEL: 'DELETE_LABEL',
   SET_FILTERS: 'SET_FILTERS',
   SET_SEARCH_TERM: 'SET_SEARCH_TERM',
-  SET_COLUMN_SORT: 'SET_COLUMN_SORT',
-  RESET_COLUMN_SORT: 'RESET_COLUMN_SORT',
+  // Removed sorting action types - using Pragmatic DND only
   MARK_INITIALIZED: 'MARK_INITIALIZED'
 };
 
@@ -56,7 +61,7 @@ const initialState = {
     text: ''
   },
   searchTerm: '',
-  columnSorts: {}, // { columnId: { sortOption, direction } }
+  // Removed columnSorts - using Pragmatic DND only
   isInitialized: false
 };
 
@@ -222,24 +227,7 @@ function kanbanReducer(state, action) {
     case ACTIONS.SET_SEARCH_TERM:
       return { ...state, searchTerm: action.payload };
 
-    case ACTIONS.SET_COLUMN_SORT:
-      return {
-        ...state,
-        columnSorts: {
-          ...state.columnSorts,
-          [action.payload.columnId]: {
-            sortOption: action.payload.sortOption,
-            direction: action.payload.direction
-          }
-        }
-      };
-
-    case ACTIONS.RESET_COLUMN_SORT:
-      const { [action.payload]: removed, ...remainingSorts } = state.columnSorts;
-      return {
-        ...state,
-        columnSorts: remainingSorts
-      };
+    // Removed sorting reducer cases - using Pragmatic DND only
 
     case ACTIONS.MARK_INITIALIZED:
       return { ...state, isInitialized: true };
@@ -770,59 +758,7 @@ export const KanbanProvider = ({ children }) => {
     }
   }, []);
 
-  // Column sorting functions
-  const setColumnSort = useCallback((columnId, sortOption, direction) => {
-    dispatch({
-      type: ACTIONS.SET_COLUMN_SORT,
-      payload: { columnId, sortOption, direction }
-    });
-  }, []);
-
-  const resetColumnSort = useCallback((columnId) => {
-    dispatch({
-      type: ACTIONS.RESET_COLUMN_SORT,
-      payload: columnId
-    });
-  }, []);
-
-  const getColumnSort = useCallback((columnId) => {
-    return state.columnSorts[columnId] || {
-      sortOption: getDefaultSortOption(state.columns.find(col => col.id === columnId)?.type || 'default'),
-      direction: 'desc'
-    };
-  }, [state.columnSorts, state.columns]);
-
-  // Get sorted cards for a column
-  const getSortedCardsByColumn = useCallback((columnId) => {
-    const columnCards = getCardsByColumn(columnId);
-    const sortConfig = getColumnSort(columnId);
-    
-    if (sortConfig.sortOption === 'custom') {
-      return columnCards; // Return in original order for custom sorting
-    }
-    
-    return sortCards(columnCards, sortConfig.sortOption, sortConfig.direction);
-  }, [getCardsByColumn, getColumnSort]);
-
-  // Get sorted cards for a subcolumn
-  const getSortedCardsBySubcolumn = useCallback((subcolumnId) => {
-    const subcolumnCards = getCardsBySubcolumn(subcolumnId);
-    
-    // Find the parent column to get its sort config
-    const parentColumn = state.columns.find(col => 
-      col.subcolumns?.some(sub => sub.id === subcolumnId)
-    );
-    
-    if (!parentColumn) return subcolumnCards;
-    
-    const sortConfig = getColumnSort(parentColumn.id);
-    
-    if (sortConfig.sortOption === 'custom') {
-      return subcolumnCards; // Return in original order for custom sorting
-    }
-    
-    return sortCards(subcolumnCards, sortConfig.sortOption, sortConfig.direction);
-  }, [getCardsBySubcolumn, getColumnSort, state.columns]);
+  // Removed column sorting functions - using Pragmatic DND only
 
   // Debug function to show card distribution
   const debugCardDistribution = useCallback(() => {
@@ -876,9 +812,7 @@ export const KanbanProvider = ({ children }) => {
     }
     
     // Reset any column sorts to default
-    if (Object.keys(state.columnSorts).length > 0) {
-      dispatch({ type: ACTIONS.SET_COLUMN_SORT, payload: {} });
-    }
+    // Removed columnSorts reset - using Pragmatic DND only
     
     // Clear filters if any are active
     const hasActiveFilters = Object.values(state.filters).some(filter => 
@@ -895,7 +829,7 @@ export const KanbanProvider = ({ children }) => {
     
     console.log('Kanban escape handler executed');
     return true;
-  }, [state.searchTerm, state.columnSorts, state.filters, clearFilters]);
+  }, [state.searchTerm, state.filters, clearFilters]);
 
   // Context value
   const value = {
