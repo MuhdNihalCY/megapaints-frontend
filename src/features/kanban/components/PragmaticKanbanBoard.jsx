@@ -242,7 +242,7 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
       {/* Board Content */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-x-auto">
-          <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full">
+          <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full ">
             {activeColumns.map((column) => {
               const columnCards = getCardsByColumn(column.id);
               const hasSubcolumns = column.subcolumns && column.subcolumns.length > 0;

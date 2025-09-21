@@ -37,7 +37,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
     <div
       // Removed @dnd-kit ref - using Pragmatic DND instead
       className={clsx(
-        'flex flex-col bg-white dark:bg-gray-800 rounded-lg border-2 border-solid w-80 min-h-[200px] shadow-lg hover:shadow-xl transition-all duration-200',
+        'flex flex-col bg-white dark:bg-gray-800 rounded-lg border-2 border-solid w-80 min-h-[200px] h-fit shadow-lg hover:shadow-xl transition-all duration-200',
         'border-blue-300 dark:border-gray-600',
         !isSubcolumnActive && 'opacity-50',
         isUserSubcolumn && 'border-green-400 dark:border-green-500'
@@ -119,15 +119,7 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
             ))}
           </div>
           
-          {/* Create Card Button for Production/Drivers and User Subcolumns */}
-          {(columnType === COLUMN_TYPES.PRODUCTION || columnType === COLUMN_TYPES.DRIVERS) && 
-           canCreateCard(subcolumn.id, subcolumn) && (
-            <CreateCardButton 
-              columnId={subcolumn.id} 
-              subcolumnId={subcolumn.id}
-              onCreateCard={onCreateCard}
-            />
-          )}
+          {/* Create Card Button - Only for Sales column (removed from subcolumns) */}
         </div>
       )}
     </div>
@@ -194,6 +186,13 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
             </div>
           </div>
           
+          {/* Add Card Button for Sales Column */}
+          {column.type === 'sales' && (
+            <div className="mt-3 mb-2">
+              <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
+            </div>
+          )}
+          
           {/* Search */}
           <div className="flex items-center justify-end">
             <ColumnSearch columnId={column.id} />
@@ -217,8 +216,8 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
             ))}
           </div>
           
-          {/* Create Card Button */}
-          {((typeof canCreateCard === 'function' && canCreateCard(column.id)) || column.type === 'sales') && (
+          {/* Create Card Button - Only for Sales column */}
+          {column.type === 'sales' && (
             <div className="create-card-button">
               <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
             </div>
@@ -243,6 +242,13 @@ const KanbanColumn = ({ column, cards, onCardClick, onCreateCard, isDragging, dr
               </button>
             )}
           </div>
+          
+          {/* Add Card Button for Sales Column */}
+          {column.type === 'sales' && (
+            <div className="mt-3 mb-2">
+              <CreateCardButton columnId={column.id} onCreateCard={onCreateCard} />
+            </div>
+          )}
         </div>
         
       </div>
