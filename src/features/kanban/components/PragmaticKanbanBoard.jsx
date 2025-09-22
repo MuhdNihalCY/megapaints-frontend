@@ -58,6 +58,8 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchTerm || '');
+  const [isMoving, setIsMoving] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
 
   // Refs
   const boardRef = useRef(null);
@@ -76,11 +78,14 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Handle card move
   const handleCardMove = async (cardId, fromColumn, toColumn, toSubcolumn = null, position = null) => {
+    setIsMoving(true);
     try {
       console.log('Pragmatic DND: Moving card', { cardId, fromColumn, toColumn, toSubcolumn, position });
       await moveCard(cardId, fromColumn, toColumn, toSubcolumn, position);
     } catch (error) {
       console.error('Pragmatic DND: Error moving card', error);
+    } finally {
+      setIsMoving(false);
     }
   };
 
@@ -123,11 +128,14 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Handle card reorder
   const handleCardReorder = async (cardId, fromColumn, toColumn, newIndex) => {
+    setIsReordering(true);
     try {
       console.log('Pragmatic DND: Reordering card', { cardId, fromColumn, toColumn, newIndex });
       await reorderCards(cardId, fromColumn, toColumn, newIndex);
     } catch (error) {
       console.error('Pragmatic DND: Error reordering card', error);
+    } finally {
+      setIsReordering(false);
     }
   };
 
@@ -189,7 +197,12 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <>
+      {/* Loading Overlays for card operations */}
+      {isMoving && <LoadingOverlay message="Moving card..." />}
+      {isReordering && <LoadingOverlay message="Reordering cards..." />}
+      
+      <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
       <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -372,7 +385,8 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
 
       {/* Keyboard Shortcuts */}
       <KeyboardShortcuts />
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -3,8 +3,9 @@
  * Provides Trello-like keyboard shortcuts and enhanced interactions
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useKanban } from '../contexts/KanbanContext';
+import { LoadingOverlay } from '../../../components';
 
 /**
  * Keyboard Shortcuts Component
@@ -23,6 +24,7 @@ const KeyboardShortcuts = () => {
 
   const lastKeyTime = useRef(0);
   const cardSetupInterval = useRef(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -190,7 +192,10 @@ const KeyboardShortcuts = () => {
           event.preventDefault();
           const cardId = selectedCard.dataset.cardId;
           if (cardId && confirm('Are you sure you want to delete this card?')) {
-            deleteCard(cardId);
+            setIsDeleting(true);
+            deleteCard(cardId).finally(() => {
+              setIsDeleting(false);
+            });
           }
         } else {
           console.log('No selected card found to delete');
@@ -385,7 +390,12 @@ const KeyboardShortcuts = () => {
     };
   }, [cards]);
 
-  return null; // This component doesn't render anything
+  return (
+    <>
+      {/* Loading Overlay for delete operations */}
+      {isDeleting && <LoadingOverlay message="Deleting card..." />}
+    </>
+  );
 };
 
 export default KeyboardShortcuts;

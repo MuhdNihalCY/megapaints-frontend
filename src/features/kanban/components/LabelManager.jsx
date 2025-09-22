@@ -7,11 +7,14 @@ import { useState } from 'react';
 import { Plus, Edit3, Trash2, X, Save } from 'lucide-react';
 import { useKanban } from '../contexts/KanbanContext';
 import toast from 'react-hot-toast';
+import { LoadingOverlay } from '../../../components';
 
 const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
   const { labels, createLabel, updateLabel, deleteLabel } = useKanban();
   const [isCreating, setIsCreating] = useState(false);
   const [editingLabel, setEditingLabel] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingLabelId, setDeletingLabelId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     color: '#3b82f6'
@@ -24,6 +27,7 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await createLabel({
         name: formData.name.trim(),
@@ -35,6 +39,8 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       toast.success('Label created successfully');
     } catch (error) {
       toast.error('Failed to create label');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -45,6 +51,7 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await updateLabel(editingLabel.id, {
         name: formData.name.trim(),
@@ -56,6 +63,8 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       toast.success('Label updated successfully');
     } catch (error) {
       toast.error('Failed to update label');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,11 +73,14 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       return;
     }
 
+    setDeletingLabelId(labelId);
     try {
       await deleteLabel(labelId);
       toast.success('Label deleted successfully');
     } catch (error) {
       toast.error('Failed to delete label');
+    } finally {
+      setDeletingLabelId(null);
     }
   };
 
@@ -94,10 +106,14 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
-      onClick={onClose}
-    >
+    <>
+      {/* Loading Overlay for form submission */}
+      {isSubmitting && <LoadingOverlay message="Saving label..." />}
+      
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
+        onClick={onClose}
+      >
       <div 
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -160,9 +176,14 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
               <div className="flex space-x-3">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center space-x-2"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center space-x-2"
                 >
-                  <Save size={16} />
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
                   <span>{editingLabel ? 'Update' : 'Create'}</span>
                 </button>
                 <button
@@ -209,10 +230,15 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
                     </button>
                     <button
                       onClick={() => handleDeleteLabel(label.id)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      disabled={deletingLabelId === label.id}
+                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Delete label"
                     >
-                      <Trash2 size={16} />
+                      {deletingLabelId === label.id ? (
+                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -221,7 +247,8 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

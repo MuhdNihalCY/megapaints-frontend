@@ -13,6 +13,7 @@ import KanbanCard from './KanbanCard';
 import CreateCardButton from './CreateCardButton';
 import ColumnHeader from './ColumnHeader';
 import ColumnSearch from './ColumnSearch';
+import { LoadingOverlay } from '../../../components';
 
 /**
  * Subcolumn Component for grouped columns
@@ -76,7 +77,9 @@ const Subcolumn = ({ subcolumn, cards, onCardClick, onCreateCard, canManageColum
                 )}
                 title={isSubcolumnActive ? 'Hide column' : 'Show column'}
               >
-                {isSubcolumnActive ? (
+                {isActivatingSubcolumn ? (
+                  <div className="w-3.5 h-3.5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                ) : isSubcolumnActive ? (
                   <Eye size={14} className="text-gray-600 dark:text-gray-300" />
                 ) : (
                   <EyeOff size={14} className="text-gray-400 dark:text-gray-500" />
