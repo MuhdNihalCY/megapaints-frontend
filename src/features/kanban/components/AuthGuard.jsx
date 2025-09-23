@@ -3,11 +3,11 @@
  * Ensures the Kanban board only renders for authenticated users
  */
 
-import { useUserAuth } from '../../../contexts/UserAuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { LoadingOverlay } from '../../../components';
 
 const AuthGuard = ({ children }) => {
-  const { user, loading } = useUserAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return <LoadingOverlay message="Loading authentication..." />;

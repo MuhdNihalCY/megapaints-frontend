@@ -1,5 +1,5 @@
 import axios from 'axios';
-import tokenManager from './tokenManager';
+import authService from './authService';
 
 /**
  * API Client for Kanban Board API v2
@@ -46,9 +46,9 @@ class ApiClient {
           originalRequest._retry = true;
 
           try {
-            const role = tokenManager.getUserRole();
-            if (role) {
-              const refreshResult = await tokenManager.refreshAccessToken(role);
+            const userType = authService.isAdmin() ? 'admin' : 'user';
+            if (userType) {
+              const refreshResult = await authService.refreshAccessToken(userType);
               if (refreshResult.success) {
                 // Retry the original request with new token
                 const newToken = this.getToken();
@@ -63,7 +63,7 @@ class ApiClient {
           }
 
           // If refresh fails, redirect to login or handle auth error
-          tokenManager.clearTokens();
+          authService.clearTokens();
         }
 
         return Promise.reject(error);
@@ -72,11 +72,11 @@ class ApiClient {
   }
 
   /**
-   * Get JWT token from token manager
+   * Get JWT token from auth service
    * @returns {string|null} JWT token or null
    */
   getToken() {
-    return tokenManager.getAccessToken();
+    return authService.accessToken;
   }
 
   /**

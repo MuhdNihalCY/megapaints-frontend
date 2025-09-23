@@ -3,8 +3,8 @@ import Cookies from 'js-cookie';
 
 // Create axios instance with default config
 const api = axios.create({
-  // Use live backend API only
-  baseURL: 'http://localhost:3000/api',
+  // Use Vite proxy instead of direct backend URL
+  baseURL: '/api',
   withCredentials: true, // Important for cookies
   timeout: 10000,
   headers: {
@@ -38,24 +38,24 @@ async function tryRefreshSession() {
   try {
     console.info('[API] Attempting silent refresh...');
     
-    // Import TokenManager dynamically to avoid circular dependency
-    const { default: tokenManager } = await import('./tokenManager');
+    // Import AuthService dynamically to avoid circular dependency
+    const { default: authService } = await import('./authService');
     
-    // Get user role from stored tokens
-    const role = tokenManager.getUserRole();
-    if (!role) {
-      console.warn('[API] No user role found for refresh');
+    // Get user type from auth service
+    const userType = authService.isAdmin() ? 'admin' : 'user';
+    if (!userType) {
+      console.warn('[API] No user type found for refresh');
       return false;
     }
     
-    // Try to refresh using TokenManager
-    const result = await tokenManager.refreshAccessToken(role);
+    // Try to refresh using AuthService
+    const result = await authService.refreshAccessToken(userType);
     if (result.success) {
-      console.info('[API] Silent refresh succeeded via TokenManager');
+      console.info('[API] Silent refresh succeeded via AuthService');
       return true;
     }
     
-    console.warn('[API] Silent refresh failed via TokenManager');
+    console.warn('[API] Silent refresh failed via AuthService');
     return false;
   } catch (error) {
     console.error('[API] Silent refresh threw an error:', error);

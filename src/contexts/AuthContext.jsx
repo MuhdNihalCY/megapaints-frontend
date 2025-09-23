@@ -1,8 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import Cookies from 'js-cookie';
-import api, { setJwtToken, clearJwtToken, setUserRole } from '../utils/api';
-import tokenManager from '../utils/tokenManager';
-import sessionManager from '../utils/sessionManager';
+import authService from '../utils/authService';
 
 const AuthContext = createContext();
 
@@ -16,291 +13,206 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate session on first load using refresh tokens
-  const hydrateSession = useCallback(async () => {
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        console.log('🔍 Checking authentication on page load...');
+        
+        if (authService.isAuthenticated()) {
+          const currentUser = authService.getCurrentUser();
+          console.log('👤 Found user in localStorage:', currentUser?.username || 'Unknown');
+          
+          if (currentUser) {
+            // Set user immediately from localStorage (no API call needed)
+            setUser(currentUser);
+            setIsAdmin(authService.isAdmin());
+            console.log('✅ User restored from localStorage');
+            
+            // Optionally validate session in background (non-blocking)
+            try {
+              console.log('🔄 Validating session in background...');
+              const profile = await authService.getCurrentProfile();
+              // Update user data with fresh profile if available
+              if (profile.admin || profile.user) {
+                setUser(profile.admin || profile.user);
+                console.log('✅ Session validated, user data updated');
+              }
+            } catch (error) {
+              console.warn('⚠️ Session validation failed, but keeping user logged in:', error.message);
+              // Don't clear auth on validation failure - keep user logged in
+              // Only clear if it's a critical error (like 401)
+              if (error.message && error.message.includes('401')) {
+                console.log('❌ 401 error, clearing auth');
+                authService.clearTokens();
+                setUser(null);
+                setIsAdmin(false);
+              }
+            }
+          } else {
+            console.log('❌ No user found in localStorage');
+            authService.clearTokens();
+          }
+        } else {
+          console.log('❌ No access token found');
+        }
+      } catch (error) {
+        console.error('❌ Auth check failed:', error);
+        // Only clear auth on critical errors
+        if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
+          authService.clearTokens();
+          setUser(null);
+          setIsAdmin(false);
+        }
+      } finally {
+        setLoading(false);
+        console.log('🏁 Auth check completed');
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const register = useCallback(async (userData) => {
     try {
-      console.debug('[Auth] Hydrating session...');
+      setLoading(true);
+      const result = await authService.userRegister(userData);
       
-      // Debug: Check what tokens are available
-      const accessToken = tokenManager.getAccessToken();
-      const refreshToken = tokenManager.getRefreshToken();
-      const role = tokenManager.getUserRole();
-      
-      console.debug('[Auth] Token check:', {
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        role: role,
-        accessTokenLength: accessToken?.length || 0,
-        refreshTokenLength: refreshToken?.length || 0
-      });
-      
-      // Check if we have a valid session using refresh tokens
-      if (!tokenManager.hasValidSession()) {
-        console.warn('[Auth] No valid session found');
-        setUser(null);
-        return;
-      }
-
-      // Get user role from stored tokens
-      if (!role) {
-        console.warn('[Auth] No user role found in tokens');
-        setUser(null);
-        return;
-      }
-
-      // Try to extend session using refresh token
-      const sessionExtended = await tokenManager.extendSession(role);
-      if (!sessionExtended) {
-        console.warn('[Auth] Failed to extend session');
-        setUser(null);
-        return;
-      }
-
-      // Now try to get user info with fresh token
-      const tryUserMe = async () => {
-        console.debug('[Auth] Checking user session via /api/auth/me');
-        try {
-          const res = await api.get('/auth/me');
-          console.debug('[Auth] /api/auth/me http', res?.status);
-          if (res?.data?.status) {
-            setUser({ username: res.data.user?.username, role: 'user' });
-            localStorage.setItem('lastRole', 'user');
-            
-            // Set token if provided in response
-            const token = res.data.token || res.data.accessToken;
-            if (token) {
-              setJwtToken(token, 'user');
-              setUserRole('user');
-            }
-            
-            console.info('[Auth] User session valid');
-            return true;
-          }
-          console.warn('[Auth] /api/auth/me returned status=false', res?.data);
-          return false;
-        } catch (err) {
-          const status = err?.response?.status;
-          if (status === 401) {
-            console.warn('[Auth] User token expired/invalid (401) on /api/auth/me');
-          } else {
-            console.error('[Auth] /api/auth/me request error', err?.message || err);
-          }
-          return false;
-        }
-      };
-
-      const tryAdminMe = async () => {
-        console.debug('[Auth] Checking admin session via /api/admin/auth/me');
-        try {
-          const res = await api.get('/admin/auth/me');
-          console.debug('[Auth] /api/admin/auth/me http', res?.status);
-          if (res?.data?.status) {
-            setUser({ username: res.data.user?.username, role: 'admin' });
-            localStorage.setItem('lastRole', 'admin');
-            
-            // Set token if provided in response
-            const token = res.data.token || res.data.accessToken;
-            if (token) {
-              setJwtToken(token, 'admin');
-              setUserRole('admin');
-            }
-            
-            console.info('[Auth] Admin session valid');
-            return true;
-          }
-          console.warn('[Auth] /api/admin/auth/me returned status=false', res?.data);
-          return false;
-        } catch (err) {
-          const status = err?.response?.status;
-          if (status === 401) {
-            console.warn('[Auth] Admin token expired/invalid (401) on /api/admin/auth/me');
-          } else {
-            console.error('[Auth] /api/admin/auth/me request error', err?.message || err);
-          }
-          return false;
-        }
-      };
-
-      // Try based on role
-      if (role === 'user') {
-        try {
-          if (await tryUserMe()) {
-            // Start session extension for user
-            sessionManager.startSessionExtension('user');
-            return;
-          }
-        } catch (_) {}
-        try {
-          if (await tryAdminMe()) {
-            // Start session extension for admin
-            sessionManager.startSessionExtension('admin');
-            return;
-          }
-        } catch (_) {}
-      } else if (role === 'admin') {
-        try {
-          if (await tryAdminMe()) {
-            // Start session extension for admin
-            sessionManager.startSessionExtension('admin');
-            return;
-          }
-        } catch (_) {}
-        try {
-          if (await tryUserMe()) {
-            // Start session extension for user
-            sessionManager.startSessionExtension('user');
-            return;
-          }
-        } catch (_) {}
-      }
-      
-      // Fallback: Try the old approach if TokenManager approach failed
-      console.warn('[Auth] TokenManager approach failed, trying fallback...');
-      const lastRole = localStorage.getItem('lastRole');
-      
-      if (lastRole === 'user') {
-        try {
-          if (await tryUserMe()) {
-            sessionManager.startSessionExtension('user');
-            return;
-          }
-        } catch (_) {}
-        try {
-          if (await tryAdminMe()) {
-            sessionManager.startSessionExtension('admin');
-            return;
-          }
-        } catch (_) {}
-      } else if (lastRole === 'admin') {
-        try {
-          if (await tryAdminMe()) {
-            sessionManager.startSessionExtension('admin');
-            return;
-          }
-        } catch (_) {}
-        try {
-          if (await tryUserMe()) {
-            sessionManager.startSessionExtension('user');
-            return;
-          }
-        } catch (_) {}
+      if (result.success) {
+        return {
+          success: true,
+          message: result.message || 'Registration successful'
+        };
       } else {
-        // No hint; try only user to avoid noisy admin 401s on first load
-        try {
-          if (await tryUserMe()) {
-            sessionManager.startSessionExtension('user');
-            return;
-          }
-        } catch (_) {}
+        // Pass through validation errors
+        return {
+          success: false,
+          message: result.message || 'Registration failed',
+          validationErrors: result.validationErrors
+        };
       }
-      
-      // If neither worked, clear
-      setUser(null);
+    } catch (error) {
+      throw error;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    hydrateSession();
-  }, [hydrateSession]);
-
-  // Keep-alive timer and focus-based rehydrate
-  useEffect(() => {
-    let intervalId;
-    const KEEP_ALIVE_MS = 4 * 60 * 1000; // 4 minutes
-
-    const tick = async () => {
-      try {
-        console.debug('[Auth] Keep-alive tick: revalidating session');
-        await hydrateSession();
-      } catch (_) {}
-    };
-
-    // Periodic keep-alive (sliding window on server if supported)
-    intervalId = window.setInterval(tick, KEEP_ALIVE_MS);
-
-    // Re-validate when tab becomes active
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        console.debug('[Auth] Tab visible: revalidating session');
-        tick();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [hydrateSession]);
-
-  const login = useCallback(async (credentials, isAdmin = false) => {
+  const login = useCallback(async (username, password, type = 'user') => {
     try {
-      const endpoint = isAdmin ? '/admin/auth/login' : '/auth/login';
-      const response = await api.post(endpoint, credentials);
+      setLoading(true);
+      console.log(`🔐 Attempting ${type} login for:`, username);
       
-      if (response.data.status) {
-        const userData = {
-          username: response.data.user?.username,
-          role: isAdmin ? 'admin' : 'user'
-        };
-        
-        // Store tokens using TokenManager
-        const accessToken = response.data.token || response.data.accessToken;
-        const refreshToken = response.data.refreshToken;
-        const role = isAdmin ? 'admin' : 'user';
-        
-        if (accessToken) {
-          tokenManager.storeTokens(accessToken, refreshToken, role);
-          setJwtToken(accessToken, role); // Set for immediate use with role
-          setUserRole(role); // Set the role for token selection
-        }
+      const data = type === 'admin' 
+        ? await authService.adminLogin(username, password)
+        : await authService.userLogin(username, password);
+      
+      if (data.success) {
+        const userData = data.admin || data.user;
+        console.log('✅ Login successful, storing user data:', userData.username);
         
         setUser(userData);
-        localStorage.setItem('lastRole', userData.role);
+        setIsAdmin(type === 'admin');
         
-        // Start proactive session extension
-        sessionManager.startSessionExtension(role);
+        // Store user data
+        const storageKey = type === 'admin' ? 'adminUser' : 'user';
+        localStorage.setItem(storageKey, JSON.stringify(userData));
         
-        return { success: true, user: userData };
+        // Verify storage
+        const storedUser = localStorage.getItem(storageKey);
+        const storedToken = localStorage.getItem('accessToken');
+        console.log('💾 Storage verification:', {
+          userStored: !!storedUser,
+          tokenStored: !!storedToken,
+          userKey: storageKey
+        });
+        
+        return data;
       } else {
-        return { success: false, message: response.data.message || 'Login failed' };
+        console.log('❌ Login failed:', data.message);
+        // Pass through validation errors
+        return {
+          success: false,
+          message: data.message || 'Login failed',
+          validationErrors: data.validationErrors
+        };
       }
     } catch (error) {
-      console.error('[Auth] Login error:', error);
-      return { 
-        success: false, 
-        message: error.response?.data?.message || error.message || 'Login failed' 
-      };
+      console.error('❌ Login error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      const endpoint = user?.role === 'admin' ? '/admin/auth/logout' : '/auth/logout';
-      await api.post(endpoint);
+      setLoading(true);
+      await authService.logout(isAdmin ? 'admin' : 'user');
     } catch (error) {
-      console.warn('[Auth] Logout error (continuing anyway):', error);
+      console.error('Logout error:', error);
     } finally {
       setUser(null);
-      localStorage.removeItem('lastRole');
-      // Stop session extension
-      sessionManager.stopSessionExtension();
-      // Clear all tokens using TokenManager
-      tokenManager.clearTokens();
-      clearJwtToken(); // Clear in-memory token
+      setIsAdmin(false);
+      setLoading(false);
     }
-  }, [user?.role]);
+  }, [isAdmin]);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      if (authService.isAuthenticated()) {
+        const userType = isAdmin ? 'admin' : 'user';
+        const result = await authService.refreshAccessToken(userType);
+        
+        if (result.success) {
+          // Session refreshed successfully
+          return true;
+        } else {
+          // Refresh failed, logout user
+          await logout();
+          return false;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Session refresh failed:', error);
+      await logout();
+      return false;
+    }
+  }, [isAdmin, logout]);
+
+  const apiRequest = useCallback(async (endpoint, options = {}) => {
+    try {
+      return await authService.apiRequest(endpoint, options);
+    } catch (error) {
+      // If it's an auth error, try to refresh and retry once
+      if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+        const refreshed = await refreshSession();
+        if (refreshed) {
+          return await authService.apiRequest(endpoint, options);
+        }
+      }
+      throw error;
+    }
+  }, [refreshSession]);
 
   const value = {
     user,
+    isAdmin,
     loading,
     login,
+    register,
     logout,
-    hydrateSession
+    refreshSession,
+    apiRequest,
+    isAuthenticated: !!user,
+    getUserRole: () => authService.getUserRole(),
+    getCurrentUser: () => authService.getCurrentUser(),
+    validateEmail: authService.validateEmail,
+    validatePassword: authService.validatePassword
   };
 
   return (
@@ -309,4 +221,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

@@ -11,7 +11,7 @@ const arrayMove = (array, from, to) => {
   newArray.splice(to, 0, item);
   return newArray;
 };
-import { useUserAuth } from '../../../contexts/UserAuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
 // Removed sorting utilities - using Pragmatic DND only
@@ -243,7 +243,7 @@ const KanbanContext = createContext();
 // Provider component
 export const KanbanProvider = ({ children }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
-  const { user } = useUserAuth();
+  const { user } = useAuth();
 
   // Load board data from API
   const loadBoardData = useCallback(async (forceRefresh = false) => {

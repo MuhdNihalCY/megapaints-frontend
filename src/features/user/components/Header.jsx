@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useUserAuth } from '../../../contexts/UserAuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const navLinkClass = ({ isActive }) =>
@@ -10,7 +10,7 @@ const navLinkClass = ({ isActive }) =>
   }`;
 
 const UserHeader = () => {
-  const { user, logout } = useUserAuth();
+  const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
