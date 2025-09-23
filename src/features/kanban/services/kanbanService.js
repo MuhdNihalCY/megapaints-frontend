@@ -1,12 +1,12 @@
 /**
- * Kanban Board API Service
- * Handles all API calls for the Kanban board based on the API documentation
+ * Kanban Board API Service v2.0
+ * Handles all API calls for the Kanban board based on the new API v2.0 documentation
  */
 
 import api from '../../../utils/api';
 
 /**
- * Kanban Board Service Class
+ * Kanban Board Service Class for API v2.0
  */
 class KanbanService {
   constructor() {
@@ -37,14 +37,48 @@ class KanbanService {
   // ==================== BOARD MANAGEMENT ====================
 
   /**
-   * Get complete board structure with columns and cards
+   * Get complete board structure with columns and cards for the user's branch
    */
   async getBoard() {
     try {
+      // Try API v2.0 first
+      try {
+        const response = await api.get(`${this.baseURL}/board/branch`);
+        console.log('getBoard API v2.0 response:', response);
+        return this.handleResponse(response);
+      } catch (v2Error) {
+        console.warn('API v2.0 not available, falling back to v1:', v2Error.message);
+        
+        // Fallback to existing API structure
+        const response = await api.get('/board');
+        console.log('getBoard fallback response:', response);
+        return this.handleResponse(response);
+      }
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get board structure (alternative endpoint)
+   */
+  async getBoardStructure() {
+    try {
       const response = await api.get(`${this.baseURL}/board`);
-      console.log('getBoard response:', response);
       return this.handleResponse(response);
     } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update board settings for the user's branch
+   */
+  async updateBoardSettings(settings) {
+    try {
+      const response = await api.patch(`${this.baseURL}/board/branch`, { settings });
+      return this.handleResponse(response);
+      } catch (error) {
       this.handleError(error);
     }
   }
@@ -76,35 +110,11 @@ class KanbanService {
   // ==================== CARD MANAGEMENT ====================
 
   /**
-   * List branch cards with filtering and pagination
+   * List cards with filtering and pagination
    */
   async getCards(params = {}) {
     try {
       const response = await api.get(`${this.baseURL}/card`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get all branch cards
-   */
-  async getAllBranchCards() {
-    try {
-      const response = await api.get(`${this.baseURL}/card/branch`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get cards for a specific column
-   */
-  async getColumnCards(columnId) {
-    try {
-      const response = await api.get(`${this.baseURL}/card/column/${columnId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -172,6 +182,18 @@ class KanbanService {
   }
 
   /**
+   * Archive a card
+   */
+  async archiveCard(cardId) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/archive`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
    * Bulk move multiple cards
    */
   async bulkMoveCards(moveData) {
@@ -222,11 +244,11 @@ class KanbanService {
   // ==================== COLUMN MANAGEMENT ====================
 
   /**
-   * Get board columns
+   * Get all columns for the user's branch
    */
-  async getColumns(boardId) {
+  async getColumns() {
     try {
-      const response = await api.get(`${this.baseURL}/column/board/${boardId}`);
+      const response = await api.get(`${this.baseURL}/columns`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -284,9 +306,9 @@ class KanbanService {
   /**
    * Reorder columns
    */
-  async reorderColumns(boardId, reorderData) {
+  async reorderColumns(reorderData) {
     try {
-      const response = await api.put(`${this.baseURL}/column/${boardId}/reorder`, reorderData);
+      const response = await api.put(`${this.baseURL}/columns/reorder`, reorderData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -314,7 +336,7 @@ class KanbanService {
     try {
       const response = await api.post(`${this.baseURL}/comment/card/${cardId}`, commentData);
       return this.handleResponse(response);
-    } catch (error) {
+      } catch (error) {
       this.handleError(error);
     }
   }
@@ -370,14 +392,25 @@ class KanbanService {
   // ==================== LABEL MANAGEMENT ====================
 
   /**
-   * Get all labels
+   * Get all labels for the user's branch
    */
   async getLabels() {
     try {
-      const response = await api.get(`${this.baseURL}/label`);
-      return this.handleResponse(response);
+      // Try API v2.0 first
+      try {
+        const response = await api.get(`${this.baseURL}/labels`);
+        return this.handleResponse(response);
+      } catch (v2Error) {
+        console.warn('API v2.0 labels not available, falling back to v1:', v2Error.message);
+        
+        // Fallback to existing API structure
+        const response = await api.get('/label');
+        return this.handleResponse(response);
+      }
     } catch (error) {
-      this.handleError(error);
+      // If both fail, return empty array to prevent app crash
+      console.warn('Labels endpoint not available, returning empty array:', error.message);
+      return [];
     }
   }
 
@@ -418,15 +451,10 @@ class KanbanService {
   }
 
   /**
-   * Get branch labels
+   * Get branch labels (now handled by getLabels)
    */
-  async getBranchLabels(branchId) {
-    try {
-      const response = await api.get(`${this.baseURL}/label/branch/${branchId}`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
+  async getBranchLabels() {
+    return this.getLabels();
   }
 
   // ==================== USER MANAGEMENT ====================
@@ -437,9 +465,21 @@ class KanbanService {
    */
   async getUsers() {
     try {
-      // This endpoint might be different in your system
-      const response = await api.get('/users') || await api.get('/auth/users');
-      return this.handleResponse(response);
+      // Try multiple possible endpoints
+      const endpoints = ['/users', '/auth/users', '/api/users', '/api/auth/users'];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint);
+          return this.handleResponse(response);
+        } catch (endpointError) {
+          console.debug(`Users endpoint ${endpoint} not available:`, endpointError.message);
+        }
+      }
+      
+      // If all endpoints fail, return empty array
+      console.warn('No users endpoint available, returning empty array');
+      return [];
     } catch (error) {
       // Fallback for development
       console.warn('Users endpoint not available:', error.message);
@@ -450,105 +490,128 @@ class KanbanService {
   // ==================== UTILITY METHODS ====================
 
   /**
-   * Transform API card data to frontend format if needed
+   * Transform card data to frontend format (supports both API v1 and v2)
    */
   transformCardData(apiCard) {
     // Debug logging
     console.log('Transforming card data:', {
       id: apiCard._id || apiCard.id,
-      name: apiCard.Name,
-      currentList: apiCard.CurrentList,
-      listArray: apiCard.ListArray
+      title: apiCard.title || apiCard.Name,
+      columnId: apiCard.columnId,
+      priority: apiCard.priority
     });
 
-    // Determine column ID from CurrentList or ListArray
-    let columnId = apiCard.columnId;
-    let currentListName = apiCard.CurrentList;
+    // Check if this is API v2.0 format
+    const isV2 = apiCard._id && apiCard.title && !apiCard.Name;
     
-    if (!columnId) {
-      if (apiCard.CurrentList) {
-        columnId = this.mapListToColumn(apiCard.CurrentList);
-        currentListName = apiCard.CurrentList;
-      } else if (apiCard.ListArray && apiCard.ListArray.length > 0) {
-        // Use the most recent list from ListArray that has InTime but no OutTime
-        const activeList = apiCard.ListArray.find(list => list.InTime && !list.OutTime);
-        if (activeList && activeList.ListName) {
-          columnId = this.mapListToColumn(activeList.ListName);
-          currentListName = activeList.ListName;
-        } else {
-          // Fallback to the most recent list
-          const latestList = apiCard.ListArray[apiCard.ListArray.length - 1];
-          columnId = this.mapListToColumn(latestList.ListName);
-          currentListName = latestList.ListName;
-        }
-      } else {
-        // Default fallback - assume it's in ORDERS (sales)
-        columnId = 'sales';
-        currentListName = 'ORDERS';
-      }
+    if (isV2) {
+      // API v2.0 format
+      return {
+        id: apiCard._id,
+        title: apiCard.title || 'Untitled Card',
+        description: apiCard.description || '',
+        cardId: apiCard.cardId || apiCard._id,
+        columnId: apiCard.columnId?._id || apiCard.columnId,
+        subcolumnId: apiCard.subcolumnId || null,
+        priority: apiCard.priority || 'medium',
+        labels: (apiCard.labels || []).map(label => ({
+          id: label._id || label.id,
+          name: label.text || label.name,
+          color: label.color || '#6b7280'
+        })),
+        assignees: apiCard.assignees || [],
+        dueDate: apiCard.dueDate || null,
+        createdAt: apiCard.createdAt || new Date().toISOString(),
+        updatedAt: apiCard.updatedAt || new Date().toISOString(),
+        createdBy: apiCard.createdBy?._id || apiCard.createdBy,
+        // Additional fields from API v2.0
+        contacts: apiCard.contacts || [],
+        checklists: apiCard.checklists || [],
+        readyProducts: apiCard.readyProducts || [],
+        attachments: apiCard.attachments || [],
+        comments: apiCard.comments || [],
+        activities: apiCard.activities || [],
+        isDeleted: apiCard.isDeleted || false,
+        isArchived: apiCard.isArchived || false,
+        position: apiCard.position || 0,
+        branchId: apiCard.branchId,
+        // Keep original data for debugging
+        _originalData: apiCard
+      };
+    } else {
+      // API v1 format (legacy)
+      return {
+        id: apiCard._id || apiCard.id,
+        title: apiCard.title || apiCard.Name || 'Untitled Card',
+        description: apiCard.description || '',
+        cardId: apiCard.cardId || apiCard.OrderIDNumber || apiCard._id || apiCard.id,
+        columnId: apiCard.columnId || this.mapListToColumn(apiCard.CurrentList),
+        subcolumnId: apiCard.subcolumnId || null,
+        priority: apiCard.priority || 'medium',
+        labels: (apiCard.labels || apiCard.Labels || []).map(label => ({
+          id: label._id || label.id || label.Name,
+          name: label.text || label.name || label.Name,
+          color: label.color || label.Color || '#6b7280'
+        })),
+        assignees: apiCard.assignees || [],
+        dueDate: apiCard.dueDate || null,
+        createdAt: apiCard.createdAt || (apiCard.Card_Created?.Time ? new Date(apiCard.Card_Created.Time).toISOString() : new Date().toISOString()),
+        updatedAt: apiCard.updatedAt || new Date().toISOString(),
+        createdBy: apiCard.createdBy || apiCard.Card_Created?.Name || 'user',
+        // Additional fields from API v1
+        customerName: apiCard.CustomerName,
+        contactPersonName: apiCard.ContactPersonName,
+        contactNumber: apiCard.ContactNumber,
+        comments: apiCard.comments || [],
+        activity: apiCard.Activity || [],
+        checklistItems: apiCard.CheckListItems?.checkItems || [],
+        readyProducts: apiCard.ReadyProducts || [],
+        isAttachments: apiCard.IsAttachments || false,
+        branch: apiCard.Branch,
+        branchId: apiCard.BranchID || apiCard.branchId,
+        productionPerson: apiCard.ProductionPerson,
+        position: apiCard.Position || 0,
+        // Keep original data for debugging
+        _originalData: apiCard
+      };
     }
+  }
 
-    // Determine subcolumn ID if needed
-    let subcolumnId = apiCard.subcolumnId || null;
-    if (!subcolumnId && currentListName) {
-      // Check if it's a done subcolumn
-      if (currentListName === 'DONE TODAY') {
-        subcolumnId = 'done-today';
-      } else if (currentListName === 'LESS THAN 7 DAYS') {
-        subcolumnId = 'less-than-7-days';
-      } else if (currentListName === 'MORE THAN 7 DAYS') {
-        subcolumnId = 'more-than-7-days';
-      }
-    }
-
-    console.log('Mapped column data:', {
-      columnId,
-      subcolumnId,
-      currentList: apiCard.CurrentList
-    });
-
+  /**
+   * Transform frontend card data to API v2.0 format
+   */
+  transformCardToApi(frontendCard) {
     return {
-      id: apiCard._id || apiCard.id,
-      title: apiCard.title || apiCard.Name || 'Untitled Card',
-      description: apiCard.description || '',
-      cardId: apiCard.cardId || apiCard.OrderIDNumber,
-      columnId: columnId,
-      subcolumnId: subcolumnId,
-      priority: apiCard.priority || 'medium',
-      labels: apiCard.labels || (apiCard.Labels || []).map(label => ({
-        id: label.Name || label.id || 'unknown',
-        name: label.Name || label.name || 'Unknown',
-        color: label.Color || label.color || '#6b7280'
-      })),
-      assignees: apiCard.assignees || [],
-      dueDate: apiCard.dueDate || null,
-      createdAt: apiCard.createdAt || (apiCard.Card_Created?.Time ? new Date(apiCard.Card_Created.Time).toISOString() : new Date().toISOString()),
-      updatedAt: apiCard.updatedAt || new Date().toISOString(),
-      createdBy: apiCard.createdBy || apiCard.Card_Created?.Name || 'user',
-      // Additional fields from your backend
-      customerName: apiCard.CustomerName,
-      contactPersonName: apiCard.ContactPersonName,
-      contactNumber: apiCard.ContactNumber,
-      comments: apiCard.comments || [],
-      activity: apiCard.Activity || [],
-      checklistItems: apiCard.CheckListItems?.checkItems || [],
-      readyProducts: apiCard.ReadyProducts || [],
-      isAttachments: apiCard.IsAttachments || false,
-      branch: apiCard.Branch,
-      branchId: apiCard.BranchID || apiCard.branchId,
-      productionPerson: apiCard.ProductionPerson,
-      position: apiCard.Position || 0,
-      // Keep original data for debugging
-      _originalData: {
-        CurrentList: apiCard.CurrentList,
-        ListArray: apiCard.ListArray,
-        determinedCurrentList: currentListName
-      }
+      title: frontendCard.title,
+      description: frontendCard.description,
+      priority: frontendCard.priority,
+      dueDate: frontendCard.dueDate,
+      columnId: frontendCard.columnId,
+      contacts: frontendCard.contacts || [],
+      labels: frontendCard.labels?.map(label => ({
+        text: label.name || label.text,
+        color: label.color
+      })) || [],
+      checklists: frontendCard.checklists || [],
+      readyProducts: frontendCard.readyProducts || [],
+      attachments: frontendCard.attachments || [],
+      position: frontendCard.position || 0
     };
   }
 
   /**
-   * Map backend list names to frontend column IDs
+   * Transform move data for API v2.0
+   */
+  transformMoveData(moveData) {
+    return {
+      toList: moveData.toList || moveData.columnId,
+      position: moveData.position || 0,
+      subcolumnId: moveData.subcolumnId || null
+    };
+  }
+
+  /**
+   * Map backend list names to frontend column IDs (legacy API v1)
    */
   mapListToColumn(currentList) {
     const listToColumnMap = {
@@ -562,57 +625,6 @@ class KanbanService {
     };
 
     return listToColumnMap[currentList] || 'sales';
-  }
-
-  /**
-   * Map frontend column IDs to backend list names
-   */
-  mapColumnToList(columnId, subcolumnId = null) {
-    if (columnId === 'done' && subcolumnId) {
-      const subcolumnMap = {
-        'done-today': 'DONE TODAY',
-        'less-than-7-days': 'LESS THAN 7 DAYS',
-        'more-than-7-days': 'MORE THAN 7 DAYS'
-      };
-      return subcolumnMap[subcolumnId] || 'DONE TODAY';
-    }
-
-    const columnToListMap = {
-      'sales': 'ORDERS',
-      'office': 'OFFICE SECTION',
-      'production': 'PRODUCTION',
-      'ready': 'READY',
-      'done': 'DONE TODAY'
-    };
-
-    return columnToListMap[columnId] || 'ORDERS';
-  }
-
-  /**
-   * Transform frontend card data to API format
-   */
-  transformCardToApi(frontendCard) {
-    return {
-      title: frontendCard.title,
-      description: frontendCard.description,
-      cardId: frontendCard.cardId,
-      priority: frontendCard.priority,
-      labels: frontendCard.labels?.map(label => label.name || label) || [],
-      assignees: frontendCard.assignees || [],
-      dueDate: frontendCard.dueDate,
-      columnId: frontendCard.columnId,
-      subcolumnId: frontendCard.subcolumnId,
-      // Map to backend list format
-      toList: this.mapColumnToList(frontendCard.columnId, frontendCard.subcolumnId),
-      // Additional fields
-      CustomerName: frontendCard.customerName,
-      ContactPersonName: frontendCard.contactPersonName,
-      ContactNumber: frontendCard.contactNumber,
-      ReadyProducts: frontendCard.readyProducts || [],
-      CheckListItems: { checkItems: frontendCard.checklistItems || [] },
-      ProductionPerson: frontendCard.productionPerson,
-      Position: frontendCard.position || 0
-    };
   }
 }
 

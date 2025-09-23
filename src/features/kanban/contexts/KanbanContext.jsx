@@ -260,24 +260,42 @@ export const KanbanProvider = ({ children }) => {
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       
-      // Load board, cards, labels, and users in parallel
-      const [boardData, cards, labels, users] = await Promise.all([
+      // Load board data, labels, and users in parallel (API v2.0)
+      const [boardData, labels, users] = await Promise.all([
         kanbanService.getBoard(),
-        kanbanService.getCards(),
         kanbanService.getLabels(),
         kanbanService.getUsers().catch(() => []) // Users endpoint might not exist
       ]);
 
-      // Transform cards if needed
+      console.log('Loaded API v2.0 board data:', boardData);
+
+      // Extract cards and columns from board data (API v2.0 structure)
+      const cards = boardData?.cards || [];
+      const columns = boardData?.columns || [];
+
+      // Transform cards data for API v2.0
       const transformedCards = Array.isArray(cards) 
         ? cards.map(card => kanbanService.transformCardData(card))
-        : (cards?.data || []).map(card => kanbanService.transformCardData(card));
+        : [];
+
+      // Transform columns data for API v2.0
+      const transformedColumns = Array.isArray(columns) 
+        ? columns.map(column => ({
+            id: column._id || column.id,
+            title: column.title,
+            type: column.type || 'static',
+            position: column.position || 0,
+            cards: column.cards || [],
+            settings: column.settings || {},
+            isActive: column.isActive !== false
+          }))
+        : [];
 
       // Set board data
       dispatch({ 
         type: ACTIONS.SET_BOARD_DATA, 
         payload: {
-          columns: boardData?.columns || [],
+          columns: transformedColumns,
           cards: transformedCards
         }
       });
@@ -411,23 +429,16 @@ export const KanbanProvider = ({ children }) => {
       const userName = user?.name || user?.username || user?.displayName || 'Unknown User';
       const userRole = user?.role || user?.userRole || 'user';
 
-      const mappedToList = kanbanService.mapColumnToList(toColumn, toSubcolumn);
-      
-      const moveData = {
-        toList: mappedToList,
-        subcolumnId: toSubcolumn || null,
-        position: position, // Use provided position or let backend determine automatically
-        by: {
-          id: userId,
-          name: userName,
-          role: userRole
-        }
-      };
+      // Transform move data for API v2.0
+      const moveData = kanbanService.transformMoveData({
+        toList: toColumn,
+        subcolumnId: toSubcolumn,
+        position: position
+      });
 
       console.log('Move data details:', {
         toColumn,
         toSubcolumn,
-        mappedToList,
         moveData
       });
 
