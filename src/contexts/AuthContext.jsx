@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../utils/authService';
+import apiServiceFactory from '../services/ApiServiceFactory.js';
 
 const AuthContext = createContext();
 
@@ -209,10 +210,17 @@ export const AuthProvider = ({ children }) => {
     refreshSession,
     apiRequest,
     isAuthenticated: !!user,
-    getUserRole: () => authService.getUserRole(),
-    getCurrentUser: () => authService.getCurrentUser(),
-    validateEmail: authService.validateEmail,
-    validatePassword: authService.validatePassword
+    getUserRole: () => apiServiceFactory.getUserRole(),
+    getCurrentUser: () => apiServiceFactory.getCurrentUser(),
+    validateEmail: apiServiceFactory.validateEmail,
+    validatePassword: apiServiceFactory.validatePassword,
+    // New API services
+    getApiServices: () => apiServiceFactory.getAvailableServices(),
+    getAdminServices: () => apiServiceFactory.initializeAdminServices(),
+    getUserServices: () => apiServiceFactory.initializeUserServices(),
+    hasPermission: (permission) => apiServiceFactory.hasPermission(permission),
+    hasAnyPermission: (permissions) => apiServiceFactory.hasAnyPermission(permissions),
+    hasAllPermissions: (permissions) => apiServiceFactory.hasAllPermissions(permissions)
   };
 
   return (

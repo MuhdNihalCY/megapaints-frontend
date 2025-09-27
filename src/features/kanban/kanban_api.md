@@ -877,7 +877,7 @@ X-RateLimit-Reset: 1640995200
 
 Real-time updates will be available via WebSocket connections:
 ```javascript
-const ws = new WebSocket('ws://localhost:3000/api/board/v2/ws');
+const ws = new WebSocket('ws://test.megamixsystems.com/localhost:3000/api/board/v2/ws');
 
 ws.onmessage = (event) => {
   const update = JSON.parse(event.data);

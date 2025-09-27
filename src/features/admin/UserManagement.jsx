@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import apiServiceFactory from '../../services/ApiServiceFactory.js';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -34,8 +35,11 @@ const UserManagement = () => {
         return;
       }
       
-      console.log('🚀 Attempting to fetch users from /admin/users');
-      const response = await apiRequest('/admin/users');
+      console.log('🚀 Attempting to fetch users using new API service');
+      
+      // Use the new API service factory
+      const adminServices = apiServiceFactory.initializeAdminServices();
+      const response = await adminServices.businessManagement.getUsers();
       
       if (response.status === 'success') {
         console.log('✅ Successfully fetched users:', response.data.users?.length || 0);

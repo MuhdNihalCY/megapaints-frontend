@@ -1,11 +1,11 @@
 /**
  * Authentication Service for MegaPaints
  * Handles JWT-based authentication for both users and admins
- * Uses the new API structure with proper token management
+ * Updated to work with the new API structure and separate admin/user services
  */
 class AuthService {
   constructor() {
-    this.baseURL = '/api'; // Use Vite proxy instead of direct backend URL
+    this.baseURL = '/api';
     this.accessToken = localStorage.getItem('accessToken');
     this.refreshToken = localStorage.getItem('refreshToken');
     this.isRefreshing = false;
