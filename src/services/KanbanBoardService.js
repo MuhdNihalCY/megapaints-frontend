@@ -14,10 +14,16 @@ class KanbanBoardService {
    * @returns {Object} Headers object
    */
   getHeaders() {
-    return {
+    const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.adminApi.accessToken}`
+      'Accept': 'application/json'
     };
+    
+    if (this.adminApi.accessToken) {
+      headers['Authorization'] = `Bearer ${this.adminApi.accessToken}`;
+    }
+    
+    return headers;
   }
 
   /**
@@ -43,25 +49,53 @@ class KanbanBoardService {
    */
   async apiRequest(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const timeout = options.timeout || 10000;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
     try {
-      const response = await fetch(url, {
+      const fetchOptions = {
         ...options,
         headers: {
           ...this.getHeaders(),
           ...options.headers
         },
-        credentials: 'include'
-      });
-
-      const data = await response.json();
+        signal: controller.signal
+      };
+      
+      // Only include credentials if explicitly requested
+      if (options.credentials !== undefined) {
+        fetchOptions.credentials = options.credentials;
+      }
+      
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+      
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      let data = null;
+      if (response.status !== 204 && 
+          contentLength !== '0' && 
+          contentType && 
+          contentType.includes('application/json')) {
+        data = await response.json();
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(data?.message || `HTTP ${response.status}: ${response.statusText}`);
       }
       
       return data;
     } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${timeout}ms`);
+      }
+      
       console.error(`Kanban API request failed [${endpoint}]:`, error);
       throw error;
     }
@@ -80,7 +114,7 @@ class KanbanBoardService {
       limit: 20,
       ...options
     });
-    return await this.adminApi.apiRequest(`/board?${queryString}`);
+    return await this.apiRequest(`/board?${queryString}`);
   }
 
   /**
@@ -89,7 +123,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Board data
    */
   async getBoardById(boardId) {
-    return await this.adminApi.apiRequest(`/board/${boardId}`);
+    return await this.apiRequest(`/board/${encodeURIComponent(boardId)}`);
   }
 
   /**
@@ -98,7 +132,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Created board
    */
   async createBoard(boardData) {
-    return await this.adminApi.apiRequest('/board', {
+    return await this.apiRequest('/board', {
       method: 'POST',
       body: JSON.stringify(boardData)
     });
@@ -111,7 +145,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Updated board
    */
   async updateBoard(boardId, boardData) {
-    return await this.adminApi.apiRequest(`/board/${boardId}`, {
+    return await this.apiRequest(`/board/${encodeURIComponent(boardId)}`, {
       method: 'PUT',
       body: JSON.stringify(boardData)
     });
@@ -123,7 +157,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteBoard(boardId) {
-    return await this.adminApi.apiRequest(`/board/${boardId}`, {
+    return await this.apiRequest(`/board/${encodeURIComponent(boardId)}`, {
       method: 'DELETE'
     });
   }
@@ -134,17 +168,39 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Branch boards
    */
   async getBoardsByBranch(branchId) {
-    return await this.apiRequest(`/board/branch?branchId=${branchId}`);
+    return await this.apiRequest(`/board/branch?branchId=${encodeURIComponent(branchId)}`);
   }
 
   // ==================== BOARD V2 MANAGEMENT ====================
 
   /**
    * Get branch board data (complete board with columns and cards)
+   * @param {Object} params - Query parameters
    * @returns {Promise<Object>} Complete board data
    */
-  async getBranchBoardData() {
-    return await this.apiRequest('/board/branch');
+  async getBranchBoardData(params = {}) {
+    try {
+      const queryString = this.buildQueryParams(params);
+      const boardData = await this.apiRequest(`/board/branch?${queryString}`);
+      
+      // Normalize response shape - handle both direct stats and nested data
+      const normalizedStats = boardData?.data?.stats || boardData?.stats || {};
+      
+      return {
+        status: 'success',
+        data: {
+          stats: normalizedStats,
+          ...boardData
+        }
+      };
+    } catch (error) {
+      console.error('Failed to get branch board data:', error);
+      return {
+        status: 'error',
+        data: { stats: {} },
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -202,7 +258,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Card data
    */
   async getCardById(cardId) {
-    return await this.apiRequest(`/card/${cardId}`);
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}`);
   }
 
   /**
@@ -224,7 +280,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Updated card
    */
   async updateCard(cardId, cardData) {
-    return await this.apiRequest(`/card/${cardId}`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}`, {
       method: 'PUT',
       body: JSON.stringify(cardData)
     });
@@ -236,7 +292,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteCard(cardId) {
-    return await this.apiRequest(`/card/${cardId}`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}`, {
       method: 'DELETE'
     });
   }
@@ -248,7 +304,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Move result
    */
   async moveCard(cardId, moveData) {
-    return await this.apiRequest(`/card/${cardId}/move`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}/move`, {
       method: 'POST',
       body: JSON.stringify(moveData)
     });
@@ -260,7 +316,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Archive result
    */
   async archiveCard(cardId) {
-    return await this.apiRequest(`/card/${cardId}/archive`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}/archive`, {
       method: 'POST'
     });
   }
@@ -271,7 +327,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Restore result
    */
   async restoreCard(cardId) {
-    return await this.apiRequest(`/card/${cardId}/restore`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}/restore`, {
       method: 'POST'
     });
   }
@@ -283,7 +339,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Duplicated card
    */
   async duplicateCard(cardId, duplicateData = {}) {
-    return await this.apiRequest(`/card/${cardId}/duplicate`, {
+    return await this.apiRequest(`/card/${encodeURIComponent(cardId)}/duplicate`, {
       method: 'POST',
       body: JSON.stringify(duplicateData)
     });
@@ -318,7 +374,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Updated column
    */
   async updateColumn(columnId, columnData) {
-    return await this.apiRequest(`/columns/${columnId}`, {
+    return await this.apiRequest(`/columns/${encodeURIComponent(columnId)}`, {
       method: 'PUT',
       body: JSON.stringify(columnData)
     });
@@ -330,7 +386,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteColumn(columnId) {
-    return await this.apiRequest(`/columns/${columnId}`, {
+    return await this.apiRequest(`/columns/${encodeURIComponent(columnId)}`, {
       method: 'DELETE'
     });
   }
@@ -361,7 +417,7 @@ class KanbanBoardService {
       skip: 0,
       ...options
     });
-    return await this.apiRequest(`/comment/card/${cardId}?${queryString}`);
+    return await this.apiRequest(`/comment/card/${encodeURIComponent(cardId)}?${queryString}`);
   }
 
   /**
@@ -371,7 +427,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Created comment
    */
   async addComment(cardId, commentData) {
-    return await this.apiRequest(`/comment/card/${cardId}`, {
+    return await this.apiRequest(`/comment/card/${encodeURIComponent(cardId)}`, {
       method: 'POST',
       body: JSON.stringify(commentData)
     });
@@ -384,7 +440,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Updated comment
    */
   async updateComment(commentId, commentData) {
-    return await this.apiRequest(`/comment/${commentId}`, {
+    return await this.apiRequest(`/comment/${encodeURIComponent(commentId)}`, {
       method: 'PUT',
       body: JSON.stringify(commentData)
     });
@@ -396,7 +452,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteComment(commentId) {
-    return await this.apiRequest(`/comment/${commentId}`, {
+    return await this.apiRequest(`/comment/${encodeURIComponent(commentId)}`, {
       method: 'DELETE'
     });
   }
@@ -430,7 +486,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Updated label
    */
   async updateLabel(labelId, labelData) {
-    return await this.apiRequest(`/labels/${labelId}`, {
+    return await this.apiRequest(`/labels/${encodeURIComponent(labelId)}`, {
       method: 'PUT',
       body: JSON.stringify(labelData)
     });
@@ -442,7 +498,7 @@ class KanbanBoardService {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteLabel(labelId) {
-    return await this.apiRequest(`/labels/${labelId}`, {
+    return await this.apiRequest(`/labels/${encodeURIComponent(labelId)}`, {
       method: 'DELETE'
     });
   }
@@ -474,7 +530,16 @@ class KanbanBoardService {
   async getCardAnalytics(options = {}) {
     try {
       const cards = await this.getCards({ limit: 1000, ...options });
-      const analytics = this.calculateCardAnalytics(cards.data);
+      
+      // Normalize cards response - handle both array and object with data property
+      let cardsArray = [];
+      if (Array.isArray(cards)) {
+        cardsArray = cards;
+      } else if (cards && Array.isArray(cards.data)) {
+        cardsArray = cards.data;
+      }
+      
+      const analytics = this.calculateCardAnalytics(cardsArray);
       
       return {
         status: 'success',

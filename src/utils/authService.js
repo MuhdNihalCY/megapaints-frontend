@@ -6,8 +6,8 @@
 class AuthService {
   constructor() {
     this.baseURL = '/api';
-    this.accessToken = localStorage.getItem('accessToken');
-    this.refreshToken = localStorage.getItem('refreshToken');
+    this.accessToken = null; // Store in memory only
+    this.refreshToken = null; // Store in memory only
     this.isRefreshing = false;
     this.pendingRequests = [];
   }
@@ -20,7 +20,7 @@ class AuthService {
    */
   async adminLogin(username, password) {
     try {
-      console.log('Attempting admin login to:', `${this.baseURL}/auth/admin/login`);
+      console.log('Attempting admin login');
       
       const response = await fetch(`${this.baseURL}/auth/admin/login`, {
         method: 'POST',
@@ -34,7 +34,6 @@ class AuthService {
       });
 
       console.log('Admin login response status:', response.status);
-      console.log('Admin login response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -69,12 +68,11 @@ class AuthService {
       }
 
       const data = await response.json();
-      console.log('Admin login response data:', data);
+      // Admin login successful
       
       if (data.status === 'success') {
         // Store tokens
         this.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
-        localStorage.setItem('adminUser', JSON.stringify(data.data.admin));
         
         return {
           success: true,
@@ -109,8 +107,7 @@ class AuthService {
    */
   async userRegister(userData) {
     try {
-      console.log('Attempting user registration to:', `${this.baseURL}/auth/user/register`);
-      console.log('Registration data:', userData);
+      console.log('Attempting user registration');
       
       const response = await fetch(`${this.baseURL}/auth/user/register`, {
         method: 'POST',
@@ -124,7 +121,6 @@ class AuthService {
       });
 
       console.log('Registration response status:', response.status);
-      console.log('Registration response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -158,7 +154,7 @@ class AuthService {
       }
 
       const data = await response.json();
-      console.log('Registration response data:', data);
+      // User registration successful
       
       if (data.status === 'success') {
         return {
@@ -195,7 +191,7 @@ class AuthService {
    */
   async userLogin(username, password) {
     try {
-      console.log('Attempting user login to:', `${this.baseURL}/auth/user/login`);
+      console.log('Attempting user login');
       
       const response = await fetch(`${this.baseURL}/auth/user/login`, {
         method: 'POST',
@@ -209,7 +205,6 @@ class AuthService {
       });
 
       console.log('User login response status:', response.status);
-      console.log('User login response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -244,12 +239,11 @@ class AuthService {
       }
 
       const data = await response.json();
-      console.log('User login response data:', data);
+      // User login successful
       
       if (data.status === 'success') {
         // Store tokens
         this.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
         
         return {
           success: true,
@@ -285,8 +279,7 @@ class AuthService {
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+    // Tokens stored in memory only - server handles persistence via httpOnly cookies
   }
 
   /**
@@ -419,10 +412,7 @@ class AuthService {
   clearTokens() {
     this.accessToken = null;
     this.refreshToken = null;
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('adminUser');
-    localStorage.removeItem('user');
+    // Clear in-memory tokens only - server handles cookie cleanup
   }
 
   /**

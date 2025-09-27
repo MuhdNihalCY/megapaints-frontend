@@ -54,10 +54,20 @@ class UserApiService {
         credentials: 'include'
       });
 
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      let data = null;
+      if (response.status !== 204 && 
+          contentLength !== '0' && 
+          contentType && 
+          contentType.includes('application/json')) {
+        data = await response.json();
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(data?.message || `HTTP ${response.status}: ${response.statusText}`);
       }
       
       return data;
