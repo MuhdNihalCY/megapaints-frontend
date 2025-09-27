@@ -3,8 +3,9 @@
  * Provides Trello-like keyboard shortcuts and enhanced interactions
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useKanban } from '../contexts/KanbanContext';
+import { LoadingOverlay } from '../../../components';
 
 /**
  * Keyboard Shortcuts Component
@@ -18,11 +19,12 @@ const KeyboardShortcuts = () => {
     columns, 
     cards,
     setFilters,
-    filters 
+    filters
   } = useKanban();
 
   const lastKeyTime = useRef(0);
   const cardSetupInterval = useRef(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -105,16 +107,29 @@ const KeyboardShortcuts = () => {
         return;
       }
 
-      // Escape: Close modals, dropdowns, etc.
+      // Escape: Close modals, dropdowns, clear selections, etc.
       if (event.key === 'Escape') {
         console.log('Escape shortcut triggered');
-        // Close any open dropdowns or modals
+        
+        // Handle DOM elements
         const dropdowns = document.querySelectorAll('.dropdown-menu, .modal-overlay, .help-panel');
         dropdowns.forEach(dropdown => {
           if (dropdown.style.display !== 'none') {
             dropdown.style.display = 'none';
           }
         });
+        
+        // Close any React modals by dispatching a close event
+        const modals = document.querySelectorAll('[data-modal="true"], [role="dialog"]');
+        modals.forEach(modal => {
+          // Try to find a close button and click it
+          const closeButton = modal.querySelector('[data-close="true"], .close-button, [aria-label*="close" i]');
+          if (closeButton) {
+            closeButton.click();
+          }
+        });
+        
+        console.log(`Escape handler completed. DOM elements processed: ${dropdowns.length + modals.length}`);
         return;
       }
 
@@ -177,7 +192,10 @@ const KeyboardShortcuts = () => {
           event.preventDefault();
           const cardId = selectedCard.dataset.cardId;
           if (cardId && confirm('Are you sure you want to delete this card?')) {
-            deleteCard(cardId);
+            setIsDeleting(true);
+            deleteCard(cardId).finally(() => {
+              setIsDeleting(false);
+            });
           }
         } else {
           console.log('No selected card found to delete');
@@ -372,7 +390,12 @@ const KeyboardShortcuts = () => {
     };
   }, [cards]);
 
-  return null; // This component doesn't render anything
+  return (
+    <>
+      {/* Loading Overlay for delete operations */}
+      {isDeleting && <LoadingOverlay message="Deleting card..." />}
+    </>
+  );
 };
 
 export default KeyboardShortcuts;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
@@ -9,8 +9,9 @@ const AdminLogin = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState([]);
 
-  const { login } = useAdminAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -19,12 +20,14 @@ const AdminLogin = () => {
       [e.target.name]: e.target.value,
     });
     setError('');
+    setValidationErrors([]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setValidationErrors([]);
 
     if (!formData.username.trim() || !formData.password.trim()) {
       setError('Please fill in all fields');
@@ -33,17 +36,22 @@ const AdminLogin = () => {
     }
 
     try {
-      const result = await login(formData);
+      const result = await login(formData.username, formData.password, 'admin');
       if (result.success) {
         navigate('/admin/dashboard');
       } else {
-        setError(result.message);
+        // Handle validation errors
+        if (result.validationErrors && Array.isArray(result.validationErrors)) {
+          setValidationErrors(result.validationErrors);
+        } else {
+          setError(result.message);
+        }
       }
     } catch (err) {
       if (err.code === 'ERR_NETWORK') {
         setError('Unable to connect to server. Please check if the backend is running.');
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError(err.message || 'An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -92,6 +100,19 @@ const AdminLogin = () => {
               />
             </div>
 
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                <div className="font-medium mb-2">Please fix the following errors:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="text-sm">{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* General Error Message */}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
                 {error}

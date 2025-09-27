@@ -4,10 +4,17 @@
  */
 
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
-import { useUserAuth } from '../../../contexts/UserAuthContext';
+// Removed @dnd-kit dependency - using custom array move function
+const arrayMove = (array, from, to) => {
+  const newArray = [...array];
+  const item = newArray.splice(from, 1)[0];
+  newArray.splice(to, 0, item);
+  return newArray;
+};
+import { useAuth } from '../../../contexts/AuthContext';
 import { kanbanService } from '../services/kanbanService';
 import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
+// Removed sorting utilities - using Pragmatic DND only
 
 // Action types for the reducer
 const ACTIONS = {
@@ -34,6 +41,7 @@ const ACTIONS = {
   DELETE_LABEL: 'DELETE_LABEL',
   SET_FILTERS: 'SET_FILTERS',
   SET_SEARCH_TERM: 'SET_SEARCH_TERM',
+  // Removed sorting action types - using Pragmatic DND only
   MARK_INITIALIZED: 'MARK_INITIALIZED'
 };
 
@@ -53,6 +61,7 @@ const initialState = {
     text: ''
   },
   searchTerm: '',
+  // Removed columnSorts - using Pragmatic DND only
   isInitialized: false
 };
 
@@ -218,6 +227,8 @@ function kanbanReducer(state, action) {
     case ACTIONS.SET_SEARCH_TERM:
       return { ...state, searchTerm: action.payload };
 
+    // Removed sorting reducer cases - using Pragmatic DND only
+
     case ACTIONS.MARK_INITIALIZED:
       return { ...state, isInitialized: true };
 
@@ -232,7 +243,7 @@ const KanbanContext = createContext();
 // Provider component
 export const KanbanProvider = ({ children }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
-  const { user } = useUserAuth();
+  const { user } = useAuth();
 
   // Load board data from API
   const loadBoardData = useCallback(async (forceRefresh = false) => {
@@ -249,24 +260,42 @@ export const KanbanProvider = ({ children }) => {
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       
-      // Load board, cards, labels, and users in parallel
-      const [boardData, cards, labels, users] = await Promise.all([
+      // Load board data, labels, and users in parallel (API v2.0)
+      const [boardData, labels, users] = await Promise.all([
         kanbanService.getBoard(),
-        kanbanService.getCards(),
         kanbanService.getLabels(),
         kanbanService.getUsers().catch(() => []) // Users endpoint might not exist
       ]);
 
-      // Transform cards if needed
+      console.log('Loaded API v2.0 board data:', boardData);
+
+      // Extract cards and columns from board data (API v2.0 structure)
+      const cards = boardData?.cards || [];
+      const columns = boardData?.columns || [];
+
+      // Transform cards data for API v2.0
       const transformedCards = Array.isArray(cards) 
         ? cards.map(card => kanbanService.transformCardData(card))
-        : (cards?.data || []).map(card => kanbanService.transformCardData(card));
+        : [];
+
+      // Transform columns data for API v2.0
+      const transformedColumns = Array.isArray(columns) 
+        ? columns.map(column => ({
+            id: column._id || column.id,
+            title: column.title,
+            type: column.type || 'static',
+            position: column.position || 0,
+            cards: column.cards || [],
+            settings: column.settings || {},
+            isActive: column.isActive !== false
+          }))
+        : [];
 
       // Set board data
       dispatch({ 
         type: ACTIONS.SET_BOARD_DATA, 
         payload: {
-          columns: boardData?.columns || [],
+          columns: transformedColumns,
           cards: transformedCards
         }
       });
@@ -346,26 +375,72 @@ export const KanbanProvider = ({ children }) => {
   }, [user]);
 
   // Move a card
-  const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null) => {
+  const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null, position = null) => {
     if (!user) {
       throw new Error('User not authenticated');
     }
+
+    // Validate required parameters
+    if (!cardId) {
+      throw new Error('Card ID is required');
+    }
+    if (!fromColumn) {
+      throw new Error('From column is required');
+    }
+    if (!toColumn) {
+      throw new Error('To column is required');
+    }
+
+    // Find the card to get its current data
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card) {
+      throw new Error(`Card with ID ${cardId} not found`);
+    }
+
+    // Use card's actual columnId if fromColumn is undefined
+    const actualFromColumn = fromColumn || card.columnId;
+    if (!actualFromColumn) {
+      throw new Error('Unable to determine source column for card');
+    }
+
+    console.log('Moving card:', {
+      cardId,
+      fromColumn: actualFromColumn,
+      toColumn,
+      toSubcolumn,
+      cardData: {
+        id: card.id,
+        title: card.title,
+        columnId: card.columnId,
+        subcolumnId: card.subcolumnId
+      },
+      user: user
+    });
 
     try {
       // Optimistic update
       dispatch({
         type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn, toColumn, toSubcolumn }
+        payload: { cardId, fromColumn: actualFromColumn, toColumn, toSubcolumn }
       });
 
-      const moveData = {
-        toList: kanbanService.mapColumnToList(toColumn, toSubcolumn),
-        by: {
-          id: user.id || user.username,
-          name: user.name || user.username,
-          role: user.role || 'user'
-        }
-      };
+      // Ensure we have proper user data
+      const userId = user?.id || user?.username || user?.userId || 'unknown';
+      const userName = user?.name || user?.username || user?.displayName || 'Unknown User';
+      const userRole = user?.role || user?.userRole || 'user';
+
+      // Transform move data for API v2.0
+      const moveData = kanbanService.transformMoveData({
+        toList: toColumn,
+        subcolumnId: toSubcolumn,
+        position: position
+      });
+
+      console.log('Move data details:', {
+        toColumn,
+        toSubcolumn,
+        moveData
+      });
 
       const result = await kanbanService.moveCard(cardId, moveData);
       return result;
@@ -374,11 +449,11 @@ export const KanbanProvider = ({ children }) => {
       // Rollback optimistic update
       dispatch({
         type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn: toColumn, toColumn: fromColumn, toSubcolumn: null }
+        payload: { cardId, fromColumn: toColumn, toColumn: actualFromColumn, toSubcolumn: null }
       });
       throw error;
     }
-  }, [user]);
+  }, [user, state.cards]);
 
   // Delete a card
   const deleteCard = useCallback(async (cardId) => {
@@ -693,6 +768,79 @@ export const KanbanProvider = ({ children }) => {
       return [];
     }
   }, []);
+
+  // Removed column sorting functions - using Pragmatic DND only
+
+  // Debug function to show card distribution
+  const debugCardDistribution = useCallback(() => {
+    console.log('=== KANBAN CARD DISTRIBUTION DEBUG ===');
+    console.log('Total cards:', state.cards.length);
+    console.log('Total columns:', state.columns.length);
+    
+    state.columns.forEach(column => {
+      console.log(`\n--- Column: ${column.title} (${column.id}) ---`);
+      console.log('Type:', column.type);
+      console.log('Is Active:', column.isActive);
+      console.log('Is Grouped:', column.isGrouped);
+      
+      if (column.isGrouped && column.subcolumns) {
+        console.log('Subcolumns:', column.subcolumns.length);
+        column.subcolumns.forEach(subcolumn => {
+          const subcolumnCards = getCardsBySubcolumn(subcolumn.id);
+          console.log(`  └─ Subcolumn: ${subcolumn.title} (${subcolumn.id})`);
+          console.log(`     Cards: ${subcolumnCards.length}`);
+          subcolumnCards.forEach((card, index) => {
+            console.log(`       ${index + 1}. ${card.title} (${card.id})`);
+          });
+        });
+      } else {
+        const columnCards = getCardsByColumn(column.id);
+        console.log(`Cards: ${columnCards.length}`);
+        columnCards.forEach((card, index) => {
+          console.log(`  ${index + 1}. ${card.title} (${card.id})`);
+          if (card.subcolumnId) {
+            console.log(`      └─ In subcolumn: ${card.subcolumnId}`);
+          }
+        });
+      }
+    });
+    
+    console.log('\n=== UNASSIGNED CARDS ===');
+    const unassignedCards = state.cards.filter(card => !card.columnId);
+    console.log('Unassigned cards:', unassignedCards.length);
+    unassignedCards.forEach((card, index) => {
+      console.log(`  ${index + 1}. ${card.title} (${card.id})`);
+    });
+    
+    console.log('=== END DEBUG ===');
+  }, [state.cards, state.columns, getCardsByColumn, getCardsBySubcolumn]);
+
+  // Escape key handler - clear selections and close modals
+  const handleEscape = useCallback(() => {
+    // Clear any active filters or search
+    if (state.searchTerm) {
+      setSearchTerm('');
+    }
+    
+    // Reset any column sorts to default
+    // Removed columnSorts reset - using Pragmatic DND only
+    
+    // Clear filters if any are active
+    const hasActiveFilters = Object.values(state.filters).some(filter => 
+      Array.isArray(filter) ? filter.length > 0 : filter
+    );
+    if (hasActiveFilters) {
+      clearFilters();
+    }
+    
+    // Dispatch custom event for other components to handle
+    window.dispatchEvent(new CustomEvent('kanban:escape', {
+      detail: { timestamp: Date.now() }
+    }));
+    
+    console.log('Kanban escape handler executed');
+    return true;
+  }, [state.searchTerm, state.filters, clearFilters]);
 
   // Context value
   const value = {

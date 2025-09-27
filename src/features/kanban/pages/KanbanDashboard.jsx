@@ -6,20 +6,19 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 
-import { useUserAuth } from '../../../contexts/UserAuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { KanbanProvider } from '../contexts/KanbanContext';
 import KanbanBoard from '../components/KanbanBoard';
 import CardModal from '../components/CardModal';
 import Header from '../../user/components/Header';
 import AuthGuard from '../components/AuthGuard';
-import DebugAuth from '../../../components/DebugAuth';
-import AuthSystemTest from '../../../components/AuthSystemTest';
+import PragmaticKanbanBoard from '../components/PragmaticKanbanBoard';
 
 /**
  * Kanban Dashboard Page Component
  */
 const KanbanDashboard = () => {
-  const { user } = useUserAuth();
+  const { user } = useAuth();
   const [modalState, setModalState] = useState({
     isOpen: false,
     card: null,
@@ -68,15 +67,14 @@ const KanbanDashboard = () => {
         {/* Debug Auth Info - Development Only */}
         {process.env.NODE_ENV === 'development' && (
           <>
-            {/* <DebugAuth /> */}
-            {/* <AuthSystemTest /> */}
+            {/* Debug components removed - using new auth system */}
           </>
         )}
         
         {/* Main Content */}
         <div className="flex-1 h-[calc(100vh-64px)]">
           <KanbanProvider>
-            <KanbanBoard onCardClick={handleCardClick} onCreateCard={handleCreateCard} />
+            <PragmaticKanbanBoard onCardClick={handleCardClick} onCreateCard={handleCreateCard} />
             <CardModal 
               isOpen={modalState.isOpen}
               card={modalState.card}

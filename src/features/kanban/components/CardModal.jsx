@@ -36,6 +36,7 @@ import { useDueDateStatus, usePriorityDisplay, useLabelsDisplay } from '../hooks
 import { CARD_PRIORITIES, COLUMN_TYPES } from '../utils/constants';
 import CardChecklist from './CardChecklist';
 import LabelManager from './LabelManager';
+import { LoadingOverlay } from '../../../components';
 
 /**
  * Enhanced Card Modal Component
@@ -54,6 +55,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
   } = useKanban();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -122,6 +124,32 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        console.log('CardModal: Escape key pressed, closing modal');
+        onClose();
+      }
+    };
+
+    // Listen for both the custom kanban escape event and direct keydown
+    const handleKanbanEscape = (event) => {
+      console.log('CardModal: Received kanban escape event, closing modal');
+      onClose();
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('kanban:escape', handleKanbanEscape);
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('kanban:escape', handleKanbanEscape);
+    };
+  }, [isOpen, onClose]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -284,6 +312,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
       return;
     }
 
+    setIsCommentSubmitting(true);
     try {
       await addComment(card.id, newComment);
       setNewComment('');
@@ -291,6 +320,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Error adding comment');
+    } finally {
+      setIsCommentSubmitting(false);
     }
   };
 
@@ -467,11 +498,19 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={onClose}
-    >
+    <>
+      {/* Loading Overlay for form submission */}
+      {isSubmitting && <LoadingOverlay message="Saving card..." />}
+      
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+        onClick={onClose}
+        data-modal="true"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-modal-title"
+      >
       <div 
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -529,6 +568,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+              data-close="true"
+              aria-label="Close modal"
             >
               <X size={20} />
             </button>
@@ -548,6 +589,7 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                   </label>
                   <input
                     type="text"
+                    id="card-modal-title"
                     {...register('title', { required: 'Title is required' })}
                     disabled={!isEditing}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
@@ -901,10 +943,14 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
                         <button
                           type="button"
                           onClick={handleCommentSubmit}
-                          disabled={!newComment.trim()}
+                          disabled={!newComment.trim() || isCommentSubmitting}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Send size={16} />
+                          {isCommentSubmitting ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Send size={16} />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -1069,7 +1115,8 @@ const CardModal = ({ isOpen, card, mode, onClose }) => {
         onClose={() => setIsLabelManagerOpen(false)}
         onLabelSelect={handleLabelSelect}
       />
-    </div>
+      </div>
+    </>
   );
 };
 

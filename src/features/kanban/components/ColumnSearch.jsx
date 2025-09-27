@@ -9,6 +9,7 @@ import clsx from 'clsx';
 
 import { useKanban } from '../contexts/KanbanContext';
 import { UI_CONSTANTS } from '../utils/constants';
+import { LoadingOverlay } from '../../../components';
 
 /**
  * Column Search Component
@@ -68,50 +69,62 @@ const ColumnSearch = ({
   };
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search 
-          className={clsx(
-            "absolute left-3 top-1/2 transform -translate-y-1/2",
-            isSearching ? "text-blue-500" : "text-gray-400"
-          )} 
-          size={16} 
-        />
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className={clsx(
-            "w-full pl-10 pr-10 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-            "bg-white dark:bg-gray-700 text-gray-900 dark:text-white",
-            "border-gray-300 dark:border-gray-600",
-            "placeholder-gray-500 dark:placeholder-gray-400"
-          )}
-        />
-        {searchTerm && (
-          <button
-            onClick={handleClearSearch}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
+    <>
+      {/* Loading Overlay for search operations */}
+      {isSearching && <LoadingOverlay message="Searching cards..." />}
       
-      {/* Search Results Indicator */}
-      {searchTerm && (
-        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {isSearching ? (
-            <span className="text-blue-500">Searching...</span>
-          ) : (
-            <span>
-              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
-            </span>
+      <div className="relative">
+        <div className="relative">
+          <Search 
+            className={clsx(
+              "absolute left-3 top-1/2 transform -translate-y-1/2",
+              isSearching ? "text-blue-500" : "text-gray-400"
+            )} 
+            size={16} 
+          />
+          <input
+            type="text"
+            placeholder={placeholder}
+            value={searchTerm}
+            onChange={handleSearchChange}
+            disabled={isSearching}
+            className={clsx(
+              "w-full pl-10 pr-10 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              "bg-white dark:bg-gray-700 text-gray-900 dark:text-white",
+              "border-gray-300 dark:border-gray-600",
+              "placeholder-gray-500 dark:placeholder-gray-400",
+              isSearching && "opacity-50 cursor-not-allowed"
+            )}
+          />
+          {searchTerm && !isSearching && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <X size={14} />
+            </button>
+          )}
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
           )}
         </div>
-      )}
-    </div>
+        
+        {/* Search Results Indicator */}
+        {searchTerm && (
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {isSearching ? (
+              <span className="text-blue-500">Searching...</span>
+            ) : (
+              <span>
+                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
