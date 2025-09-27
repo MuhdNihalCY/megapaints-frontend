@@ -139,8 +139,8 @@ api.interceptors.request.use(
     if (!config.headers) config.headers = {};
     
     // Skip token for login and refresh endpoints
-    const isLoginEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/admin/auth/login');
-    const isRefreshEndpoint = config.url?.includes('/auth/refresh') || config.url?.includes('/admin/auth/refresh');
+    const isLoginEndpoint = config.url?.includes('/auth/admin/login') || config.url?.includes('/auth/user/login');
+    const isRefreshEndpoint = config.url?.includes('/auth/admin/refresh') || config.url?.includes('/auth/user/refresh');
     const shouldSkipToken = isLoginEndpoint || isRefreshEndpoint || config._noIntercept;
     
     if (shouldSkipToken) {
@@ -189,7 +189,7 @@ api.interceptors.response.use(
       } catch {}
     }
     const isRefreshCall = typeof originalRequest?.url === 'string' && (
-              originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/admin/auth/refresh')
+      originalRequest.url.includes('/auth/admin/refresh') || originalRequest.url.includes('/auth/user/refresh')
     );
 
     if (!isUnauthorized || isRefreshCall) {

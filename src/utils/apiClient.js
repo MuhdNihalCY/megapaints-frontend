@@ -27,6 +27,9 @@ class ApiClient {
       (config) => {
         const token = this.getToken();
         if (token) {
+          if (!config.headers) {
+            config.headers = {};
+          }
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -53,6 +56,9 @@ class ApiClient {
                 // Retry the original request with new token
                 const newToken = this.getToken();
                 if (newToken) {
+                  if (!originalRequest.headers) {
+                    originalRequest.headers = {};
+                  }
                   originalRequest.headers.Authorization = `Bearer ${newToken}`;
                 }
                 return this.client(originalRequest);
