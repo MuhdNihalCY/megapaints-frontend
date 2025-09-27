@@ -105,31 +105,52 @@ export function setUserRole(role) {
   currentUserRole = role;
 }
 
-function readJwtToken() {
+// Export the centralized auth token helper for use by other modules
+export { getAuthToken };
+
+// Centralized auth token helper that checks both camelCase and snake_case variants
+function getAuthToken() {
+  // Priority 1: In-memory token from authService
   if (inMemoryJwtToken) return inMemoryJwtToken;
   
+  // Try to get the current user role from authService
+  let currentUserRole = null;
   try {
-    // Use in-memory role first, then fallback to any available token
+    currentUserRole = authService.isAdmin() ? 'admin' : 'user';
+  } catch (_) {}
+  
+  // Priority 2: localStorage variants (both camelCase and snake_case)
+  try {
     if (currentUserRole === 'admin') {
-      const adminToken = localStorage.getItem('admin_access_token');
+      const adminToken = localStorage.getItem('adminAccessToken') || localStorage.getItem('admin_access_token');
       if (adminToken) return adminToken;
     } else if (currentUserRole === 'user') {
-      const userToken = localStorage.getItem('user_access_token');
+      const userToken = localStorage.getItem('userAccessToken') || localStorage.getItem('user_access_token');
       if (userToken) return userToken;
     }
     
-    // Fallback to any available token
-    const ls = localStorage.getItem('access_token') || localStorage.getItem('user_access_token') || localStorage.getItem('admin_access_token');
+    // Fallback to any available token (both camelCase and snake_case)
+    const ls = localStorage.getItem('accessToken') || localStorage.getItem('access_token') || 
+               localStorage.getItem('userAccessToken') || localStorage.getItem('user_access_token') || 
+               localStorage.getItem('adminAccessToken') || localStorage.getItem('admin_access_token');
     if (ls) return ls;
   } catch (_) {}
   
+  // Priority 3: Cookie variants (both camelCase and snake_case)
   try {
-    // Check for the actual cookie names used by your backend
-    const ck = Cookies.get('auth_token') || Cookies.get('access_token') || Cookies.get('user_access_token') || Cookies.get('admin_access_token');
+    const ck = Cookies.get('authToken') || Cookies.get('auth_token') || 
+               Cookies.get('accessToken') || Cookies.get('access_token') || 
+               Cookies.get('userAccessToken') || Cookies.get('user_access_token') || 
+               Cookies.get('adminAccessToken') || Cookies.get('admin_access_token');
     if (ck) return ck;
   } catch (_) {}
   
   return null;
+}
+
+// Legacy function name for backward compatibility
+function readJwtToken() {
+  return getAuthToken();
 }
 
 // Request interceptor to add auth headers if needed
@@ -148,17 +169,20 @@ api.interceptors.request.use(
       return config;
     }
     
-    // Attach Authorization header if a JWT is available (server may validate either header or cookie)
+    // Always refresh Authorization header with latest JWT token
     try {
-      const token = readJwtToken();
-      if (token && !config.headers.Authorization) {
+      const token = getAuthToken();
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.debug('[API] Added Authorization header for:', config.url);
-      } else if (!token) {
-        console.warn('[API] No token available for request:', config.url);
+        console.debug('[API] Refreshed Authorization header for:', config.url);
+      } else {
+        // Remove stale Authorization header when no token exists
+        delete config.headers.Authorization;
+        console.warn('[API] No token available, removed Authorization header for:', config.url);
       }
     } catch (error) {
       console.error('[API] Error reading token:', error);
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -210,6 +234,12 @@ api.interceptors.response.use(
       return new Promise((resolve, reject) => {
         enqueuePendingRequest((refreshError) => {
           if (refreshError) return reject(refreshError);
+          // Update Authorization header with fresh token before retry
+          const freshToken = getAuthToken();
+          if (freshToken) {
+            if (!originalRequest.headers) originalRequest.headers = {};
+            originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+          }
           // Retry original request after refresh
           api.request(originalRequest)
             .then((res) => { try { console.debug('[API] Retried request succeeded:', originalRequest?.url); } catch {}; resolve(res); })
@@ -225,6 +255,12 @@ api.interceptors.response.use(
       isRefreshing = false;
       if (ok) {
         resolvePendingRequests();
+        // Update Authorization header with fresh token before retry
+        const freshToken = getAuthToken();
+        if (freshToken) {
+          if (!originalRequest.headers) originalRequest.headers = {};
+          originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+        }
         api.request(originalRequest)
           .then((res) => { try { console.debug('[API] Retried after refresh succeeded:', originalRequest?.url); } catch {}; resolve(res); })
           .catch((err) => { try { console.warn('[API] Retried after refresh failed:', originalRequest?.url); } catch {}; reject(err); });

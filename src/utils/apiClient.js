@@ -43,6 +43,11 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
+        // Guard against undefined error.config
+        if (!error.config) {
+          return Promise.reject(error);
+        }
+        
         const originalRequest = error.config;
 
         if (error.response?.status === 401 && !originalRequest._retry) {
