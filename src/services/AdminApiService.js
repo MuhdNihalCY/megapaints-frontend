@@ -501,7 +501,145 @@ class AdminApiService {
     return await this.apiRequest(`/admin/business/users/${userId}`);
   }
 
-  // ==================== UTILITY METHODS ====================
+  // ==================== BOARD MANAGEMENT ====================
+
+  /**
+   * Get all boards with pagination
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} Boards data
+   */
+  async getBoards(params = {}) {
+    const queryString = this.buildQueryParams({
+      page: 1,
+      limit: 20,
+      ...params
+    });
+    return await this.apiRequest(`/board?${queryString}`);
+  }
+
+  /**
+   * Get board by ID
+   * @param {string} boardId - Board ID
+   * @returns {Promise<Object>} Board data
+   */
+  async getBoardById(boardId) {
+    return await this.apiRequest(`/board/${boardId}`);
+  }
+
+  /**
+   * Create new board
+   * @param {Object} boardData - Board data
+   * @returns {Promise<Object>} Created board
+   */
+  async createBoard(boardData) {
+    return await this.apiRequest('/board', {
+      method: 'POST',
+      body: JSON.stringify(boardData)
+    });
+  }
+
+  /**
+   * Update board
+   * @param {string} boardId - Board ID
+   * @param {Object} boardData - Board data
+   * @returns {Promise<Object>} Updated board
+   */
+  async updateBoard(boardId, boardData) {
+    return await this.apiRequest(`/board/${boardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(boardData)
+    });
+  }
+
+  /**
+   * Delete board
+   * @param {string} boardId - Board ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteBoard(boardId) {
+    return await this.apiRequest(`/board/${boardId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Get boards by branch
+   * @param {string} branchId - Branch ID
+   * @returns {Promise<Object>} Branch boards
+   */
+  async getBoardsByBranch(branchId) {
+    return await this.apiRequest(`/board/v2/board/branch?branchId=${branchId}`);
+  }
+
+  // ==================== LABEL MANAGEMENT ====================
+
+  /**
+   * Get all labels with pagination
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} Labels data
+   */
+  async getLabels(params = {}) {
+    const queryString = this.buildQueryParams({
+      page: 1,
+      limit: 20,
+      ...params
+    });
+    return await this.apiRequest(`/label?${queryString}`);
+  }
+
+  /**
+   * Get label by ID
+   * @param {string} labelId - Label ID
+   * @returns {Promise<Object>} Label data
+   */
+  async getLabelById(labelId) {
+    return await this.apiRequest(`/label/${labelId}`);
+  }
+
+  /**
+   * Create new label
+   * @param {Object} labelData - Label data
+   * @returns {Promise<Object>} Created label
+   */
+  async createLabel(labelData) {
+    return await this.apiRequest('/label', {
+      method: 'POST',
+      body: JSON.stringify(labelData)
+    });
+  }
+
+  /**
+   * Update label
+   * @param {string} labelId - Label ID
+   * @param {Object} labelData - Label data
+   * @returns {Promise<Object>} Updated label
+   */
+  async updateLabel(labelId, labelData) {
+    return await this.apiRequest(`/label/${labelId}`, {
+      method: 'PUT',
+      body: JSON.stringify(labelData)
+    });
+  }
+
+  /**
+   * Delete label
+   * @param {string} labelId - Label ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteLabel(labelId) {
+    return await this.apiRequest(`/label/${labelId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Get labels by board
+   * @param {string} boardId - Board ID
+   * @returns {Promise<Object>} Board labels
+   */
+  async getLabelsByBoard(boardId) {
+    return await this.apiRequest(`/label/v2/labels?boardId=${boardId}`);
+  }
 
   /**
    * Clear stored tokens

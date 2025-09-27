@@ -56,11 +56,23 @@ const ApiServiceExample = () => {
       const summary = await adminServices.productCatalog.getSummary();
       console.log('Summary:', summary);
 
+      // Example 5: Get Kanban boards
+      console.log('📋 Fetching Kanban boards...');
+      const boards = await adminServices.kanbanBoard.getBoards();
+      console.log('Boards:', boards);
+
+      // Example 6: Get labels
+      console.log('🏷️ Fetching labels...');
+      const labels = await adminServices.labelManagement.getLabels();
+      console.log('Labels:', labels);
+
       setData({
         products: products.data.products,
         additives: additives.data.additives,
         allItems: allItems.data.items,
-        summary: summary
+        summary: summary,
+        boards: boards.data.boards,
+        labels: labels.data.labels
       });
 
     } catch (err) {
@@ -172,6 +184,61 @@ const ApiServiceExample = () => {
     }
   };
 
+  // Example: Kanban Board Operations
+  const handleKanbanExample = async () => {
+    if (!isAdmin) {
+      setError('Admin access required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Initialize admin services
+      const adminServices = apiServiceFactory.initializeAdminServices();
+      
+      // Example 1: Get branch board data
+      console.log('📋 Fetching branch board data...');
+      const boardData = await adminServices.kanbanBoard.getBranchBoardData();
+      console.log('Board Data:', boardData);
+
+      // Example 2: Get columns
+      console.log('📊 Fetching columns...');
+      const columns = await adminServices.kanbanBoard.getColumns();
+      console.log('Columns:', columns);
+
+      // Example 3: Get cards
+      console.log('🎴 Fetching cards...');
+      const cards = await adminServices.kanbanBoard.getCards();
+      console.log('Cards:', cards);
+
+      // Example 4: Get labels
+      console.log('🏷️ Fetching branch labels...');
+      const branchLabels = await adminServices.labelManagement.getBranchLabels();
+      console.log('Branch Labels:', branchLabels);
+
+      // Example 5: Get board statistics
+      console.log('📈 Fetching board statistics...');
+      const boardStats = await adminServices.kanbanBoard.getBoardStatistics();
+      console.log('Board Statistics:', boardStats);
+
+      setData({
+        boardData: boardData.data,
+        columns: columns.data,
+        cards: cards.data,
+        branchLabels: branchLabels.data,
+        boardStats: boardStats.data
+      });
+
+    } catch (err) {
+      console.error('Kanban example failed:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Example: Health Check
   const handleHealthCheck = async () => {
     try {
@@ -275,6 +342,13 @@ const ApiServiceExample = () => {
               className="p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
             >
               Admin: Business Management
+            </button>
+            <button
+              onClick={handleKanbanExample}
+              disabled={loading}
+              className="p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+            >
+              Admin: Kanban Boards
             </button>
           </>
         )}

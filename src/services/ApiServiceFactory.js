@@ -7,6 +7,8 @@ import AdminApiService from './AdminApiService.js';
 import UserApiService from './UserApiService.js';
 import ProductCatalogService from './ProductCatalogService.js';
 import BusinessManagementService from './BusinessManagementService.js';
+import KanbanBoardService from './KanbanBoardService.js';
+import LabelManagementService from './LabelManagementService.js';
 
 class ApiServiceFactory {
   constructor() {
@@ -14,6 +16,8 @@ class ApiServiceFactory {
     this.userApi = null;
     this.productCatalog = null;
     this.businessManagement = null;
+    this.kanbanBoard = null;
+    this.labelManagement = null;
     this.currentUserType = null;
   }
 
@@ -26,13 +30,17 @@ class ApiServiceFactory {
       this.adminApi = new AdminApiService();
       this.productCatalog = new ProductCatalogService(this.adminApi);
       this.businessManagement = new BusinessManagementService(this.adminApi);
+      this.kanbanBoard = new KanbanBoardService(this.adminApi);
+      this.labelManagement = new LabelManagementService(this.adminApi);
     }
     this.currentUserType = 'admin';
     
     return {
       admin: this.adminApi,
       productCatalog: this.productCatalog,
-      businessManagement: this.businessManagement
+      businessManagement: this.businessManagement,
+      kanbanBoard: this.kanbanBoard,
+      labelManagement: this.labelManagement
     };
   }
 
@@ -86,6 +94,8 @@ class ApiServiceFactory {
       services.admin = this.adminApi;
       services.productCatalog = this.productCatalog;
       services.businessManagement = this.businessManagement;
+      services.kanbanBoard = this.kanbanBoard;
+      services.labelManagement = this.labelManagement;
     }
     
     if (this.isUserServicesAvailable()) {
@@ -110,6 +120,8 @@ class ApiServiceFactory {
     this.userApi = null;
     this.productCatalog = null;
     this.businessManagement = null;
+    this.kanbanBoard = null;
+    this.labelManagement = null;
     this.currentUserType = null;
   }
 

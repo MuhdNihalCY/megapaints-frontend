@@ -10,6 +10,8 @@ The API services are organized into separate, specialized classes that handle di
 - **UserApiService**: Handles all user-specific API calls  
 - **ProductCatalogService**: Specialized service for product management (admin only)
 - **BusinessManagementService**: Specialized service for business operations (admin only)
+- **KanbanBoardService**: Specialized service for Kanban board management (admin only) ✨ **NEW**
+- **LabelManagementService**: Specialized service for label management (admin only) ✨ **NEW**
 - **ApiServiceFactory**: Central factory that manages all services and provides a unified interface
 
 ## 📁 File Structure
@@ -20,6 +22,8 @@ src/services/
 ├── UserApiService.js           # User API operations
 ├── ProductCatalogService.js    # Product management (admin)
 ├── BusinessManagementService.js # Business operations (admin)
+├── KanbanBoardService.js       # Kanban board management (admin) ✨ NEW
+├── LabelManagementService.js   # Label management (admin) ✨ NEW
 ├── ApiServiceFactory.js        # Central service factory
 ├── index.js                    # Export definitions
 └── README.md                   # This documentation
@@ -116,6 +120,126 @@ await userApi.getFormulas();
 await userApi.createFormula(formulaData);
 await userApi.getOrders();
 await userApi.getAvailableProducts();
+```
+
+### KanbanBoardService ✨ **NEW**
+
+Specialized service for admin Kanban board management:
+
+```javascript
+const kanbanBoard = new KanbanBoardService(adminApi);
+
+// Board Management
+await kanbanBoard.getBoards();
+await kanbanBoard.getBoardById(boardId);
+await kanbanBoard.createBoard(boardData);
+await kanbanBoard.updateBoard(boardId, boardData);
+await kanbanBoard.deleteBoard(boardId);
+await kanbanBoard.getBoardsByBranch(branchId);
+
+// Board V2 Management
+await kanbanBoard.getBranchBoardData();
+await kanbanBoard.getBoardStructure();
+await kanbanBoard.updateBoardSettings(settings);
+await kanbanBoard.getBoardActivity();
+
+// Card Management
+await kanbanBoard.getCards();
+await kanbanBoard.getCardById(cardId);
+await kanbanBoard.createCard(cardData);
+await kanbanBoard.updateCard(cardId, cardData);
+await kanbanBoard.deleteCard(cardId);
+await kanbanBoard.moveCard(cardId, moveData);
+await kanbanBoard.archiveCard(cardId);
+await kanbanBoard.restoreCard(cardId);
+await kanbanBoard.duplicateCard(cardId);
+
+// Column Management
+await kanbanBoard.getColumns();
+await kanbanBoard.createColumn(columnData);
+await kanbanBoard.updateColumn(columnId, columnData);
+await kanbanBoard.deleteColumn(columnId);
+await kanbanBoard.reorderColumns(columnOrder);
+
+// Comment Management
+await kanbanBoard.getCardComments(cardId);
+await kanbanBoard.addComment(cardId, commentData);
+await kanbanBoard.updateComment(commentId, commentData);
+await kanbanBoard.deleteComment(commentId);
+
+// Label Management
+await kanbanBoard.getLabels();
+await kanbanBoard.createLabel(labelData);
+await kanbanBoard.updateLabel(labelId, labelData);
+await kanbanBoard.deleteLabel(labelId);
+
+// Analytics & Statistics
+await kanbanBoard.getBoardStatistics();
+await kanbanBoard.getCardAnalytics();
+
+// Search & Filtering
+await kanbanBoard.searchCards(searchTerm);
+await kanbanBoard.filterCards(filters);
+
+// Bulk Operations
+await kanbanBoard.bulkUpdateCards(cardUpdates);
+await kanbanBoard.bulkMoveCards(cardMoves);
+```
+
+### LabelManagementService ✨ **NEW**
+
+Specialized service for admin label management:
+
+```javascript
+const labelManagement = new LabelManagementService(adminApi);
+
+// Label Management
+await labelManagement.getLabels();
+await labelManagement.getLabelById(labelId);
+await labelManagement.createLabel(labelData);
+await labelManagement.updateLabel(labelId, labelData);
+await labelManagement.deleteLabel(labelId);
+await labelManagement.getLabelsByBoard(boardId);
+
+// Label V2 Management
+await labelManagement.getBranchLabels();
+await labelManagement.createBranchLabel(labelData);
+await labelManagement.updateBranchLabel(labelId, labelData);
+await labelManagement.deleteBranchLabel(labelId);
+
+// Label Categories
+await labelManagement.getLabelsByCategory('priority');
+await labelManagement.getPriorityLabels();
+await labelManagement.getStatusLabels();
+await labelManagement.getTypeLabels();
+await labelManagement.getCustomLabels();
+
+// Color Management
+const colors = labelManagement.getAvailableColors();
+const randomColor = labelManagement.generateRandomColor();
+const textColor = labelManagement.calculateTextColor(backgroundColor);
+const isValidColor = labelManagement.validateColor(color);
+
+// Search & Filtering
+await labelManagement.searchLabels(searchTerm);
+await labelManagement.filterLabels(filters);
+await labelManagement.getLabelsByUsage();
+
+// Analytics & Statistics
+await labelManagement.getLabelStatistics();
+await labelManagement.getLabelUsageAnalytics();
+
+// Bulk Operations
+await labelManagement.bulkCreateLabels(labels);
+await labelManagement.bulkUpdateLabels(labelUpdates);
+await labelManagement.bulkDeleteLabels(labelIds);
+
+// Utility Methods
+const validation = labelManagement.validateLabelData(labelData);
+const apiData = labelManagement.transformLabelToApi(labelData);
+const frontendData = labelManagement.transformLabelFromApi(apiLabel);
+const defaultLabels = labelManagement.createDefaultLabels();
+const csvData = await labelManagement.exportLabelsToCSV();
 ```
 
 ### ProductCatalogService
