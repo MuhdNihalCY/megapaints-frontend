@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -9,6 +9,7 @@ const Login = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState([]);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -19,12 +20,14 @@ const Login = () => {
       [e.target.name]: e.target.value
     });
     setError('');
+    setValidationErrors([]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setValidationErrors([]);
 
     if (!formData.username.trim() || !formData.password.trim()) {
       setError('Please fill in all fields');
@@ -35,16 +38,45 @@ const Login = () => {
     try {
       const result = await login(formData.username, formData.password, 'user');
       if (result.success) {
-        navigate(result.redirect);
+        navigate('/dashboard');
       } else {
-        setError(result.message);
+        // Handle validation errors
+        if (result.validationErrors && Array.isArray(result.validationErrors)) {
+          setValidationErrors(result.validationErrors);
+        } else {
+          setError(result.message);
+        }
       }
     } catch (err) {
       if (err.code === 'ERR_NETWORK') {
         setError('Unable to connect to server. Please check if the backend is running.');
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError(err.message || 'An unexpected error occurred. Please try again.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError('');
+    setValidationErrors([]);
+    
+    try {
+      const result = await login('demo', 'demo', 'user');
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        // Handle validation errors
+        if (result.validationErrors && Array.isArray(result.validationErrors)) {
+          setValidationErrors(result.validationErrors);
+        } else {
+          setError(result.message);
+        }
+      }
+    } catch (err) {
+      setError('Demo login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -54,7 +86,6 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
               MegaPaints Login
@@ -65,8 +96,6 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-          
-
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Username
@@ -99,6 +128,19 @@ const Login = () => {
               />
             </div>
 
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                <div className="font-medium mb-2">Please fix the following errors:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="text-sm">{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* General Error Message */}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
                 {error}
@@ -108,27 +150,28 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign In'
-              )}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          <div className="mt-6 text-center space-y-2">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Welcome to MegaPaints - Your Creative Digital Canvas
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Are you an admin?{' '}
-              <Link to="/admin/login" className="text-blue-600 dark:text-blue-400 hover:underline">
-                Go to admin login
+          {/* Demo Login Button */}
+          <div className="mt-4">
+            <button
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              {loading ? 'Signing in...' : 'Demo Login (No Backend)'}
+            </button>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign up
               </Link>
             </p>
           </div>
@@ -139,3 +182,5 @@ const Login = () => {
 };
 
 export default Login;
+
+
