@@ -1,6 +1,6 @@
 /**
  * Permissions System
- * RBAC/ABAC implementation for Kanban board
+ * RBAC/ABAC implementation for Kanban board based on user designation
  */
 
 // Permission types
@@ -19,8 +19,8 @@ export const PERMISSIONS = {
   VIEW_ACTIVITY: 'VIEW_ACTIVITY'
 };
 
-// Role definitions
-export const ROLES = {
+// Designation definitions (based on user.designation field)
+export const DESIGNATIONS = {
   ADMIN: 'admin',
   SALES_LEAD: 'saleslead',
   PRODUCTION_LEAD: 'productionlead',
@@ -31,56 +31,57 @@ export const ROLES = {
   OFFICE: 'office'
 };
 
-// Permission matrix
+// Permission matrix based on designation
 const PERMISSION_MATRIX = {
-  [ROLES.ADMIN]: Object.values(PERMISSIONS),
-  [ROLES.SALES_LEAD]: [
+  [DESIGNATIONS.ADMIN]: Object.values(PERMISSIONS),
+  [DESIGNATIONS.SALES_LEAD]: [
+    PERMISSIONS.VIEW_BOARD,
+    PERMISSIONS.CREATE_CARD,
+    PERMISSIONS.EDIT_CARD,
+    PERMISSIONS.DELETE_CARD,
+    PERMISSIONS.MOVE_CARD,
+    PERMISSIONS.MANAGE_COLUMNS,
+    PERMISSIONS.COMMENT,
+    PERMISSIONS.ASSIGN_USERS,
+    PERMISSIONS.CHANGE_DUE,
+    PERMISSIONS.CHANGE_LABELS,
+    PERMISSIONS.SEARCH_CARDS,
+    PERMISSIONS.VIEW_ACTIVITY
+  ],
+  [DESIGNATIONS.PRODUCTION_LEAD]: [
+    PERMISSIONS.VIEW_BOARD,
+    PERMISSIONS.EDIT_CARD,
+    PERMISSIONS.MOVE_CARD,
+    PERMISSIONS.MANAGE_COLUMNS,
+    PERMISSIONS.COMMENT,
+    PERMISSIONS.ASSIGN_USERS,
+    PERMISSIONS.CHANGE_DUE,
+    PERMISSIONS.CHANGE_LABELS,
+    PERMISSIONS.SEARCH_CARDS,
+    PERMISSIONS.VIEW_ACTIVITY
+  ],
+  [DESIGNATIONS.DRIVER_LEAD]: [
+    PERMISSIONS.VIEW_BOARD,
+    PERMISSIONS.EDIT_CARD,
+    PERMISSIONS.MOVE_CARD,
+    PERMISSIONS.MANAGE_COLUMNS,
+    PERMISSIONS.COMMENT,
+    PERMISSIONS.ASSIGN_USERS,
+    PERMISSIONS.CHANGE_DUE,
+    PERMISSIONS.CHANGE_LABELS,
+    PERMISSIONS.SEARCH_CARDS,
+    PERMISSIONS.VIEW_ACTIVITY
+  ],
+  [DESIGNATIONS.SALES]: [
     PERMISSIONS.VIEW_BOARD,
     PERMISSIONS.CREATE_CARD,
     PERMISSIONS.EDIT_CARD,
     PERMISSIONS.MOVE_CARD,
-    PERMISSIONS.MANAGE_COLUMNS,
-    PERMISSIONS.COMMENT,
-    PERMISSIONS.ASSIGN_USERS,
-    PERMISSIONS.CHANGE_DUE,
-    PERMISSIONS.CHANGE_LABELS,
-    PERMISSIONS.SEARCH_CARDS,
-    PERMISSIONS.VIEW_ACTIVITY
-  ],
-  [ROLES.PRODUCTION_LEAD]: [
-    PERMISSIONS.VIEW_BOARD,
-    PERMISSIONS.EDIT_CARD,
-    PERMISSIONS.MOVE_CARD,
-    PERMISSIONS.MANAGE_COLUMNS,
-    PERMISSIONS.COMMENT,
-    PERMISSIONS.ASSIGN_USERS,
-    PERMISSIONS.CHANGE_DUE,
-    PERMISSIONS.CHANGE_LABELS,
-    PERMISSIONS.SEARCH_CARDS,
-    PERMISSIONS.VIEW_ACTIVITY
-  ],
-  [ROLES.DRIVER_LEAD]: [
-    PERMISSIONS.VIEW_BOARD,
-    PERMISSIONS.EDIT_CARD,
-    PERMISSIONS.MOVE_CARD,
-    PERMISSIONS.MANAGE_COLUMNS,
-    PERMISSIONS.COMMENT,
-    PERMISSIONS.ASSIGN_USERS,
-    PERMISSIONS.CHANGE_DUE,
-    PERMISSIONS.CHANGE_LABELS,
-    PERMISSIONS.SEARCH_CARDS,
-    PERMISSIONS.VIEW_ACTIVITY
-  ],
-  [ROLES.SALES]: [
-    PERMISSIONS.VIEW_BOARD,
-    PERMISSIONS.CREATE_CARD,
-    PERMISSIONS.EDIT_CARD,
-    PERMISSIONS.MOVE_CARD,
     PERMISSIONS.COMMENT,
     PERMISSIONS.SEARCH_CARDS,
     PERMISSIONS.VIEW_ACTIVITY
   ],
-  [ROLES.PRODUCTION]: [
+  [DESIGNATIONS.PRODUCTION]: [
     PERMISSIONS.VIEW_BOARD,
     PERMISSIONS.EDIT_CARD,
     PERMISSIONS.MOVE_CARD,
@@ -88,7 +89,7 @@ const PERMISSION_MATRIX = {
     PERMISSIONS.SEARCH_CARDS,
     PERMISSIONS.VIEW_ACTIVITY
   ],
-  [ROLES.DRIVER]: [
+  [DESIGNATIONS.DRIVER]: [
     PERMISSIONS.VIEW_BOARD,
     PERMISSIONS.EDIT_CARD,
     PERMISSIONS.MOVE_CARD,
@@ -96,7 +97,7 @@ const PERMISSION_MATRIX = {
     PERMISSIONS.SEARCH_CARDS,
     PERMISSIONS.VIEW_ACTIVITY
   ],
-  [ROLES.OFFICE]: [
+  [DESIGNATIONS.OFFICE]: [
     PERMISSIONS.VIEW_BOARD,
     PERMISSIONS.COMMENT,
     PERMISSIONS.SEARCH_CARDS,
@@ -105,41 +106,87 @@ const PERMISSION_MATRIX = {
 };
 
 /**
- * Check if user has permission
+ * Check if user has permission based on designation
  */
 export const hasPermission = (user, permission) => {
-  console.log("user________________:", user);
-  console.log("permission________________:", permission);
-  if (!user || !user.role) return false;
+  if (!user || !user.designation) {
+    console.warn('User or designation not found:', user);
+    return false;
+  }
+  
   const userPermissions = PERMISSION_MATRIX[user.designation] || [];
-  return userPermissions.includes(permission);
+  const hasAccess = userPermissions.includes(permission);
+  
+  console.log(`Permission check - User: ${user.username} (${user.designation}), Permission: ${permission}, Result: ${hasAccess}`);
+  return hasAccess;
 };
 
 /**
- * Check if user can perform action
+ * Check if user can perform action with context-aware logic
  */
-export const canPerformAction = (user, action, resource = null) => {
-  if (!user) return false;
-  console.log("user________________:", user);
-  console.log("action________________:", action);
-  console.log("resource________________:", resource);
+export const canPerformAction = (user, action, resource = null, context = {}) => {
+  if (!user) {
+    console.warn('No user provided for permission check');
+    return false;
+  }
+
+  console.log(`Action check - User: ${user.username} (${user.designation}), Action: ${action}`, { resource, context });
+
   switch (action) {
     case 'CREATE_CARD':
-      return hasPermission(user, PERMISSIONS.CREATE_CARD) && 
-            //  (resource?.type === 'sales' || resource?.id === 'sales');
-            true;
+      // Sales users can create cards in sales column
+      if (user.designation === DESIGNATIONS.SALES) {
+        return hasPermission(user, PERMISSIONS.CREATE_CARD);
+      }
+      // Sales leads and admins can create cards anywhere
+      if (user.designation === DESIGNATIONS.SALES_LEAD || user.designation === DESIGNATIONS.ADMIN) {
+        return hasPermission(user, PERMISSIONS.CREATE_CARD);
+      }
+      return false;
     
     case 'EDIT_CARD':
-      return hasPermission(user, PERMISSIONS.EDIT_CARD) ||
-             resource?.createdBy === user.id ||
-             resource?.assignees?.includes(user.id);
+      // Check if user has edit permission
+      if (hasPermission(user, PERMISSIONS.EDIT_CARD)) {
+        return true;
+      }
+      // Allow card creator to edit their own cards
+      if (resource?.createdBy === user._id) {
+        return true;
+      }
+      // Allow assignees to edit cards assigned to them
+      if (resource?.assignees?.includes(user._id)) {
+        return true;
+      }
+      return false;
     
     case 'DELETE_CARD':
-      return hasPermission(user, PERMISSIONS.DELETE_CARD) ||
-             resource?.createdBy === user.id;
+      // Check if user has delete permission
+      if (hasPermission(user, PERMISSIONS.DELETE_CARD)) {
+        return true;
+      }
+      // Allow card creator to delete their own cards
+      if (resource?.createdBy === user._id) {
+        return true;
+      }
+      return false;
     
     case 'MOVE_CARD':
-      return hasPermission(user, PERMISSIONS.MOVE_CARD);
+      // Check if user has move permission
+      if (!hasPermission(user, PERMISSIONS.MOVE_CARD)) {
+        return false;
+      }
+      
+      // Additional context checks for move restrictions
+      if (context.fromColumn && context.toColumn) {
+        // Restrict moves to/from < 7 Days and > 7 Days columns
+        const restrictedColumns = ['less-than-7-days', 'more-than-7-days'];
+        if (restrictedColumns.includes(context.fromColumn) || restrictedColumns.includes(context.toColumn)) {
+          console.log('Move restricted: Cannot move cards to/from restricted columns');
+          return false;
+        }
+      }
+      
+      return true;
     
     case 'MANAGE_COLUMNS':
       return hasPermission(user, PERMISSIONS.MANAGE_COLUMNS);
@@ -162,9 +209,68 @@ export const canPerformAction = (user, action, resource = null) => {
     case 'VIEW_ACTIVITY':
       return hasPermission(user, PERMISSIONS.VIEW_ACTIVITY);
     
+    case 'VIEW_BOARD':
+      return hasPermission(user, PERMISSIONS.VIEW_BOARD);
+    
+    default:
+      console.warn(`Unknown action: ${action}`);
+      return false;
+  }
+};
+
+/**
+ * Get user's permissions list
+ */
+export const getUserPermissions = (user) => {
+  if (!user || !user.designation) {
+    return [];
+  }
+  return PERMISSION_MATRIX[user.designation] || [];
+};
+
+/**
+ * Check if user is admin
+ */
+export const isAdmin = (user) => {
+  return user?.designation === DESIGNATIONS.ADMIN;
+};
+
+/**
+ * Check if user is a lead (sales, production, or driver lead)
+ */
+export const isLead = (user) => {
+  return [
+    DESIGNATIONS.SALES_LEAD,
+    DESIGNATIONS.PRODUCTION_LEAD,
+    DESIGNATIONS.DRIVER_LEAD
+  ].includes(user?.designation);
+};
+
+/**
+ * Check if user can manage specific column type
+ */
+export const canManageColumnType = (user, columnType) => {
+  if (isAdmin(user)) return true;
+  
+  switch (columnType) {
+    case 'sales':
+      return user.designation === DESIGNATIONS.SALES_LEAD;
+    case 'production':
+      return user.designation === DESIGNATIONS.PRODUCTION_LEAD;
+    case 'drivers':
+      return user.designation === DESIGNATIONS.DRIVER_LEAD;
     default:
       return false;
   }
 };
 
-export default { PERMISSIONS, ROLES, hasPermission, canPerformAction };
+export default { 
+  PERMISSIONS, 
+  DESIGNATIONS, 
+  hasPermission, 
+  canPerformAction, 
+  getUserPermissions,
+  isAdmin,
+  isLead,
+  canManageColumnType
+};

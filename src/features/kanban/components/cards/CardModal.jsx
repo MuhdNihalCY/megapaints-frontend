@@ -1,9 +1,9 @@
 /**
- * CardModal Component
- * Comprehensive card modal with all required fields according to specifications
+ * CardModal Component - Trello-like Card Interface
+ * Comprehensive card modal with Trello-style features and UX
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -19,7 +19,22 @@ import {
   Trash2,
   Edit3,
   Save,
-  Upload
+  Upload,
+  Archive,
+  Copy,
+  Move,
+  Star,
+  Eye,
+  EyeOff,
+  MoreHorizontal,
+  CheckCircle,
+  Circle,
+  Image,
+  FileText,
+  Link,
+  Zap,
+  Filter,
+  Search
 } from 'lucide-react';
 import { useKanban } from '../../contexts/KanbanContext';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -48,7 +63,11 @@ const CardModal = ({
     readyProducts: [],
     checklists: [],
     customFields: [],
-    attachments: []
+    attachments: [],
+    coverImage: null,
+    isWatching: false,
+    isArchived: false,
+    isTemplate: false
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +75,13 @@ const CardModal = ({
   const [newComment, setNewComment] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [newCustomField, setNewCustomField] = useState({ name: '', value: '' });
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
+  
+  // Refs for auto-resize
+  const titleRef = useRef(null);
+  const descriptionRef = useRef(null);
 
   // Initialize form data when card changes
   useEffect(() => {
@@ -71,10 +97,43 @@ const CardModal = ({
         readyProducts: card.readyProducts || [],
         checklists: card.checklists || [],
         customFields: card.customFields || [],
-        attachments: card.attachments || []
+        attachments: card.attachments || [],
+        coverImage: card.coverImage || null,
+        isWatching: card.isWatching || false,
+        isArchived: card.isArchived || false,
+        isTemplate: card.isTemplate || false
       });
     }
   }, [card]);
+
+  // Auto-resize textarea
+  const autoResize = (textarea) => {
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+  };
+
+  // Handle title editing
+  const handleTitleEdit = () => {
+    setIsTitleEditing(true);
+    setTimeout(() => {
+      if (titleRef.current) {
+        titleRef.current.focus();
+        titleRef.current.select();
+      }
+    }, 0);
+  };
+
+  // Handle description editing
+  const handleDescriptionEdit = () => {
+    setIsDescriptionEditing(true);
+    setTimeout(() => {
+      if (descriptionRef.current) {
+        descriptionRef.current.focus();
+      }
+    }, 0);
+  };
 
   // Handle form field changes
   const handleFieldChange = (field, value) => {
@@ -250,6 +309,14 @@ const CardModal = ({
       
       // Close modal with Escape
       if (e.key === 'Escape') {
+        if (isTitleEditing) {
+          setIsTitleEditing(false);
+          return;
+        }
+        if (isDescriptionEditing) {
+          setIsDescriptionEditing(false);
+          return;
+        }
         onClose();
       }
       
@@ -264,11 +331,23 @@ const CardModal = ({
         e.preventDefault();
         handleDelete();
       }
+
+      // Enter to save title
+      if (e.key === 'Enter' && isTitleEditing && !e.shiftKey) {
+        e.preventDefault();
+        setIsTitleEditing(false);
+      }
+
+      // Enter to save description (with Shift for new line)
+      if (e.key === 'Enter' && isDescriptionEditing && !e.shiftKey) {
+        e.preventDefault();
+        setIsDescriptionEditing(false);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, canEdit, canDelete, onClose]);
+  }, [isOpen, canEdit, canDelete, onClose, isTitleEditing, isDescriptionEditing]);
 
   if (!isOpen) return null;
 
@@ -295,14 +374,33 @@ const CardModal = ({
 
         {/* Modal */}
         <motion.div
-          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-5xl max-h-[95vh] overflow-hidden"
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
         >
+          {/* Cover Image */}
+          {formData.coverImage && (
+            <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+              <img 
+                src={formData.coverImage} 
+                alt="Card cover" 
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => handleFieldChange('coverImage', null)}
+                className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded hover:bg-black/70 transition-colors"
+                title="Remove cover"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
+              {/* Priority Indicator */}
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${
                   formData.priority === 'urgent' ? 'bg-red-500' :
@@ -314,6 +412,8 @@ const CardModal = ({
                   {formData.priority} priority
                 </span>
               </div>
+
+              {/* Due Date */}
               {formData.dueDate && (
                 <div className="flex items-center gap-1 text-xs">
                   <Calendar className="w-3 h-3 text-gray-500" />
@@ -326,31 +426,135 @@ const CardModal = ({
                   </span>
                 </div>
               )}
+
+              {/* Labels */}
+              {formData.labels && formData.labels.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {formData.labels.slice(0, 3).map((labelId) => {
+                    const label = labels.find(l => l.id === labelId);
+                    return label ? (
+                      <span
+                        key={labelId}
+                        className="px-2 py-0.5 text-xs rounded text-white"
+                        style={{ backgroundColor: label.color }}
+                      >
+                        {label.name}
+                      </span>
+                    ) : null;
+                  })}
+                  {formData.labels.length > 3 && (
+                    <span className="text-xs text-gray-500">+{formData.labels.length - 3}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Assignees */}
+              {formData.assignees && formData.assignees.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {formData.assignees.slice(0, 3).map((userId) => {
+                    const user = users.find(u => u.id === userId);
+                    return user ? (
+                      <div
+                        key={userId}
+                        className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center"
+                        title={user.name || user.email}
+                      >
+                        {(user.name || user.email).charAt(0).toUpperCase()}
+                      </div>
+                    ) : null;
+                  })}
+                  {formData.assignees.length > 3 && (
+                    <span className="text-xs text-gray-500">+{formData.assignees.length - 3}</span>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-2">
-              {canEdit && (
+              {/* Watch Button */}
+              <button
+                onClick={() => handleFieldChange('isWatching', !formData.isWatching)}
+                className={`p-2 rounded-lg transition-colors ${
+                  formData.isWatching 
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+                title={formData.isWatching ? 'Stop watching' : 'Watch'}
+              >
+                {formData.isWatching ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
+
+              {/* Archive Button */}
+              <button
+                onClick={() => handleFieldChange('isArchived', !formData.isArchived)}
+                className={`p-2 rounded-lg transition-colors ${
+                  formData.isArchived 
+                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+                title={formData.isArchived ? 'Unarchive' : 'Archive'}
+              >
+                <Archive className="w-4 h-4" />
+              </button>
+
+              {/* More Actions */}
+              <div className="relative">
                 <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  title="Save (Ctrl+S)"
+                  onClick={() => setShowQuickActions(!showQuickActions)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="More actions"
                 >
-                  <Save className="w-4 h-4" />
-                  Save
+                  <MoreHorizontal className="w-4 h-4" />
                 </button>
-              )}
-              {canDelete && (
-                <button
-                  onClick={handleDelete}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                  title="Delete (Ctrl+Delete)"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              )}
+
+                {/* Quick Actions Dropdown */}
+                <AnimatePresence>
+                  {showQuickActions && (
+                    <motion.div
+                      className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(formData.title);
+                            setShowQuickActions(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy title
+                        </button>
+                        <button
+                          onClick={() => {
+                            // TODO: Implement move functionality
+                            setShowQuickActions(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <Move className="w-4 h-4" />
+                          Move
+                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => {
+                              handleDelete();
+                              setShowQuickActions(false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -364,74 +568,152 @@ const CardModal = ({
           </div>
 
           {/* Content */}
-          <div className="flex h-[calc(90vh-80px)]">
+          <div className="flex h-[calc(95vh-120px)]">
             {/* Main Content */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-6">
               {/* Card Title - Trello-like */}
-              <div className="mb-4">
-                <textarea
-                  value={formData.title}
-                  onChange={(e) => handleFieldChange('title', e.target.value)}
-                  disabled={!canEdit}
-                  className="w-full text-xl font-semibold bg-transparent border-none resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 rounded px-2 py-1 text-gray-900 dark:text-white disabled:opacity-50"
-                  placeholder="Card title"
-                  rows={1}
-                  style={{ minHeight: '32px' }}
-                />
+              <div className="mb-6">
+                {isTitleEditing ? (
+                  <textarea
+                    ref={titleRef}
+                    value={formData.title}
+                    onChange={(e) => {
+                      handleFieldChange('title', e.target.value);
+                      autoResize(e.target);
+                    }}
+                    onBlur={() => setIsTitleEditing(false)}
+                    className="w-full text-2xl font-bold bg-transparent border-none resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 rounded px-2 py-1 text-gray-900 dark:text-white"
+                    placeholder="Card title"
+                    rows={1}
+                    style={{ minHeight: '40px' }}
+                  />
+                ) : (
+                  <div
+                    onClick={canEdit ? handleTitleEdit : undefined}
+                    className={`text-2xl font-bold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 py-1 transition-colors ${
+                      canEdit ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : 'cursor-default'
+                    }`}
+                    title={canEdit ? "Click to edit title" : ""}
+                  >
+                    {formData.title || "Untitled Card"}
+                  </div>
+                )}
               </div>
 
               {/* Quick Actions - Trello-like */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {canAssign && (
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-2">
+                  {canAssign && (
+                    <button
+                      onClick={() => setActiveTab('assignees')}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                    >
+                      <User className="w-4 h-4" />
+                      Members
+                    </button>
+                  )}
+                  
+                  {canChangeLabels && (
+                    <button
+                      onClick={() => setActiveTab('labels')}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                    >
+                      <Tag className="w-4 h-4" />
+                      Labels
+                    </button>
+                  )}
+                  
+                  {canChangeDue && (
+                    <button
+                      onClick={() => setActiveTab('due')}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Due Date
+                    </button>
+                  )}
+                  
                   <button
-                    onClick={() => setActiveTab('assignees')}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    onClick={() => setActiveTab('attachments')}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
                   >
-                    <User className="w-4 h-4" />
-                    Members
+                    <Paperclip className="w-4 h-4" />
+                    Attachments
                   </button>
-                )}
-                
-                {canChangeLabels && (
+                  
                   <button
-                    onClick={() => setActiveTab('labels')}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    onClick={() => setActiveTab('checklist')}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
                   >
-                    <Tag className="w-4 h-4" />
-                    Labels
+                    <CheckSquare className="w-4 h-4" />
+                    Checklist
                   </button>
-                )}
-                
-                {canChangeDue && (
+
                   <button
-                    onClick={() => setActiveTab('due')}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    onClick={() => setActiveTab('cover')}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
                   >
-                    <Calendar className="w-4 h-4" />
-                    Due Date
+                    <Image className="w-4 h-4" />
+                    Cover
                   </button>
+                </div>
+              </div>
+
+              {/* Description Section - Trello-like */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Description
+                  </h3>
+                  {!isDescriptionEditing && canEdit && (
+                    <button
+                      onClick={handleDescriptionEdit}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                
+                {isDescriptionEditing ? (
+                  <textarea
+                    ref={descriptionRef}
+                    value={formData.description}
+                    onChange={(e) => {
+                      handleFieldChange('description', e.target.value);
+                      autoResize(e.target);
+                    }}
+                    onBlur={() => setIsDescriptionEditing(false)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                    placeholder="Add a more detailed description..."
+                    rows={3}
+                    style={{ minHeight: '80px' }}
+                  />
+                ) : (
+                  <div
+                    onClick={canEdit ? handleDescriptionEdit : undefined}
+                    className={`min-h-[80px] px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 ${
+                      canEdit ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800' : 'cursor-default'
+                    } transition-colors`}
+                    title={canEdit ? "Click to edit description" : ""}
+                  >
+                    {formData.description ? (
+                      <div className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                        {formData.description}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 dark:text-gray-400 italic">
+                        {canEdit ? "Click to add a description..." : "No description"}
+                      </div>
+                    )}
+                  </div>
                 )}
-                
-                <button
-                  onClick={() => setActiveTab('attachments')}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
-                >
-                  <Paperclip className="w-4 h-4" />
-                  Attachments
-                </button>
-                
-                <button
-                  onClick={() => setActiveTab('checklist')}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
-                >
-                  <CheckSquare className="w-4 h-4" />
-                  Checklist
-                </button>
               </div>
 
               {/* Tabs */}
               <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
-                {['details', 'assignees', 'labels', 'due', 'attachments', 'checklist', 'comments', 'activity'].map((tab) => (
+                {['details', 'assignees', 'labels', 'due', 'attachments', 'checklist', 'cover', 'comments', 'activity'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -449,235 +731,65 @@ const CardModal = ({
               {/* Tab Content */}
               {activeTab === 'details' && (
                 <div className="space-y-6">
-                  {/* Description */}
+                  {/* Priority */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Description
+                      Priority
                     </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => handleFieldChange('description', e.target.value)}
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => handleFieldChange('priority', e.target.value)}
                       disabled={!canEdit}
-                      rows={4}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-                      placeholder="Add a more detailed description..."
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  {/* Due Date */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => handleFieldChange('dueDate', e.target.value)}
+                      disabled={!canEdit}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
                     />
-                  </div>
-
-                  {/* Assignees */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Assignees
-                    </label>
-                    <div className="space-y-2">
-                      {users.map((user) => (
-                        <label key={user.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.assignees.includes(user.id)}
-                            onChange={(e) => handleMultiSelectChange('assignees', user.id, e.target.checked)}
-                            disabled={!canEdit}
-                            className="mr-2"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {user.name || user.email}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Labels */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Labels
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {labels.map((label) => (
-                        <label key={label.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.labels.some(l => l.id === label.id)}
-                            onChange={(e) => handleMultiSelectChange('labels', label.id, e.target.checked)}
-                            disabled={!canEdit}
-                            className="mr-2"
-                          />
-                          <span 
-                            className="px-2 py-1 text-xs rounded-full text-white"
-                            style={{ backgroundColor: label.color }}
-                          >
-                            {label.name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Checklists */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Checklist
-                    </label>
-                    <div className="space-y-2">
-                      {formData.checklists.map((item) => (
-                        <div key={item.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={item.completed}
-                            onChange={() => toggleChecklistItem(item.id)}
-                            disabled={!canEdit}
-                            className="mr-2"
-                          />
-                          <span className={`flex-1 text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
-                            {item.text}
-                          </span>
-                          {canEdit && (
-                            <button
-                              onClick={() => removeChecklistItem(item.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {canEdit && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newChecklistItem}
-                            onChange={(e) => setNewChecklistItem(e.target.value)}
-                            placeholder="Add checklist item"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            onKeyPress={(e) => e.key === 'Enter' && addChecklistItem()}
-                          />
-                          <button
-                            onClick={addChecklistItem}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Custom Fields */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Custom Fields
-                    </label>
-                    <div className="space-y-2">
-                      {formData.customFields.map((field) => (
-                        <div key={field.id} className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-24">
-                            {field.name}:
-                          </span>
-                          <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-                            {field.value}
-                          </span>
-                          {canEdit && (
-                            <button
-                              onClick={() => removeCustomField(field.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {canEdit && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newCustomField.name}
-                            onChange={(e) => setNewCustomField(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Field name"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          <input
-                            type="text"
-                            value={newCustomField.value}
-                            onChange={(e) => setNewCustomField(prev => ({ ...prev, value: e.target.value }))}
-                            placeholder="Field value"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          <button
-                            onClick={addCustomField}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Attachments */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Attachments
-                    </label>
-                    <div className="space-y-2">
-                      {formData.attachments.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <Paperclip className="w-4 h-4 text-gray-500" />
-                          <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-                            {attachment.name}
-                          </span>
-                          {canEdit && (
-                            <button
-                              onClick={() => removeAttachment(attachment.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {canEdit && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            multiple
-                            onChange={handleFileUpload}
-                            className="hidden"
-                            id="file-upload"
-                          />
-                          <label
-                            htmlFor="file-upload"
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
-                          >
-                            <Upload className="w-4 h-4" />
-                            Upload Files
-                          </label>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
               )}
 
               {activeTab === 'assignees' && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Members</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Members</h3>
                   <div className="space-y-2">
                     {users.map((user) => (
-                      <label key={user.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      <label key={user.id} className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
                         <input
                           type="checkbox"
                           checked={formData.assignees.includes(user.id)}
                           onChange={(e) => handleMultiSelectChange('assignees', user.id, e.target.checked)}
-                          disabled={!canAssign}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={!canEdit}
+                          className="mr-3"
                         />
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                            {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-500 text-white text-sm flex items-center justify-center">
+                            {(user.name || user.email).charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {user.name || user.email}
-                          </span>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {user.name || user.email}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {user.email}
+                            </div>
+                          </div>
                         </div>
                       </label>
                     ))}
@@ -687,24 +799,26 @@ const CardModal = ({
 
               {activeTab === 'labels' && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Labels</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Labels</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {labels.map((label) => (
-                      <label key={label.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      <label key={label.id} className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
                         <input
                           type="checkbox"
                           checked={formData.labels.includes(label.id)}
                           onChange={(e) => handleMultiSelectChange('labels', label.id, e.target.checked)}
-                          disabled={!canChangeLabels}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={!canEdit}
+                          className="mr-2"
                         />
-                        <div 
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: label.color || '#gray' }}
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {label.name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded"
+                            style={{ backgroundColor: label.color }}
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            {label.name}
+                          </span>
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -713,19 +827,74 @@ const CardModal = ({
 
               {activeTab === 'due' && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Due Date</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Due Date</h3>
+                  <div>
                     <input
                       type="date"
                       value={formData.dueDate}
                       onChange={(e) => handleFieldChange('dueDate', e.target.value)}
-                      disabled={!canChangeDue}
+                      disabled={!canEdit}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
                     />
-                    {formData.dueDate && (
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Due: {new Date(formData.dueDate).toLocaleDateString()}
+                  </div>
+                  {formData.dueDate && (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Due: {new Date(formData.dueDate).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'cover' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cover</h3>
+                  <div className="space-y-4">
+                    {/* Color Covers */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color Covers</h4>
+                      <div className="grid grid-cols-6 gap-2">
+                        {['#0079bf', '#d29034', '#519839', '#b04632', '#89609e', '#cd5a91'].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => handleFieldChange('coverImage', color)}
+                            className={`w-12 h-8 rounded ${
+                              formData.coverImage === color ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={`Set cover to ${color}`}
+                          />
+                        ))}
                       </div>
+                    </div>
+
+                    {/* Upload Cover */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Image</h4>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                              handleFieldChange('coverImage', e.target.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Remove Cover */}
+                    {formData.coverImage && (
+                      <button
+                        onClick={() => handleFieldChange('coverImage', null)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Remove Cover
+                      </button>
                     )}
                   </div>
                 </div>
@@ -733,45 +902,42 @@ const CardModal = ({
 
               {activeTab === 'attachments' && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Attachments</h3>
-                  <div className="space-y-2">
-                    {formData.attachments.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Paperclip className="w-5 h-5 text-gray-500" />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {attachment.name}
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Attachments</h3>
+                  <div className="space-y-4">
+                    {/* Upload Files */}
+                    <div>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Attachments List */}
+                    {formData.attachments.length > 0 && (
+                      <div className="space-y-2">
+                        {formData.attachments.map((attachment) => (
+                          <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <Paperclip className="w-4 h-4 text-gray-500" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {attachment.name}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {(attachment.size / 1024).toFixed(1)} KB
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeAttachment(attachment.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {(attachment.size / 1024).toFixed(1)} KB
-                          </div>
-                        </div>
-                        {canEdit && (
-                          <button
-                            onClick={() => removeAttachment(attachment.id)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {canEdit && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          id="file-upload"
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Upload Files
-                        </label>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -780,46 +946,56 @@ const CardModal = ({
 
               {activeTab === 'checklist' && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Checklist</h3>
-                  <div className="space-y-2">
-                    {formData.checklists.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
-                        <input
-                          type="checkbox"
-                          checked={item.completed}
-                          onChange={() => toggleChecklistItem(item.id)}
-                          disabled={!canEdit}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className={`flex-1 text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {item.text}
-                        </span>
-                        {canEdit && (
-                          <button
-                            onClick={() => removeChecklistItem(item.id)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {canEdit && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={newChecklistItem}
-                          onChange={(e) => setNewChecklistItem(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
-                          placeholder="Add checklist item..."
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
-                        <button
-                          onClick={addChecklistItem}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Checklist</h3>
+                  <div className="space-y-4">
+                    {/* Add Checklist Item */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newChecklistItem}
+                        onChange={(e) => setNewChecklistItem(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addChecklistItem()}
+                        placeholder="Add checklist item..."
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                      <button
+                        onClick={addChecklistItem}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Checklist Items */}
+                    {formData.checklists.length > 0 && (
+                      <div className="space-y-2">
+                        {formData.checklists.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                            <button
+                              onClick={() => toggleChecklistItem(item.id)}
+                              className="flex-shrink-0"
+                            >
+                              {item.completed ? (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <Circle className="w-5 h-5 text-gray-400" />
+                              )}
+                            </button>
+                            <span className={`flex-1 text-sm ${
+                              item.completed 
+                                ? 'line-through text-gray-500 dark:text-gray-400' 
+                                : 'text-gray-900 dark:text-white'
+                            }`}>
+                              {item.text}
+                            </span>
+                            <button
+                              onClick={() => removeChecklistItem(item.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -827,17 +1003,24 @@ const CardModal = ({
               )}
 
               {activeTab === 'comments' && (
-                <CommentsSection
-                  card={card}
-                  onCommentAdd={handleCommentAdd}
-                  onCommentUpdate={handleCommentUpdate}
-                  onCommentDelete={handleCommentDelete}
-                />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Comments</h3>
+                  <CommentsSection
+                    cardId={card?.id}
+                    onAddComment={handleCommentAdd}
+                    onUpdateComment={handleCommentUpdate}
+                    onDeleteComment={handleCommentDelete}
+                  />
+                </div>
               )}
 
               {activeTab === 'activity' && (
-                <ActivityLog card={card} />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Activity</h3>
+                  <ActivityLog cardId={card?.id} />
+                </div>
               )}
+
             </div>
           </div>
 

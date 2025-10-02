@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useMemo } from 'react';
-import { canPerformAction } from '../utils/permissions';
+import { canPerformAction, hasPermission, PERMISSIONS, DESIGNATIONS, isAdmin, isLead, canManageColumnType } from '../utils/permissions';
 
 // Permission Context
 const PermissionContext = createContext();
@@ -31,17 +31,22 @@ export const PermissionProvider = ({ children, user }) => {
 
     return {
       canViewBoard: canPerformAction(user, 'VIEW_BOARD'),
-      canCreateCard: (resource) => canPerformAction(user, 'CREATE_CARD', resource),
+      canCreateCard: (resource, context) => canPerformAction(user, 'CREATE_CARD', resource, context),
       canEditCard: (resource) => canPerformAction(user, 'EDIT_CARD', resource),
-      canMoveCard: (resource) => canPerformAction(user, 'MOVE_CARD', resource),
+      canMoveCard: (resource, context) => canPerformAction(user, 'MOVE_CARD', resource, context),
       canDeleteCard: (resource) => canPerformAction(user, 'DELETE_CARD', resource),
       canAssignUsers: canPerformAction(user, 'ASSIGN_USERS'),
       canChangeDueDate: canPerformAction(user, 'CHANGE_DUE'),
       canChangeLabels: canPerformAction(user, 'CHANGE_LABELS'),
       canManageColumns: (resource) => canPerformAction(user, 'MANAGE_COLUMNS', resource),
-      canToggleColumnActivation: (resource) => canPerformAction(user, 'TOGGLE_COLUMN', resource),
+      canToggleColumnActivation: (columnType) => canManageColumnType(user, columnType),
       canAddComment: canPerformAction(user, 'COMMENT'),
-      canMentionUsers: canPerformAction(user, 'COMMENT')
+      canMentionUsers: canPerformAction(user, 'COMMENT'),
+      canSearchCards: canPerformAction(user, 'SEARCH_CARDS'),
+      canViewActivity: canPerformAction(user, 'VIEW_ACTIVITY'),
+      isAdmin: isAdmin(user),
+      isLead: isLead(user),
+      designation: user.designation
     };
   }, [user]);
 
