@@ -1,6 +1,9 @@
 /**
- * Column Search Component
+ * DEPRECATED: Column Search Component
+ * This component has been consolidated into components/search/ColumnSearch.jsx
  * Specialized search component for specific columns like "> 7 Days"
+ * 
+ * @deprecated Use components/search/ColumnSearch.jsx instead
  */
 
 import { useState, useEffect, useCallback } from 'react';

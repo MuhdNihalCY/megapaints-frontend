@@ -1,0 +1,70 @@
+/**
+ * PermissionContext
+ * Context for managing user permissions in Kanban board
+ */
+
+import React, { createContext, useContext, useMemo } from 'react';
+import { canPerformAction } from '../utils/permissions';
+
+// Permission Context
+const PermissionContext = createContext();
+
+// Permission Provider
+export const PermissionProvider = ({ children, user }) => {
+  const permissions = useMemo(() => {
+    if (!user) {
+      return {
+        canViewBoard: false,
+        canCreateCard: () => false,
+        canEditCard: () => false,
+        canMoveCard: () => false,
+        canDeleteCard: () => false,
+        canAssignUsers: false,
+        canChangeDueDate: false,
+        canChangeLabels: false,
+        canManageColumns: () => false,
+        canToggleColumnActivation: () => false,
+        canAddComment: false,
+        canMentionUsers: false
+      };
+    }
+
+    return {
+      canViewBoard: canPerformAction(user, 'VIEW_BOARD'),
+      canCreateCard: (resource) => canPerformAction(user, 'CREATE_CARD', resource),
+      canEditCard: (resource) => canPerformAction(user, 'EDIT_CARD', resource),
+      canMoveCard: (resource) => canPerformAction(user, 'MOVE_CARD', resource),
+      canDeleteCard: (resource) => canPerformAction(user, 'DELETE_CARD', resource),
+      canAssignUsers: canPerformAction(user, 'ASSIGN_USERS'),
+      canChangeDueDate: canPerformAction(user, 'CHANGE_DUE'),
+      canChangeLabels: canPerformAction(user, 'CHANGE_LABELS'),
+      canManageColumns: (resource) => canPerformAction(user, 'MANAGE_COLUMNS', resource),
+      canToggleColumnActivation: (resource) => canPerformAction(user, 'TOGGLE_COLUMN', resource),
+      canAddComment: canPerformAction(user, 'COMMENT'),
+      canMentionUsers: canPerformAction(user, 'COMMENT')
+    };
+  }, [user]);
+
+  const value = {
+    user,
+    permissions,
+    ...permissions
+  };
+
+  return (
+    <PermissionContext.Provider value={value}>
+      {children}
+    </PermissionContext.Provider>
+  );
+};
+
+// Hook to use permissions
+export const usePermissions = () => {
+  const context = useContext(PermissionContext);
+  if (!context) {
+    throw new Error('usePermissions must be used within a PermissionProvider');
+  }
+  return context;
+};
+
+export default PermissionContext;

@@ -3,9 +3,11 @@
  * Handles all admin-specific API calls based on the updated API documentation
  * Separated from user APIs for better organization and security
  */
+import { getApiUrl } from '../config/api.js';
+
 class AdminApiService {
   constructor() {
-    this.baseURL = '/api';
+    this.baseURL = '/api'; // Will be handled by proxy in development
     this.accessToken = localStorage.getItem('adminAccessToken') || localStorage.getItem('accessToken');
   }
 
@@ -28,7 +30,7 @@ class AdminApiService {
   buildQueryParams(params) {
     const queryParams = new URLSearchParams();
     Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== '') {
+      if (params[key] !== undefined && params[key] !== '' && params[key] !== null) {
         queryParams.append(key, params[key]);
       }
     });
@@ -42,7 +44,7 @@ class AdminApiService {
    * @returns {Promise<Object>} API response
    */
   async apiRequest(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = getApiUrl(endpoint);
     
     try {
       const response = await fetch(url, {
@@ -54,10 +56,26 @@ class AdminApiService {
         credentials: 'include'
       });
 
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      let data = null;
+      if (response.status !== 204 && 
+          contentLength !== '0' && 
+          contentType && 
+          contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error(`Failed to parse JSON response for ${endpoint}:`, jsonError);
+          throw new Error(`Invalid JSON response: ${response.status} ${response.statusText}`);
+        }
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+        const errorMessage = data?.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
       }
       
       return data;
@@ -77,7 +95,7 @@ class AdminApiService {
    */
   async login(username, password) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/admin/login`, {
+      const response = await fetch(getApiUrl('/auth/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -129,7 +147,7 @@ class AdminApiService {
    */
   async refreshToken(refreshToken) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/admin/refresh`, {
+      const response = await fetch(getApiUrl('/auth/admin/refresh'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

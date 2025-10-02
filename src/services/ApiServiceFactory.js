@@ -9,6 +9,7 @@ import ProductCatalogService from './ProductCatalogService.js';
 import BusinessManagementService from './BusinessManagementService.js';
 import KanbanBoardService from './KanbanBoardService.js';
 import LabelManagementService from './LabelManagementService.js';
+import { getApiUrl } from '../config/api.js';
 
 class ApiServiceFactory {
   constructor() {
@@ -330,7 +331,7 @@ class ApiServiceFactory {
    */
   async getHealthCheck() {
     try {
-      const response = await fetch(`${this.baseURL}/health`);
+      const response = await fetch(getApiUrl('/health'));
       return await response.json();
     } catch (error) {
       console.error('Health check failed:', error);
@@ -344,7 +345,7 @@ class ApiServiceFactory {
    */
   async getDetailedHealthCheck() {
     try {
-      const response = await fetch(`${this.baseURL}/health/detailed`);
+      const response = await fetch(getApiUrl('/health/detailed'));
       return await response.json();
     } catch (error) {
       console.error('Detailed health check failed:', error);
