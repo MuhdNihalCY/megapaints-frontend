@@ -1,22 +1,28 @@
 /**
- * Kanban Board API Service v2.0
- * Handles all API calls for the Kanban board based on the new API v2.0 documentation
+ * Kanban Board API Service
+ * Handles all API calls for the Kanban board using live backend APIs
  */
 
 import api from '../../../utils/api';
 
 /**
- * Kanban Board Service Class for API v2.0
+ * Kanban Board Service Class
  */
 class KanbanService {
   constructor() {
-    this.baseURL = '/board/v2';
+    this.baseURL = '';
   }
 
   /**
    * Handle API response and extract data
    */
   handleResponse(response) {
+    // Check if response is HTML (indicates API endpoint doesn't exist)
+    if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
+      console.warn('API endpoint returned HTML instead of JSON - endpoint may not exist');
+      return null;
+    }
+    
     if (response.data?.success !== false) {
       return response.data?.data || response.data;
     }
@@ -37,46 +43,12 @@ class KanbanService {
   // ==================== BOARD MANAGEMENT ====================
 
   /**
-   * Get complete board structure with columns and cards for the user's branch
+   * Get complete board structure with columns and cards
    */
   async getBoard() {
     try {
-      // Try API v2.0 first
-      try {
-        const response = await api.get(`${this.baseURL}/board/branch`);
-        console.log('getBoard API v2.0 response:', response);
-        return this.handleResponse(response);
-      } catch (v2Error) {
-        console.warn('API v2.0 not available, falling back to v1:', v2Error.message);
-        
-        // Fallback to existing API structure
-        const response = await api.get('/board');
-        console.log('getBoard fallback response:', response);
-        return this.handleResponse(response);
-      }
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get board structure (alternative endpoint)
-   */
-  async getBoardStructure() {
-    try {
       const response = await api.get(`${this.baseURL}/board`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Update board settings for the user's branch
-   */
-  async updateBoardSettings(settings) {
-    try {
-      const response = await api.patch(`${this.baseURL}/board/branch`, { settings });
+      console.log('getBoard response:', response);
       return this.handleResponse(response);
       } catch (error) {
       this.handleError(error);
@@ -84,23 +56,11 @@ class KanbanService {
   }
 
   /**
-   * Get branch board activity
+   * Update board settings
    */
-  async getBoardActivity(params = {}) {
+  async updateBoardSettings(settings) {
     try {
-      const response = await api.get(`${this.baseURL}/board/branch/activity`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get branch board members
-   */
-  async getBoardMembers() {
-    try {
-      const response = await api.get(`${this.baseURL}/board/branch/members`);
+      const response = await api.patch(`${this.baseURL}/board`, { settings });
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -193,62 +153,14 @@ class KanbanService {
     }
   }
 
-  /**
-   * Bulk move multiple cards
-   */
-  async bulkMoveCards(moveData) {
-    try {
-      const response = await api.post(`${this.baseURL}/card/bulk-move`, moveData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Reorder cards within a column
-   */
-  async reorderCards(columnId, reorderData) {
-    try {
-      const response = await api.put(`${this.baseURL}/card/${columnId}/reorder`, reorderData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Assign users to a card
-   */
-  async assignUsers(cardId, assignmentData) {
-    try {
-      const response = await api.post(`${this.baseURL}/card/${cardId}/assign`, assignmentData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Search cards
-   */
-  async searchCards(params = {}) {
-    try {
-      const response = await api.get(`${this.baseURL}/card/search`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
   // ==================== COLUMN MANAGEMENT ====================
 
   /**
-   * Get all columns for the user's branch
+   * Get all columns
    */
   async getColumns() {
     try {
-      const response = await api.get(`${this.baseURL}/columns`);
+      const response = await api.get(`${this.baseURL}/column`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -294,9 +206,9 @@ class KanbanService {
   /**
    * Toggle column activation
    */
-  async toggleColumnActivation(columnId, activationData) {
+  async toggleColumnActivation(columnId, isActive) {
     try {
-      const response = await api.post(`${this.baseURL}/column/${columnId}/toggle`, activationData);
+      const response = await api.post(`${this.baseURL}/column/${columnId}/toggle`, { isActive });
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -308,7 +220,121 @@ class KanbanService {
    */
   async reorderColumns(reorderData) {
     try {
-      const response = await api.put(`${this.baseURL}/columns/reorder`, reorderData);
+      const response = await api.put(`${this.baseURL}/column/reorder`, reorderData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== ATTACHMENT MANAGEMENT ====================
+
+  /**
+   * Add attachment to a card
+   */
+  async addAttachment(cardId, attachmentData) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/attachment`, attachmentData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete attachment from a card
+   */
+  async deleteAttachment(cardId, attachmentId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/attachment/${attachmentId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Set card cover image
+   */
+  async setCardCover(cardId, coverData) {
+    try {
+      const response = await api.put(`${this.baseURL}/card/${cardId}/cover`, coverData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== CHECKLIST MANAGEMENT ====================
+
+  /**
+   * Add checklist to a card
+   */
+  async addChecklist(cardId, checklistData) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/checklist`, checklistData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update checklist
+   */
+  async updateChecklist(cardId, checklistId, checklistData) {
+    try {
+      const response = await api.put(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`, checklistData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete checklist from a card
+   */
+  async deleteChecklist(cardId, checklistId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Toggle checklist item completion
+   */
+  async toggleChecklistItem(cardId, checklistId, itemId) {
+    try {
+      const response = await api.patch(`${this.baseURL}/card/${cardId}/checklist/${checklistId}/item/${itemId}/toggle`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== WATCH/SUBSCRIBE ====================
+
+  /**
+   * Subscribe to card updates
+   */
+  async watchCard(cardId) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/watch`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Unsubscribe from card updates
+   */
+  async unwatchCard(cardId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/watch`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -336,7 +362,7 @@ class KanbanService {
     try {
       const response = await api.post(`${this.baseURL}/comment/card/${cardId}`, commentData);
       return this.handleResponse(response);
-      } catch (error) {
+    } catch (error) {
       this.handleError(error);
     }
   }
@@ -344,9 +370,9 @@ class KanbanService {
   /**
    * Update a comment
    */
-  async updateComment(commentId, commentData) {
+  async updateComment(commentId, updates) {
     try {
-      const response = await api.put(`${this.baseURL}/comment/${commentId}`, commentData);
+      const response = await api.put(`${this.baseURL}/comment/${commentId}`, updates);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -365,52 +391,17 @@ class KanbanService {
     }
   }
 
-  /**
-   * Get card timeline (comments + activities)
-   */
-  async getCardTimeline(cardId, params = {}) {
-    try {
-      const response = await api.get(`${this.baseURL}/comment/card/${cardId}/timeline`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get user comments
-   */
-  async getUserComments(userId, params = {}) {
-    try {
-      const response = await api.get(`${this.baseURL}/comment/user/${userId}`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
   // ==================== LABEL MANAGEMENT ====================
 
   /**
-   * Get all labels for the user's branch
+   * Get labels for the board
    */
   async getLabels() {
-    try {
-      // Try API v2.0 first
       try {
-        const response = await api.get(`${this.baseURL}/labels`);
-        return this.handleResponse(response);
-      } catch (v2Error) {
-        console.warn('API v2.0 labels not available, falling back to v1:', v2Error.message);
-        
-        // Fallback to existing API structure
-        const response = await api.get('/label');
-        return this.handleResponse(response);
-      }
+      const response = await api.get(`${this.baseURL}/label`);
+      return this.handleResponse(response);
     } catch (error) {
-      // If both fail, return empty array to prevent app crash
-      console.warn('Labels endpoint not available, returning empty array:', error.message);
-      return [];
+      this.handleError(error);
     }
   }
 
@@ -433,7 +424,7 @@ class KanbanService {
     try {
       const response = await api.put(`${this.baseURL}/label/${labelId}`, labelData);
       return this.handleResponse(response);
-    } catch (error) {
+      } catch (error) {
       this.handleError(error);
     }
   }
@@ -450,135 +441,299 @@ class KanbanService {
     }
   }
 
-  /**
-   * Get branch labels (now handled by getLabels)
-   */
-  async getBranchLabels() {
-    return this.getLabels();
-  }
-
   // ==================== USER MANAGEMENT ====================
 
   /**
    * Get users (for mentions and assignments)
-   * Note: This might be a different endpoint depending on your user service
+   * Uses Kanban-specific users API with workspace filtering
    */
   async getUsers() {
     try {
-      // Try multiple possible endpoints
-      const endpoints = ['/users', '/auth/users', '/api/users', '/api/auth/users'];
+      // Use Kanban-specific users endpoint
+      const response = await api.get(`${this.baseURL}/kanban/users`);
+      response.data = response.data.data.users;
+      const result = this.handleResponse(response);
       
-      for (const endpoint of endpoints) {
-        try {
-          const response = await api.get(endpoint);
-          return this.handleResponse(response);
-        } catch (endpointError) {
-          console.debug(`Users endpoint ${endpoint} not available:`, endpointError.message);
-        }
-      }
-      
-      // If all endpoints fail, return empty array
-      console.warn('No users endpoint available, returning empty array');
-      return [];
+      // Ensure we always return an array
+      return Array.isArray(result) ? result : [];
     } catch (error) {
-      // Fallback for development
-      console.warn('Users endpoint not available:', error.message);
-      return [];
+      console.warn('Kanban users endpoint not available:', error.message);
+      
+      // Return mock users for development/testing
+      // console.log('Using mock users for development');
+      // return this.getMockUsers();
+      return {
+        status: 'success',
+        data: {
+          users: [],
+          message: 'Kanban users endpoint not available'
+        }
+      };
+    }
+  }
+
+  /**
+   * Get user by ID with memberships
+   */
+  async getUserById(userId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/users/${userId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Create new user
+   */
+  async createUser(userData) {
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/users`, userData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update user
+   */
+  async updateUser(userId, userData) {
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/users/${userId}`, userData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Soft delete user
+   */
+  async deleteUser(userId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/users/${userId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get user activity summary
+   */
+  async getUserActivity(userId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/users/${userId}/activity`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Invite user to workspace
+   */
+  async inviteUserToWorkspace(userId, workspaceData) {
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/users/${userId}/invite-to-workspace`, workspaceData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get mock users for development/testing
+   */
+  getMockUsers() {
+    return [
+      // Production Users
+      {
+        id: 'prod-1',
+        _id: 'prod-1',
+        name: 'John Smith',
+        username: 'john.smith',
+        role: 'production',
+        department: 'production',
+        groupType: 'production',
+        email: 'john.smith@megapaints.com'
+      },
+      {
+        id: 'prod-2',
+        _id: 'prod-2',
+        name: 'Sarah Johnson',
+        username: 'sarah.johnson',
+        role: 'production',
+        department: 'production',
+        groupType: 'production',
+        email: 'sarah.johnson@megapaints.com'
+      },
+      {
+        id: 'prod-3',
+        _id: 'prod-3',
+        name: 'Mike Wilson',
+        username: 'mike.wilson',
+        role: 'production',
+        department: 'production',
+        groupType: 'production',
+        email: 'mike.wilson@megapaints.com'
+      },
+      // Driver Users
+      {
+        id: 'driver-1',
+        _id: 'driver-1',
+        name: 'David Brown',
+        username: 'david.brown',
+        role: 'driver',
+        department: 'drivers',
+        groupType: 'drivers',
+        email: 'david.brown@megapaints.com'
+      },
+      {
+        id: 'driver-2',
+        _id: 'driver-2',
+        name: 'Lisa Davis',
+        username: 'lisa.davis',
+        role: 'driver',
+        department: 'drivers',
+        groupType: 'drivers',
+        email: 'lisa.davis@megapaints.com'
+      },
+      {
+        id: 'driver-3',
+        _id: 'driver-3',
+        name: 'Tom Miller',
+        username: 'tom.miller',
+        role: 'driver',
+        department: 'drivers',
+        groupType: 'drivers',
+        email: 'tom.miller@megapaints.com'
+      },
+      // Other Users (won't be used for subcolumns)
+      {
+        id: 'admin-1',
+        _id: 'admin-1',
+        name: 'Admin User',
+        username: 'admin',
+        role: 'admin',
+        department: 'management',
+        groupType: 'admin',
+        email: 'admin@megapaints.com'
+      },
+      {
+        id: 'sales-1',
+        _id: 'sales-1',
+        name: 'Sales Rep',
+        username: 'sales.rep',
+        role: 'sales',
+        department: 'sales',
+        groupType: 'sales',
+        email: 'sales@megapaints.com'
+      }
+    ];
+  }
+
+  // ==================== ACTIVITY LOGGING ====================
+
+  /**
+   * Log activity
+   */
+  async logActivity(activityData) {
+    try {
+      const response = await api.post(`${this.baseURL}/activity`, activityData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get activity log for a card
+   */
+  async getCardActivity(cardId, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/activity/card/${cardId}`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== SEARCH ====================
+
+  /**
+   * Search cards
+   */
+  async searchCards(query, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/card/search`, { 
+        params: { q: query, ...params } 
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Search cards in specific column (for > 7 Days column)
+   */
+  async searchCardsInColumn(columnId, query, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/card/search`, { 
+        params: { q: query, columnId, ...params } 
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
     }
   }
 
   // ==================== UTILITY METHODS ====================
 
   /**
-   * Transform card data to frontend format (supports both API v1 and v2)
+   * Transform card data to frontend format
    */
   transformCardData(apiCard) {
-    // Debug logging
-    console.log('Transforming card data:', {
+    return {
       id: apiCard._id || apiCard.id,
-      title: apiCard.title || apiCard.Name,
+      title: apiCard.title || 'Untitled Card',
+      description: apiCard.description || '',
+      cardId: apiCard.cardId || apiCard._id,
       columnId: apiCard.columnId,
-      priority: apiCard.priority
-    });
-
-    // Check if this is API v2.0 format
-    const isV2 = apiCard._id && apiCard.title && !apiCard.Name;
-    
-    if (isV2) {
-      // API v2.0 format
-      return {
-        id: apiCard._id,
-        title: apiCard.title || 'Untitled Card',
-        description: apiCard.description || '',
-        cardId: apiCard.cardId || apiCard._id,
-        columnId: apiCard.columnId?._id || apiCard.columnId,
-        subcolumnId: apiCard.subcolumnId || null,
-        priority: apiCard.priority || 'medium',
-        labels: (apiCard.labels || []).map(label => ({
-          id: label._id || label.id,
-          name: label.text || label.name,
-          color: label.color || '#6b7280'
-        })),
-        assignees: apiCard.assignees || [],
-        dueDate: apiCard.dueDate || null,
-        createdAt: apiCard.createdAt || new Date().toISOString(),
-        updatedAt: apiCard.updatedAt || new Date().toISOString(),
-        createdBy: apiCard.createdBy?._id || apiCard.createdBy,
-        // Additional fields from API v2.0
-        contacts: apiCard.contacts || [],
-        checklists: apiCard.checklists || [],
-        readyProducts: apiCard.readyProducts || [],
-        attachments: apiCard.attachments || [],
-        comments: apiCard.comments || [],
-        activities: apiCard.activities || [],
-        isDeleted: apiCard.isDeleted || false,
-        isArchived: apiCard.isArchived || false,
-        position: apiCard.position || 0,
-        branchId: apiCard.branchId,
-        // Keep original data for debugging
-        _originalData: apiCard
-      };
-    } else {
-      // API v1 format (legacy)
-      return {
-        id: apiCard._id || apiCard.id,
-        title: apiCard.title || apiCard.Name || 'Untitled Card',
-        description: apiCard.description || '',
-        cardId: apiCard.cardId || apiCard.OrderIDNumber || apiCard._id || apiCard.id,
-        columnId: apiCard.columnId || this.mapListToColumn(apiCard.CurrentList),
-        subcolumnId: apiCard.subcolumnId || null,
-        priority: apiCard.priority || 'medium',
-        labels: (apiCard.labels || apiCard.Labels || []).map(label => ({
-          id: label._id || label.id || label.Name,
-          name: label.text || label.name || label.Name,
-          color: label.color || label.Color || '#6b7280'
-        })),
-        assignees: apiCard.assignees || [],
-        dueDate: apiCard.dueDate || null,
-        createdAt: apiCard.createdAt || (apiCard.Card_Created?.Time ? new Date(apiCard.Card_Created.Time).toISOString() : new Date().toISOString()),
-        updatedAt: apiCard.updatedAt || new Date().toISOString(),
-        createdBy: apiCard.createdBy || apiCard.Card_Created?.Name || 'user',
-        // Additional fields from API v1
-        customerName: apiCard.CustomerName,
-        contactPersonName: apiCard.ContactPersonName,
-        contactNumber: apiCard.ContactNumber,
-        comments: apiCard.comments || [],
-        activity: apiCard.Activity || [],
-        checklistItems: apiCard.CheckListItems?.checkItems || [],
-        readyProducts: apiCard.ReadyProducts || [],
-        isAttachments: apiCard.IsAttachments || false,
-        branch: apiCard.Branch,
-        branchId: apiCard.BranchID || apiCard.branchId,
-        productionPerson: apiCard.ProductionPerson,
-        position: apiCard.Position || 0,
-        // Keep original data for debugging
-        _originalData: apiCard
-      };
-    }
+      subcolumnId: apiCard.subcolumnId || null,
+      priority: apiCard.priority || 'medium',
+      labels: (apiCard.labels || []).map(label => ({
+        id: label._id || label.id,
+        name: label.text || label.name,
+        color: label.color || '#6b7280'
+      })),
+      assignees: apiCard.assignees || [],
+      dueDate: apiCard.dueDate || null,
+      createdAt: apiCard.createdAt || new Date().toISOString(),
+      updatedAt: apiCard.updatedAt || new Date().toISOString(),
+      createdBy: apiCard.createdBy,
+      // Additional fields
+      attachments: apiCard.attachments || [],
+      comments: apiCard.comments || [],
+      activities: apiCard.activities || [],
+      checklists: apiCard.checklists || [],
+      customFields: apiCard.customFields || [],
+      contacts: apiCard.contacts || [],
+      readyProducts: apiCard.readyProducts || [],
+      isDeleted: apiCard.isDeleted || false,
+      isArchived: apiCard.isArchived || false,
+      position: apiCard.position || 0,
+      branchId: apiCard.branchId,
+      // Keep original data for debugging
+      _originalData: apiCard
+    };
   }
 
   /**
-   * Transform frontend card data to API v2.0 format
+   * Transform frontend card data to API format
    */
   transformCardToApi(frontendCard) {
     return {
@@ -587,6 +742,7 @@ class KanbanService {
       priority: frontendCard.priority,
       dueDate: frontendCard.dueDate,
       columnId: frontendCard.columnId,
+      subcolumnId: frontendCard.subcolumnId,
       contacts: frontendCard.contacts || [],
       labels: frontendCard.labels?.map(label => ({
         text: label.name || label.text,
@@ -595,36 +751,41 @@ class KanbanService {
       checklists: frontendCard.checklists || [],
       readyProducts: frontendCard.readyProducts || [],
       attachments: frontendCard.attachments || [],
+      customFields: frontendCard.customFields || [],
+      assignees: frontendCard.assignees || [],
       position: frontendCard.position || 0
     };
   }
 
   /**
-   * Transform move data for API v2.0
+   * Transform move data for API
    */
   transformMoveData(moveData) {
     return {
-      toList: moveData.toList || moveData.columnId,
+      toColumnId: moveData.toColumnId || moveData.columnId,
+      toSubColumnId: moveData.toSubColumnId || moveData.subcolumnId,
       position: moveData.position || 0,
-      subcolumnId: moveData.subcolumnId || null
+      fromColumnId: moveData.fromColumnId,
+      fromSubColumnId: moveData.fromSubColumnId
     };
   }
 
   /**
-   * Map backend list names to frontend column IDs (legacy API v1)
+   * Check if move is allowed based on DnD rules
    */
-  mapListToColumn(currentList) {
-    const listToColumnMap = {
-      'ORDERS': 'sales',
-      'OFFICE SECTION': 'office',
-      'PRODUCTION': 'production',
-      'READY': 'ready',
-      'DONE TODAY': 'done',
-      'LESS THAN 7 DAYS': 'done',
-      'MORE THAN 7 DAYS': 'done'
-    };
-
-    return listToColumnMap[currentList] || 'sales';
+  isMoveAllowed(fromColumn, toColumn, fromSubColumn = null, toSubColumn = null) {
+    // Restrict moves to/from < 7 Days and > 7 Days columns
+    const restrictedSubColumns = ['less-than-7-days', 'more-than-7-days'];
+    
+    if (fromSubColumn && restrictedSubColumns.includes(fromSubColumn)) {
+      return false;
+    }
+    
+    if (toSubColumn && restrictedSubColumns.includes(toSubColumn)) {
+      return false;
+    }
+    
+    return true;
   }
 }
 

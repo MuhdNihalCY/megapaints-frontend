@@ -3,8 +3,8 @@ import Cookies from 'js-cookie';
 
 // Create axios instance with default config
 const api = axios.create({
-  // Use Vite proxy instead of direct backend URL
-  baseURL: '/api',
+  // Use full localhost URL for development, relative for production
+  baseURL: import.meta.env.DEV ? 'http://localhost:3000/api' : '/api',
   withCredentials: true, // Important for cookies
   timeout: 10000,
   headers: {
@@ -239,6 +239,10 @@ api.interceptors.response.use(
           if (freshToken) {
             if (!originalRequest.headers) originalRequest.headers = {};
             originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+          } else {
+            // Remove stale Authorization header when no fresh token available
+            if (!originalRequest.headers) originalRequest.headers = {};
+            delete originalRequest.headers.Authorization;
           }
           // Retry original request after refresh
           api.request(originalRequest)
@@ -250,24 +254,37 @@ api.interceptors.response.use(
 
     // Start a refresh
     isRefreshing = true;
-    return new Promise(async (resolve, reject) => {
-      const ok = await tryRefreshSession();
-      isRefreshing = false;
-      if (ok) {
-        resolvePendingRequests();
-        // Update Authorization header with fresh token before retry
-        const freshToken = getAuthToken();
-        if (freshToken) {
-          if (!originalRequest.headers) originalRequest.headers = {};
-          originalRequest.headers.Authorization = `Bearer ${freshToken}`;
-        }
-        api.request(originalRequest)
-          .then((res) => { try { console.debug('[API] Retried after refresh succeeded:', originalRequest?.url); } catch {}; resolve(res); })
-          .catch((err) => { try { console.warn('[API] Retried after refresh failed:', originalRequest?.url); } catch {}; reject(err); });
-      } else {
-        rejectPendingRequests(error);
-        reject(error);
-      }
+    return new Promise((resolve, reject) => {
+      tryRefreshSession()
+        .then((ok) => {
+          if (ok) {
+            resolvePendingRequests();
+            // Update Authorization header with fresh token before retry
+            const freshToken = getAuthToken();
+            if (freshToken) {
+              if (!originalRequest.headers) originalRequest.headers = {};
+              originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+            } else {
+              // Remove stale Authorization header when no fresh token available
+              if (!originalRequest.headers) originalRequest.headers = {};
+              delete originalRequest.headers.Authorization;
+            }
+            api.request(originalRequest)
+              .then((res) => { try { console.debug('[API] Retried after refresh succeeded:', originalRequest?.url); } catch {}; resolve(res); })
+              .catch((err) => { try { console.warn('[API] Retried after refresh failed:', originalRequest?.url); } catch {}; reject(err); });
+          } else {
+            const refreshError = new Error('Token refresh failed');
+            rejectPendingRequests(refreshError);
+            reject(refreshError);
+          }
+        })
+        .catch((refreshError) => {
+          rejectPendingRequests(refreshError);
+          reject(refreshError);
+        })
+        .finally(() => {
+          isRefreshing = false;
+        });
     });
   }
 );

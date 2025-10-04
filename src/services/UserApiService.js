@@ -3,9 +3,11 @@
  * Handles all user-specific API calls based on the updated API documentation
  * Separated from admin APIs for better organization and security
  */
+import { getApiUrl } from '../config/api.js';
+
 class UserApiService {
   constructor() {
-    this.baseURL = '/api';
+    this.baseURL = '/api'; // Will be handled by proxy in development
     this.accessToken = localStorage.getItem('userAccessToken') || localStorage.getItem('accessToken');
   }
 
@@ -42,7 +44,7 @@ class UserApiService {
    * @returns {Promise<Object>} API response
    */
   async apiRequest(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = getApiUrl(endpoint);
     
     try {
       const response = await fetch(url, {
@@ -86,7 +88,7 @@ class UserApiService {
    */
   async register(userData) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/user/register`, {
+      const response = await fetch(getApiUrl('/auth/user/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -113,7 +115,7 @@ class UserApiService {
    */
   async login(username, password) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/user/login`, {
+      const response = await fetch(getApiUrl('/auth/user/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -165,7 +167,7 @@ class UserApiService {
    */
   async refreshToken(refreshToken) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/user/refresh`, {
+      const response = await fetch(getApiUrl('/auth/user/refresh'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

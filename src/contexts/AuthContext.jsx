@@ -23,17 +23,26 @@ export const AuthProvider = ({ children }) => {
       try {
         console.log('🔍 Checking authentication on page load...');
         
-        if (authService.isAuthenticated()) {
+        // Check if we have tokens
+        const hasTokens = authService.isAuthenticated();
+        console.log('🔑 Token status:', { 
+          hasAccessToken: !!authService.accessToken, 
+          hasRefreshToken: !!authService.refreshToken,
+          hasValidTokens: authService.hasValidTokens()
+        });
+        
+        if (hasTokens) {
+          // Try to get user from localStorage first
           const currentUser = authService.getCurrentUser();
           console.log('👤 Found user in localStorage:', currentUser?.username || 'Unknown');
           
           if (currentUser) {
-            // Set user immediately from localStorage (no API call needed)
+            // Set user immediately from localStorage
             setUser(currentUser);
             setIsAdmin(authService.isAdmin());
             console.log('✅ User restored from localStorage');
             
-            // Optionally validate session in background (non-blocking)
+            // Validate session in background (non-blocking) - but don't clear on failure
             try {
               console.log('🔄 Validating session in background...');
               const profile = await authService.getCurrentProfile();
@@ -44,30 +53,48 @@ export const AuthProvider = ({ children }) => {
               }
             } catch (error) {
               console.warn('⚠️ Session validation failed, but keeping user logged in:', error.message);
-              // Don't clear auth on validation failure - keep user logged in
-              // Only clear if it's a critical error (like 401)
-              if (error.message && error.message.includes('401')) {
-                console.log('❌ 401 error, clearing auth');
-                authService.clearTokens();
-                setUser(null);
-                setIsAdmin(false);
-              }
+              // Don't clear the session just because validation failed
+              // The user might have a valid token but the server is temporarily unavailable
             }
           } else {
-            console.log('❌ No user found in localStorage');
-            authService.clearTokens();
+            console.log('❌ No user found in localStorage, checking tokens...');
+            // If we have tokens but no user data, try to get profile
+            try {
+              const profile = await authService.getCurrentProfile();
+              if (profile.admin || profile.user) {
+                setUser(profile.admin || profile.user);
+                setIsAdmin(authService.isAdmin());
+                console.log('✅ User profile loaded from API');
+              } else {
+                console.log('❌ No valid profile found');
+                setUser(null);
+                setIsAdmin(false);
+                authService.clearTokens();
+              }
+            } catch (error) {
+              console.log('❌ Failed to load profile:', error.message);
+              // Only clear tokens if it's a definitive auth error
+              if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
+                console.log('🔒 Clearing tokens due to auth error');
+                setUser(null);
+                setIsAdmin(false);
+                authService.clearTokens();
+              } else {
+                // Keep the session for other types of errors
+                console.log('🔄 Keeping session despite error');
+              }
+            }
           }
         } else {
-          console.log('❌ No access token found');
-        }
-      } catch (error) {
-        console.error('❌ Auth check failed:', error);
-        // Only clear auth on critical errors
-        if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
-          authService.clearTokens();
+          console.log('❌ No tokens found');
           setUser(null);
           setIsAdmin(false);
         }
+      } catch (error) {
+        console.error('❌ Auth check failed:', error);
+        setUser(null);
+        setIsAdmin(false);
+        authService.clearTokens();
       } finally {
         setLoading(false);
         console.log('🏁 Auth check completed');
@@ -162,6 +189,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAdmin]);
 
+  // Method to refresh tokens manually
+  const refreshTokens = useCallback(async () => {
+    try {
+      const userType = isAdmin ? 'admin' : 'user';
+      const result = await authService.refreshAccessToken(userType);
+      if (result.success) {
+        console.log('✅ Tokens refreshed successfully');
+        return true;
+      } else {
+        console.log('❌ Token refresh failed:', result.message);
+        logout();
+        return false;
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      logout();
+      return false;
+    }
+  }, [isAdmin, logout]);
+
   const refreshSession = useCallback(async () => {
     try {
       if (authService.isAuthenticated()) {
@@ -207,6 +254,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    refreshTokens,
     refreshSession,
     apiRequest,
     isAuthenticated: !!user,

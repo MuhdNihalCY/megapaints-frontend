@@ -1,0 +1,1010 @@
+/**
+ * TrelloCardModal Component
+ * Complete Trello-style card modal matching exact specifications
+ * - 768px width modal with 552px left column + 168px sidebar
+ * - Full feature set: members, labels, dates, attachments, checklists, custom fields
+ * - Activity log and comments system
+ * - Sidebar actions menu
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  X,
+  CreditCard,
+  User,
+  Tag,
+  Clock,
+  Paperclip,
+  Image as ImageIcon,
+  CheckSquare,
+  AlignLeft,
+  Plus,
+  Eye,
+  EyeOff,
+  Archive,
+  Copy,
+  Move,
+  Share2,
+  Trash2,
+  MoreHorizontal,
+  Calendar,
+  Upload,
+  Link as LinkIcon,
+  Edit3,
+  Save,
+  Hash
+} from 'lucide-react';
+import { useKanban } from '../../contexts/KanbanContext';
+import { calculateCardBadges, addActivity } from '../../types/cardModel';
+import CommentsSection from '../comments/CommentsSection';
+import ActivityLog from '../activity/ActivityLog';
+import TrelloChecklist from './TrelloChecklist';
+import TrelloAttachments from './TrelloAttachments';
+import CustomFieldsManager from './CustomFieldsManager';
+import { DEFAULT_CUSTOM_FIELDS } from '../../types/customFields';
+
+const TrelloCardModal = ({
+  card,
+  isOpen,
+  onClose,
+  onUpdate,
+  onDelete,
+  onMove,
+  onCopy
+}) => {
+  const { 
+    users, 
+    labels, 
+    columns, 
+    user: currentUser,
+    addAttachment: contextAddAttachment,
+    deleteAttachment: contextDeleteAttachment,
+    setCardCover: contextSetCardCover,
+    addChecklist: contextAddChecklist,
+    updateChecklist: contextUpdateChecklist,
+    deleteChecklist: contextDeleteChecklist,
+    watchCard: contextWatchCard,
+    unwatchCard: contextUnwatchCard,
+    addComment: contextAddComment,
+    updateComment: contextUpdateComment,
+    deleteComment: contextDeleteComment
+  } = useKanban();
+  
+  // State
+  const [formData, setFormData] = useState(card || null);
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
+  const [activeSection, setActiveSection] = useState(null);
+  const [showActivityDetails, setShowActivityDetails] = useState(false);
+  
+  // Don't render if no card data
+  if (!isOpen || !card) {
+    return null;
+  }
+  
+  // Refs
+  const titleRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const modalRef = useRef(null);
+  
+  // Update form data when card changes
+  useEffect(() => {
+    if (card) {
+      setFormData(card);
+    }
+  }, [card]);
+  
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+  
+  // Handle title editing
+  const handleTitleEdit = () => {
+    setIsTitleEditing(true);
+    setTimeout(() => {
+      if (titleRef.current) {
+        titleRef.current.focus();
+        titleRef.current.select();
+      }
+    }, 0);
+  };
+  
+  const handleTitleSave = () => {
+    setIsTitleEditing(false);
+    if (formData.title.trim() !== card.title) {
+      const updatedCard = addActivity(
+        formData,
+        'edit',
+        currentUser?.id,
+        { field: 'title', from: card.title, to: formData.title },
+        `changed title from "${card.title}" to "${formData.title}"`
+      );
+      onUpdate(updatedCard);
+    }
+  };
+  
+  // Handle description editing
+  const handleDescriptionEdit = () => {
+    setIsDescriptionEditing(true);
+    setTimeout(() => {
+      if (descriptionRef.current) {
+        descriptionRef.current.focus();
+      }
+    }, 0);
+  };
+  
+  const handleDescriptionSave = () => {
+    setIsDescriptionEditing(false);
+    if (formData.description !== card.description) {
+      const updatedCard = addActivity(
+        formData,
+        'edit',
+        currentUser?.id,
+        { field: 'description' },
+        'updated the description'
+      );
+      onUpdate(updatedCard);
+    }
+  };
+  
+  // Handle field updates
+  const handleFieldUpdate = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+  
+  // Handle member toggle
+  const handleMemberToggle = (userId) => {
+    const currentMembers = formData.members || [];
+    const newMembers = currentMembers.includes(userId)
+      ? currentMembers.filter(id => id !== userId)
+      : [...currentMembers, userId];
+    
+    const updatedCard = {
+      ...formData,
+      members: newMembers
+    };
+    
+    const user = users.find(u => u.id === userId || u._id === userId);
+    const action = currentMembers.includes(userId) ? 'removed' : 'added';
+    const activityCard = addActivity(
+      updatedCard,
+      'add_member',
+      currentUser?.id,
+      { userId, action },
+      `${action} ${user?.name || 'member'} ${action === 'added' ? 'to' : 'from'} this card`
+    );
+    
+    onUpdate(activityCard);
+    setActiveSection(null);
+  };
+  
+  // Handle label toggle
+  const handleLabelToggle = (labelId) => {
+    const currentLabels = formData.labels || [];
+    const newLabels = currentLabels.includes(labelId)
+      ? currentLabels.filter(id => id !== labelId)
+      : [...currentLabels, labelId];
+    
+    const updatedCard = {
+      ...formData,
+      labels: newLabels
+    };
+    
+    const label = labels.find(l => l.id === labelId || l._id === labelId);
+    const action = currentLabels.includes(labelId) ? 'removed' : 'added';
+    const activityCard = addActivity(
+      updatedCard,
+      'add_label',
+      currentUser?.id,
+      { labelId, action },
+      `${action} ${label?.name || 'label'}`
+    );
+    
+    onUpdate(activityCard);
+  };
+  
+  // Handle due date change
+  const handleDueDateChange = (date) => {
+    const updatedCard = {
+      ...formData,
+      dueDate: date ? { date, completed: false } : null
+    };
+    
+    const activityCard = addActivity(
+      updatedCard,
+      'due_date',
+      currentUser?.id,
+      { date },
+      date ? `set due date to ${new Date(date).toLocaleDateString()}` : 'removed due date'
+    );
+    
+    onUpdate(activityCard);
+    setActiveSection(null);
+  };
+  
+  // Handle archive
+  const handleArchive = () => {
+    const updatedCard = {
+      ...formData,
+      closed: !formData.closed
+    };
+    
+    const activityCard = addActivity(
+      updatedCard,
+      formData.closed ? 'unarchive' : 'archive',
+      currentUser?.id,
+      {},
+      formData.closed ? 'unarchived this card' : 'archived this card'
+    );
+    
+    onUpdate(activityCard);
+    setActiveSection(null);
+  };
+  
+  // Handle watch/unwatch
+  const handleWatch = async () => {
+    const currentSubscriptions = formData.subscriptions || formData.watchers || [];
+    const isWatching = currentSubscriptions.includes(currentUser?.id);
+    
+    try {
+      if (isWatching) {
+        // Unwatch card
+        await contextUnwatchCard(card._id);
+        setFormData(prev => ({
+          ...prev,
+          subscriptions: currentSubscriptions.filter(id => id !== currentUser?.id),
+          watchers: currentSubscriptions.filter(id => id !== currentUser?.id)
+        }));
+      } else {
+        // Watch card
+        await contextWatchCard(card._id);
+        setFormData(prev => ({
+          ...prev,
+          subscriptions: [...currentSubscriptions, currentUser?.id],
+          watchers: [...currentSubscriptions, currentUser?.id]
+        }));
+      }
+      setActiveSection(null);
+    } catch (error) {
+      console.error('Failed to toggle watch status:', error);
+    }
+  };
+  
+  const badges = calculateCardBadges(formData);
+  const currentColumn = columns?.find(col => col.id === formData.listId || col._id === formData.listId);
+  const cardMembers = (formData.members || [])
+    .map(id => users.find(u => u.id === id || u._id === id))
+    .filter(Boolean);
+  const cardLabels = (formData.labels || [])
+    .map(id => labels.find(l => l.id === id || l._id === id))
+    .filter(Boolean);
+  
+  const isWatching = (formData.subscriptions || formData.watchers || []).includes(currentUser?.id);
+  
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-64 z-50 flex items-start justify-center overflow-y-auto p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <motion.div
+          ref={modalRef}
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="w-full max-w-[768px] bg-white dark:bg-gray-900 rounded-none md:rounded-lg shadow-2xl my-0 md:my-8 h-full md:h-auto max-h-screen md:max-h-[90vh]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Cover Image */}
+          {formData.coverImage && (formData.coverImage.url || formData.coverImage.color) && (
+            <div
+              className="w-full rounded-t-lg"
+              style={{
+                height: formData.coverImage.size === 'full' ? '260px' : '116px',
+                backgroundColor: formData.coverImage.color || undefined,
+                backgroundImage: formData.coverImage.url ? `url(${formData.coverImage.url})` : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }}
+            />
+          )}
+          
+          {/* Header */}
+          <div className="p-4 pb-2">
+            <div className="flex items-start gap-3">
+              <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-1" />
+              <div className="flex-1">
+                {/* Title */}
+                {isTitleEditing ? (
+                  <textarea
+                    ref={titleRef}
+                    value={formData.title}
+                    onChange={(e) => handleFieldUpdate('title', e.target.value)}
+                    onBlur={handleTitleSave}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleTitleSave();
+                      }
+                    }}
+                    className="w-full px-2 py-1 text-xl font-semibold border-2 border-blue-500 rounded focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                    rows={1}
+                  />
+                ) : (
+                  <h2
+                    onClick={handleTitleEdit}
+                    className="text-xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded -ml-2"
+                  >
+                    {formData.title}
+                  </h2>
+                )}
+                
+                {/* Subtitle */}
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 px-2">
+                  in list <span className="font-medium">{currentColumn?.name || 'Unknown'}</span>
+                </div>
+              </div>
+              
+              {/* Close button */}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Main Content Area */}
+          <div className="flex flex-col md:flex-row gap-4 p-4 overflow-y-auto">
+            {/* Left Column - 552px on desktop, full width on mobile */}
+            <div className="flex-1 md:max-w-[552px]">
+              {/* Members Section */}
+              {cardMembers.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">MEMBERS</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {cardMembers.map((member) => (
+                      <div
+                        key={member.id || member._id}
+                        className="flex items-center gap-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                        title={member.name || member.email}
+                      >
+                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                          {(member.name || member.email || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm">{member.name || member.email}</span>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setActiveSection('members')}
+                      className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Labels Section */}
+              {cardLabels.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">LABELS</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {cardLabels.map((label) => (
+                      <div
+                        key={label.id || label._id}
+                        className="px-3 py-1.5 rounded text-sm font-medium"
+                        style={{
+                          backgroundColor: label.color,
+                          color: label.color === '#FFFFFF' || label.color === 'white' ? '#000' : '#FFF'
+                        }}
+                      >
+                        {label.name}
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setActiveSection('labels')}
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Due Date Section */}
+              {formData.dueDate && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">DUE DATE</h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.dueDate.completed || false}
+                      onChange={(e) => {
+                        const updatedCard = {
+                          ...formData,
+                          dueDate: { ...formData.dueDate, completed: e.target.checked }
+                        };
+                        onUpdate(updatedCard);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <button
+                      onClick={() => setActiveSection('dates')}
+                      className={`px-3 py-1.5 rounded text-sm font-medium ${
+                        badges.dueDate?.isComplete
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          : badges.dueDate?.isOverdue
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          : badges.dueDate?.isDueSoon
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {new Date(formData.dueDate.date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                      })}
+                    </button>
+                    {badges.dueDate?.isComplete && (
+                      <span className="text-green-600 dark:text-green-400 text-sm font-medium">
+                        Complete
+                      </span>
+                    )}
+                    {badges.dueDate?.isOverdue && !badges.dueDate?.isComplete && (
+                      <span className="text-red-600 dark:text-red-400 text-sm font-medium">
+                        Overdue
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Description Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Description</h3>
+                  </div>
+                  {!isDescriptionEditing && formData.description && (
+                    <button
+                      onClick={handleDescriptionEdit}
+                      className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                
+                {isDescriptionEditing ? (
+                  <div>
+                    <textarea
+                      ref={descriptionRef}
+                      value={formData.description}
+                      onChange={(e) => handleFieldUpdate('description', e.target.value)}
+                      placeholder="Add a more detailed description..."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white min-h-[100px]"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={handleDescriptionSave}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsDescriptionEditing(false);
+                          handleFieldUpdate('description', card.description);
+                        }}
+                        className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={handleDescriptionEdit}
+                    className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[60px]"
+                  >
+                    {formData.description ? (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                        {formData.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                        Add a more detailed description...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Attachments Section */}
+              <TrelloAttachments
+                attachments={formData.attachments || []}
+                onAdd={async (attachment) => {
+                  try {
+                    // Call backend API via context
+                    await contextAddAttachment(card._id, attachment);
+                    // Update local state
+                    setFormData(prev => ({
+                      ...prev,
+                      attachments: [...(prev.attachments || []), attachment]
+                    }));
+                  } catch (error) {
+                    console.error('Failed to add attachment:', error);
+                  }
+                }}
+                onDelete={async (attachmentId) => {
+                  try {
+                    // Call backend API via context
+                    await contextDeleteAttachment(card._id, attachmentId);
+                    // Update local state
+                    setFormData(prev => ({
+                      ...prev,
+                      attachments: (prev.attachments || []).filter(a => a.id !== attachmentId)
+                    }));
+                  } catch (error) {
+                    console.error('Failed to delete attachment:', error);
+                  }
+                }}
+                onMakeCover={async (attachment) => {
+                  try {
+                    const coverData = {
+                      attachmentId: attachment.id,
+                      url: attachment.url,
+                      color: null,
+                      size: 'normal'
+                    };
+                    // Call backend API via context
+                    await contextSetCardCover(card._id, coverData);
+                    // Update local state
+                    setFormData(prev => ({
+                      ...prev,
+                      coverImage: coverData
+                    }));
+                  } catch (error) {
+                    console.error('Failed to set card cover:', error);
+                  }
+                }}
+              />
+              
+              {/* Checklists Section */}
+              {(formData.checklists || []).map((checklist) => (
+                <TrelloChecklist
+                  key={checklist.id}
+                  checklist={checklist}
+                  onUpdate={async (updatedChecklist) => {
+                    try {
+                      // Call backend API via context
+                      await contextUpdateChecklist(card._id, checklist.id, updatedChecklist);
+                      // Update local state
+                      setFormData(prev => ({
+                        ...prev,
+                        checklists: (prev.checklists || []).map(c =>
+                          c.id === updatedChecklist.id ? updatedChecklist : c
+                        )
+                      }));
+                    } catch (error) {
+                      console.error('Failed to update checklist:', error);
+                    }
+                  }}
+                  onDelete={async (checklistId) => {
+                    try {
+                      // Call backend API via context
+                      await contextDeleteChecklist(card._id, checklistId);
+                      // Update local state
+                      setFormData(prev => ({
+                        ...prev,
+                        checklists: (prev.checklists || []).filter(c => c.id !== checklistId)
+                      }));
+                    } catch (error) {
+                      console.error('Failed to delete checklist:', error);
+                    }
+                  }}
+                />
+              ))}
+              
+              {/* Custom Fields Section */}
+              <CustomFieldsManager
+                card={formData}
+                customFieldDefinitions={DEFAULT_CUSTOM_FIELDS}
+                onUpdate={(fieldId, value) => {
+                  // Update custom field value
+                  const existingFields = formData.customFields || [];
+                  const existingIndex = existingFields.findIndex(cf => cf.fieldId === fieldId);
+                  
+                  let updatedFields;
+                  if (existingIndex >= 0) {
+                    updatedFields = [...existingFields];
+                    updatedFields[existingIndex] = {
+                      fieldId,
+                      value,
+                      updatedAt: new Date().toISOString(),
+                      updatedBy: currentUser?.id
+                    };
+                  } else {
+                    updatedFields = [...existingFields, {
+                      fieldId,
+                      value,
+                      updatedAt: new Date().toISOString(),
+                      updatedBy: currentUser?.id
+                    }];
+                  }
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    customFields: updatedFields
+                  }));
+                  
+                  onUpdate({ ...formData, customFields: updatedFields });
+                }}
+                currentUser={currentUser}
+              />
+              
+              {/* Activity Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Activity</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowActivityDetails(!showActivityDetails)}
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  >
+                    {showActivityDetails ? 'Hide Details' : 'Show Details'}
+                  </button>
+                </div>
+                
+                {/* Comments Section */}
+                <CommentsSection card={formData} onUpdate={onUpdate} />
+                
+                {/* Activity Log */}
+                {showActivityDetails && (
+                  <ActivityLog activities={formData.activityLog || []} users={users} />
+                )}
+              </div>
+            </div>
+            
+            {/* Right Sidebar - 168px on desktop, full width on mobile */}
+            <div className="w-full md:w-[168px] flex-shrink-0">
+              {/* Add to Card */}
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ADD TO CARD</h3>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setActiveSection('members')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    Members
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('labels')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Tag className="w-4 h-4" />
+                    Labels
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('checklist')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    Checklist
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('dates')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Dates
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('attachment')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    Attachment
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('cover')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Cover
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('custom-fields')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Hash className="w-4 h-4" />
+                    Custom Fields
+                  </button>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ACTIONS</h3>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => onMove && onMove(formData)}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Move className="w-4 h-4" />
+                    Move
+                  </button>
+                  <button
+                    onClick={() => onCopy && onCopy(formData)}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={handleWatch}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    {isWatching ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {isWatching ? 'Unwatch' : 'Watch'}
+                  </button>
+                  <button
+                    onClick={handleArchive}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Archive className="w-4 h-4" />
+                    {formData.closed ? 'Unarchive' : 'Archive'}
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('share')}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </button>
+                  {formData.closed && onDelete && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to permanently delete this card?')) {
+                          onDelete(formData.id || formData._id);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded text-sm text-left transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Popup Menus */}
+          <AnimatePresence>
+            {activeSection === 'members' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Members</h3>
+                  <button onClick={() => setActiveSection(null)}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {users.map((user) => (
+                    <label
+                      key={user.id || user._id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(formData.members || []).includes(user.id || user._id)}
+                        onChange={() => handleMemberToggle(user.id || user._id)}
+                        className="w-4 h-4"
+                      />
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{user.name || user.email}</div>
+                        <div className="text-xs text-gray-500">{user.designation}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            
+            {activeSection === 'labels' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Labels</h3>
+                  <button onClick={() => setActiveSection(null)}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {labels.map((label) => (
+                    <label
+                      key={label.id || label._id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(formData.labels || []).includes(label.id || label._id)}
+                        onChange={() => handleLabelToggle(label.id || label._id)}
+                        className="w-4 h-4"
+                      />
+                      <div
+                        className="w-full px-3 py-2 rounded font-medium"
+                        style={{
+                          backgroundColor: label.color,
+                          color: label.color === '#FFFFFF' || label.color === 'white' ? '#000' : '#FFF'
+                        }}
+                      >
+                        {label.name}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            
+            {activeSection === 'checklist' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Add Checklist</h3>
+                  <button onClick={() => setActiveSection(null)}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Checklist"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const title = e.target.value.trim() || 'Checklist';
+                          const newChecklist = {
+                            id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            title,
+                            position: (formData.checklists || []).length,
+                            items: []
+                          };
+                          const updatedCard = {
+                            ...formData,
+                            checklists: [...(formData.checklists || []), newChecklist]
+                          };
+                          const activityCard = addActivity(
+                            updatedCard,
+                            'checklist',
+                            currentUser?.id,
+                            { checklistTitle: title },
+                            `added checklist "${title}"`
+                          );
+                          onUpdate(activityCard);
+                          setActiveSection(null);
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      const input = e.target.parentElement.parentElement.querySelector('input');
+                      const title = input.value.trim() || 'Checklist';
+                      const newChecklist = {
+                        id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        title,
+                        position: (formData.checklists || []).length,
+                        items: []
+                      };
+                      const updatedCard = {
+                        ...formData,
+                        checklists: [...(formData.checklists || []), newChecklist]
+                      };
+                      const activityCard = addActivity(
+                        updatedCard,
+                        'checklist',
+                        currentUser?.id,
+                        { checklistTitle: title },
+                        `added checklist "${title}"`
+                      );
+                      onUpdate(activityCard);
+                      setActiveSection(null);
+                    }}
+                    className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              </motion.div>
+            )}
+            
+            {activeSection === 'dates' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Due Date</h3>
+                  <button onClick={() => setActiveSection(null)}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  type="datetime-local"
+                  value={formData.dueDate?.date ? new Date(formData.dueDate.date).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => handleDueDateChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700"
+                />
+                {formData.dueDate && (
+                  <button
+                    onClick={() => handleDueDateChange(null)}
+                    className="w-full mt-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+export default TrelloCardModal;
+

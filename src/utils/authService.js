@@ -3,13 +3,20 @@
  * Handles JWT-based authentication for both users and admins
  * Updated to work with the new API structure and separate admin/user services
  */
+import { getApiUrl, debugApiConfig } from '../config/api.js';
+
 class AuthService {
   constructor() {
-    this.baseURL = '/api';
-    this.accessToken = null; // Store in memory only
-    this.refreshToken = null; // Store in memory only
+    // Use centralized API configuration
+    this.baseURL = '/api'; // Will be handled by proxy in development
+    // Try to restore tokens from localStorage on initialization
+    this.accessToken = localStorage.getItem('accessToken') || null;
+    this.refreshToken = localStorage.getItem('refreshToken') || null;
     this.isRefreshing = false;
     this.pendingRequests = [];
+    
+    // Debug API configuration
+    debugApiConfig();
   }
 
   /**
@@ -22,7 +29,7 @@ class AuthService {
     try {
       console.log('Attempting admin login');
       
-      const response = await fetch(`${this.baseURL}/auth/admin/login`, {
+      const response = await fetch(getApiUrl('/auth/admin/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,6 +81,9 @@ class AuthService {
         // Store tokens
         this.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
         
+        // Store admin user data in localStorage for persistence
+        localStorage.setItem('adminUser', JSON.stringify(data.data.admin));
+        
         return {
           success: true,
           admin: data.data.admin,
@@ -109,7 +119,7 @@ class AuthService {
     try {
       console.log('Attempting user registration');
       
-      const response = await fetch(`${this.baseURL}/auth/user/register`, {
+      const response = await fetch(getApiUrl('/auth/user/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +203,7 @@ class AuthService {
     try {
       console.log('Attempting user login');
       
-      const response = await fetch(`${this.baseURL}/auth/user/login`, {
+      const response = await fetch(getApiUrl('/auth/user/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,6 +255,9 @@ class AuthService {
         // Store tokens
         this.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
         
+        // Store user data in localStorage for persistence
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        
         return {
           success: true,
           user: data.data.user,
@@ -279,7 +292,19 @@ class AuthService {
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
-    // Tokens stored in memory only - server handles persistence via httpOnly cookies
+    
+    // Store tokens in localStorage for persistence across page refreshes
+    if (accessToken) {
+      localStorage.setItem('accessToken', accessToken);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
+    
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    } else {
+      localStorage.removeItem('refreshToken');
+    }
   }
 
   /**
@@ -295,19 +320,47 @@ class AuthService {
       });
     }
 
+    // Check if we have a refresh token
+    if (!this.refreshToken) {
+      console.warn('No refresh token available');
+      this.logout();
+      return { success: false, message: 'No refresh token available' };
+    }
+
     this.isRefreshing = true;
 
     try {
       const endpoint = type === 'admin' ? '/auth/admin/refresh' : '/auth/user/refresh';
       
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
+      const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ refreshToken: this.refreshToken })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Refresh failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Refresh failed: ${response.status} ${response.statusText}`);
+      }
+
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      let data = null;
+      if (response.status !== 204 && 
+          contentLength !== '0' && 
+          contentType && 
+          contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error(`Failed to parse JSON response for refresh:`, jsonError);
+          throw new Error(`Invalid JSON response: ${response.status} ${response.statusText}`);
+        }
+      }
       
       if (data.status === 'success') {
         this.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
@@ -354,7 +407,7 @@ class AuthService {
    * @returns {Promise<Object>} API response
    */
   async apiRequest(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = getApiUrl(endpoint);
     
     const makeRequest = async (token) => {
       return fetch(url, {
@@ -378,10 +431,26 @@ class AuthService {
         response = await makeRequest(this.accessToken);
       }
       
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      let data = null;
+      if (response.status !== 204 && 
+          contentLength !== '0' && 
+          contentType && 
+          contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error(`Failed to parse JSON response for ${endpoint}:`, jsonError);
+          throw new Error(`Invalid JSON response: ${response.status} ${response.statusText}`);
+        }
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        const errorMessage = data?.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
       }
       
       return data;
@@ -412,7 +481,12 @@ class AuthService {
   clearTokens() {
     this.accessToken = null;
     this.refreshToken = null;
-    // Clear in-memory tokens only - server handles cookie cleanup
+    
+    // Clear tokens from localStorage
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('adminUser');
+    localStorage.removeItem('user');
   }
 
   /**
@@ -420,7 +494,29 @@ class AuthService {
    * @returns {boolean} True if authenticated
    */
   isAuthenticated() {
-    return !!this.accessToken;
+    return !!this.accessToken && !!this.refreshToken;
+  }
+
+  /**
+   * Check if tokens are valid (not expired)
+   * @returns {boolean} True if tokens are valid
+   */
+  hasValidTokens() {
+    if (!this.accessToken || !this.refreshToken) {
+      return false;
+    }
+    
+    try {
+      // Check if access token is expired
+      const tokenPayload = JSON.parse(atob(this.accessToken.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      const bufferTime = 60; // 1 minute buffer
+      
+      return tokenPayload.exp > (currentTime + bufferTime);
+    } catch (error) {
+      console.error('Error checking token validity:', error);
+      return false;
+    }
   }
 
   /**
@@ -430,6 +526,15 @@ class AuthService {
   isAdmin() {
     const adminUser = localStorage.getItem('adminUser');
     return !!adminUser;
+  }
+
+  /**
+   * Check if current user is user (not admin)
+   * @returns {boolean} True if user
+   */
+  isUser() {
+    const user = localStorage.getItem('user');
+    return !!user;
   }
 
   /**

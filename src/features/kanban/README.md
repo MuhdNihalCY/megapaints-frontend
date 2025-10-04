@@ -11,30 +11,98 @@ The Kanban board system provides a modern, drag-and-drop interface for managing 
 ### Folder Structure
 ```
 src/features/kanban/
-├── components/           # React components
-│   ├── KanbanBoard.jsx   # Main board component
-│   ├── KanbanColumn.jsx  # Column component
-│   ├── KanbanCard.jsx    # Card component
-│   ├── CardModal.jsx     # Card create/edit modal
-│   ├── FiltersPanel.jsx  # Search and filter panel
-│   ├── ColumnHeader.jsx  # Column header component
-│   └── CreateCardButton.jsx # Add card button
-├── contexts/             # React contexts
-│   └── KanbanContext.jsx # Main state management
-├── hooks/                # Custom React hooks
-│   └── useKanban.js      # Reusable hooks
-├── pages/                # Page components
-│   └── KanbanDashboard.jsx # Main dashboard page
-├── services/             # API and data services
-│   ├── kanbanService.js  # Main service
-│   └── mockData.js       # Development mock data
-├── utils/                # Utilities and constants
-│   ├── constants.js      # System constants
-│   └── permissions.js    # Permission system
-└── index.js              # Main exports
+├── components/                 # React Components (ORGANIZED)
+│   ├── activity/              # Activity-related components
+│   │   └── ActivityLog.jsx    # Activity logging component
+│   ├── board/                 # Board-level components
+│   │   ├── KanbanBoard.jsx    # Main board container (consolidated)
+│   │   ├── BoardHeader.jsx    # Board title and controls
+│   │   └── BoardStats.jsx     # Board statistics
+│   ├── cards/                 # Card-related components
+│   │   ├── KanbanCard.jsx     # Basic card component
+│   │   ├── PragmaticKanbanCard.jsx # Enhanced card with DnD
+│   │   ├── CardModal.jsx      # Card create/edit modal
+│   │   └── CardChecklist.jsx  # Card checklist component
+│   ├── columns/               # Column components
+│   │   ├── KanbanColumn.jsx   # Column component
+│   │   └── ColumnHeader.jsx   # Column header with activation
+│   ├── comments/              # Comment-related components
+│   │   └── CommentsSection.jsx # Comments and mentions
+│   ├── common/                # Common/shared components
+│   │   ├── ErrorBoundary.jsx  # Error handling
+│   │   ├── LoadingSpinner.jsx # Loading states
+│   │   ├── ApiStatusNotification.jsx # API status display
+│   │   └── AuthGuard.jsx      # Authentication guard
+│   ├── search/                # Search components
+│   │   └── ColumnSearch.jsx   # Column-specific search
+│   ├── ui/                    # UI components
+│   │   ├── FiltersPanel.jsx   # Search and filter panel
+│   │   ├── CreateCardButton.jsx # Add card button
+│   │   ├── HelpPanel.jsx      # Help and shortcuts
+│   │   ├── KeyboardShortcuts.jsx # Keyboard shortcuts
+│   │   └── LabelManager.jsx   # Label management
+│   ├── ColumnSearch.jsx       # DEPRECATED: Use search/ColumnSearch.jsx
+│   └── PragmaticKanbanBoard.jsx # DEPRECATED: Use board/KanbanBoard.jsx
+├── contexts/                  # React Contexts
+│   ├── KanbanContext.jsx     # Main state management
+│   └── PermissionContext.jsx # Permission system
+├── hooks/                     # Custom React hooks
+│   ├── useKanban.js          # Main kanban hooks
+│   ├── useCardModal.js       # Card modal hooks
+│   ├── useDragDrop.js        # Drag and drop hooks
+│   ├── usePragmaticDragAndDrop.js # Enhanced DnD hooks
+│   └── usePermissions.js     # Permission hooks
+├── pages/                     # Page components
+│   └── KanbanDashboard.jsx   # Main dashboard page
+├── services/                  # API and data services
+│   └── kanbanService.js      # Main service
+├── utils/                     # Utilities and constants
+│   ├── constants.js          # System constants
+│   ├── permissions.js        # Permission utilities
+│   ├── dragDropRules.js     # DnD rule utilities
+│   └── activityLogger.js    # Activity logging utilities
+├── types/                     # TypeScript type definitions
+│   └── index.ts              # Main type exports
+├── tests/                     # Testing utilities
+│   └── utils/
+│       └── testHelpers.js    # Test helper functions
+├── automation/                # Test automation
+│   └── test-automation.js    # Automated tests
+└── index.js                   # Main exports (UPDATED)
 ```
 
-## 🎨 Board Layout
+## 📁 **Reorganization Summary**
+
+The kanban folder has been properly organized to improve maintainability and developer experience:
+
+### ✅ **What Was Done**
+1. **Consolidated Duplicate Components**: Merged `PragmaticKanbanBoard` into `board/KanbanBoard.jsx`
+2. **Organized Components by Function**: Moved components into logical subdirectories
+3. **Fixed Import Paths**: Updated all import statements to use proper relative paths
+4. **Updated Exports**: Modified `index.js` to reflect new organization
+5. **Preserved Functionality**: All deprecated components are commented out, not deleted
+
+### 📂 **New Organization**
+- **`board/`**: Main board components
+- **`cards/`**: All card-related components
+- **`columns/`**: Column components
+- **`ui/`**: User interface components (filters, help, shortcuts, etc.)
+- **`common/`**: Shared/common components
+- **`search/`**: Search functionality
+- **`activity/`**: Activity logging
+- **`comments/`**: Comments and mentions
+
+### ⚠️ **Deprecated Files**
+- `PragmaticKanbanBoard.jsx` → Use `board/KanbanBoard.jsx`
+- `ColumnSearch.jsx` (root) → Use `search/ColumnSearch.jsx`
+
+### 🔄 **Migration Notes**
+- All imports have been updated automatically
+- No functionality has been removed
+- Deprecated files are marked with `@deprecated` comments
+- The main `KanbanBoard` component now contains the full implementation
+
+---
 
 ### Column Structure
 - **Non-grouped columns**: Sales, Office

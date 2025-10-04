@@ -130,11 +130,16 @@ class BusinessManagementService {
       page: 1,
       limit: 20,
       search: '',
-      is_active: null,
-      designation: null,
-      branch_id: null,
       ...options
     };
+    
+    // Remove null/undefined values
+    Object.keys(params).forEach(key => {
+      if (params[key] === null || params[key] === undefined || params[key] === '') {
+        delete params[key];
+      }
+    });
+    
     return await this.adminApi.getUsers(params);
   }
 

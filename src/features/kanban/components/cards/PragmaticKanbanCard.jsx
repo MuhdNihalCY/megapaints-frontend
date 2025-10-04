@@ -18,8 +18,8 @@ import {
   Tag
 } from 'lucide-react';
 
-import { usePragmaticDragAndDrop } from '../hooks/usePragmaticDragAndDrop';
-import { usePriorityDisplay, useLabelsDisplay } from '../hooks/useKanban';
+import { usePragmaticDragAndDrop } from '../../hooks/usePragmaticDragAndDrop';
+import { usePriorityDisplay, useLabelsDisplay } from '../../hooks/useKanban';
 
 /**
  * Pragmatic Drag and Drop Kanban Card Component
