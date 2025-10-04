@@ -16,24 +16,44 @@ class KanbanService {
   /**
    * Handle API response and extract data
    */
-  handleResponse(response) {
+  handleResponse(response, endpoint = 'unknown') {
+    console.log(`🔍 [API Response] ${endpoint}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data,
+      headers: response.headers
+    });
+
     // Check if response is HTML (indicates API endpoint doesn't exist)
     if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
-      console.warn('API endpoint returned HTML instead of JSON - endpoint may not exist');
+      console.warn(`⚠️ [API Warning] ${endpoint}: API endpoint returned HTML instead of JSON - endpoint may not exist`);
       return null;
     }
     
     if (response.data?.success !== false) {
-      return response.data?.data || response.data;
+      const result = response.data?.data || response.data;
+      console.log(`✅ [API Success] ${endpoint}:`, result);
+      return result;
     }
+    
+    console.error(`❌ [API Error] ${endpoint}:`, response.data?.message || 'API request failed');
     throw new Error(response.data?.message || 'API request failed');
   }
 
   /**
    * Handle API errors
    */
-  handleError(error) {
-    console.error('API Error:', error);
+  handleError(error, endpoint = 'unknown') {
+    console.error(`💥 [API Error] ${endpoint}:`, {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url,
+      method: error.config?.method,
+      headers: error.config?.headers
+    });
+    
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -43,12 +63,353 @@ class KanbanService {
   // ==================== BOARD MANAGEMENT ====================
 
   /**
-   * Get complete board structure with columns and cards
+   * Get all boards
+   * GET /api/kanban/boards
    */
-  async getBoard() {
+  async getBoards(params = {}) {
+    const endpoint = 'GET /api/kanban/boards';
+    console.log(`🚀 [API Call] ${endpoint}:`, { params });
+    
     try {
-      const response = await api.get(`${this.baseURL}/board`);
-      console.log('getBoard response:', response);
+      const response = await api.get(`${this.baseURL}/kanban/boards`, { params });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Get board by ID
+   * GET /api/kanban/boards/:id
+   */
+  async getBoard(boardId) {
+    const endpoint = `GET /api/kanban/boards/${boardId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/boards/${boardId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Create a new board
+   * POST /api/kanban/boards
+   */
+  async createBoard(boardData) {
+    const endpoint = 'POST /api/kanban/boards';
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardData });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/boards`, boardData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Update board
+   * PUT /api/kanban/boards/:id
+   */
+  async updateBoard(boardId, boardData) {
+    const endpoint = `PUT /api/kanban/boards/${boardId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId, boardData });
+    
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/boards/${boardId}`, boardData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Delete board
+   * DELETE /api/kanban/boards/:id
+   */
+  async deleteBoard(boardId) {
+    const endpoint = `DELETE /api/kanban/boards/${boardId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/boards/${boardId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Get boards by branch (legacy endpoint)
+   * GET /api/kanban/boards/v2/board/branch
+   */
+  async getBoardsByBranch(branchId) {
+    const endpoint = `GET /api/kanban/boards/v2/board/branch`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { branchId });
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/boards/v2/board/branch?branch_id=${branchId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  // ==================== TASK MANAGEMENT ====================
+
+  /**
+   * Get all tasks
+   * GET /api/kanban/tasks
+   */
+  async getTasks(params = {}) {
+    const endpoint = 'GET /api/kanban/tasks';
+    console.log(`🚀 [API Call] ${endpoint}:`, { params });
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/tasks`, { params });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Get task by ID
+   * GET /api/kanban/tasks/:id
+   */
+  async getTask(taskId) {
+    const endpoint = `GET /api/kanban/tasks/${taskId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/tasks/${taskId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Create a new task
+   * POST /api/kanban/tasks
+   */
+  async createTask(taskData) {
+    const endpoint = 'POST /api/kanban/tasks';
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskData });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks`, taskData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Update an existing task
+   * PUT /api/kanban/tasks/:id
+   */
+  async updateTask(taskId, taskData) {
+    const endpoint = `PUT /api/kanban/tasks/${taskId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, taskData });
+    
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/tasks/${taskId}`, taskData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Delete a task
+   * DELETE /api/kanban/tasks/:id
+   */
+  async deleteTask(taskId) {
+    const endpoint = `DELETE /api/kanban/tasks/${taskId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
+    
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Move a task to a different column
+   * POST /api/kanban/tasks/:id/move
+   */
+  async moveTask(taskId, moveData) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/move`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, moveData });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/move`, moveData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Archive a task
+   * POST /api/kanban/tasks/:id/archive
+   */
+  async archiveTask(taskId) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/archive`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/archive`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Assign task to user
+   * POST /api/kanban/tasks/:id/assign
+   */
+  async assignTask(taskId, userId) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/assign`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, userId });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/assign`, { user_id: userId });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Unassign task from user
+   * DELETE /api/kanban/tasks/:id/assign/:userId
+   */
+  async unassignTask(taskId, userId) {
+    const endpoint = `DELETE /api/kanban/tasks/${taskId}/assign/${userId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, userId });
+    
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/assign/${userId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Watch task (subscribe to updates)
+   * POST /api/kanban/tasks/:id/watch
+   */
+  async watchTask(taskId) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/watch`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/watch`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Unwatch task (unsubscribe from updates)
+   * DELETE /api/kanban/tasks/:id/watch
+   */
+  async unwatchTask(taskId) {
+    const endpoint = `DELETE /api/kanban/tasks/${taskId}/watch`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
+    
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/watch`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  // ==================== LEGACY CARD METHODS (for backward compatibility) ====================
+
+  /**
+   * @deprecated Use getTasks() instead
+   */
+  async getCards(params = {}) {
+    return this.getTasks(params);
+  }
+
+  /**
+   * @deprecated Use getTask() instead
+   */
+  async getCard(cardId) {
+    return this.getTask(cardId);
+  }
+
+  /**
+   * @deprecated Use createTask() instead
+   */
+  async createCard(cardData) {
+    return this.createTask(cardData);
+  }
+
+  /**
+   * @deprecated Use updateTask() instead
+   */
+  async updateCard(cardId, cardData) {
+    return this.updateTask(cardId, cardData);
+  }
+
+  /**
+   * @deprecated Use deleteTask() instead
+   */
+  async deleteCard(cardId) {
+    return this.deleteTask(cardId);
+  }
+
+  /**
+   * @deprecated Use moveTask() instead
+   */
+  async moveCard(cardId, moveData) {
+    return this.moveTask(cardId, moveData);
+  }
+
+  /**
+   * @deprecated Use archiveTask() instead
+   */
+  async archiveCard(cardId) {
+    return this.archiveTask(cardId);
+  }
+
+  /**
+   * @deprecated Use watchTask() instead
+   */
+  async watchCard(cardId) {
+    return this.watchTask(cardId);
+  }
+
+  /**
+   * @deprecated Use unwatchTask() instead
+   */
+  async unwatchCard(cardId) {
+    return this.unwatchTask(cardId);
+  }
+
+  // ==================== COLUMN MANAGEMENT ====================
+
+  /**
+   * Get all columns for a board
+   * GET /api/kanban/boards/:boardId/columns
+   */
+  async getColumns(boardId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/boards/${boardId}/columns`);
       return this.handleResponse(response);
       } catch (error) {
       this.handleError(error);
@@ -56,123 +417,12 @@ class KanbanService {
   }
 
   /**
-   * Update board settings
-   */
-  async updateBoardSettings(settings) {
-    try {
-      const response = await api.patch(`${this.baseURL}/board`, { settings });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  // ==================== CARD MANAGEMENT ====================
-
-  /**
-   * List cards with filtering and pagination
-   */
-  async getCards(params = {}) {
-    try {
-      const response = await api.get(`${this.baseURL}/card`, { params });
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Get card details by ID
-   */
-  async getCard(cardId) {
-    try {
-      const response = await api.get(`${this.baseURL}/card/${cardId}`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Create a new card
-   */
-  async createCard(cardData) {
-    try {
-      const response = await api.post(`${this.baseURL}/card`, cardData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Update an existing card
-   */
-  async updateCard(cardId, cardData) {
-    try {
-      const response = await api.put(`${this.baseURL}/card/${cardId}`, cardData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Delete a card
-   */
-  async deleteCard(cardId) {
-    try {
-      const response = await api.delete(`${this.baseURL}/card/${cardId}`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Move a card to a different column/list
-   */
-  async moveCard(cardId, moveData) {
-    try {
-      const response = await api.post(`${this.baseURL}/card/${cardId}/move`, moveData);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
-   * Archive a card
-   */
-  async archiveCard(cardId) {
-    try {
-      const response = await api.post(`${this.baseURL}/card/${cardId}/archive`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  // ==================== COLUMN MANAGEMENT ====================
-
-  /**
-   * Get all columns
-   */
-  async getColumns() {
-    try {
-      const response = await api.get(`${this.baseURL}/column`);
-      return this.handleResponse(response);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  /**
    * Create a new column
+   * POST /api/kanban/boards/:boardId/columns
    */
-  async createColumn(columnData) {
+  async createColumn(boardId, columnData) {
     try {
-      const response = await api.post(`${this.baseURL}/column`, columnData);
+      const response = await api.post(`${this.baseURL}/kanban/boards/${boardId}/columns`, columnData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -181,10 +431,11 @@ class KanbanService {
 
   /**
    * Update a column
+   * PUT /api/kanban/boards/:boardId/columns/:id
    */
-  async updateColumn(columnId, columnData) {
+  async updateColumn(boardId, columnId, columnData) {
     try {
-      const response = await api.put(`${this.baseURL}/column/${columnId}`, columnData);
+      const response = await api.put(`${this.baseURL}/kanban/boards/${boardId}/columns/${columnId}`, columnData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -193,10 +444,11 @@ class KanbanService {
 
   /**
    * Delete a column
+   * DELETE /api/kanban/boards/:boardId/columns/:id
    */
-  async deleteColumn(columnId) {
+  async deleteColumn(boardId, columnId) {
     try {
-      const response = await api.delete(`${this.baseURL}/column/${columnId}`);
+      const response = await api.delete(`${this.baseURL}/kanban/boards/${boardId}/columns/${columnId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -205,10 +457,11 @@ class KanbanService {
 
   /**
    * Toggle column activation
+   * PATCH /api/kanban/boards/:boardId/columns/:id
    */
-  async toggleColumnActivation(columnId, isActive) {
+  async toggleColumnActivation(boardId, columnId, isActive) {
     try {
-      const response = await api.post(`${this.baseURL}/column/${columnId}/toggle`, { isActive });
+      const response = await api.patch(`${this.baseURL}/kanban/boards/${boardId}/columns/${columnId}`, { is_active: isActive });
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -217,10 +470,11 @@ class KanbanService {
 
   /**
    * Reorder columns
+   * PUT /api/kanban/boards/:boardId/columns/reorder/positions
    */
-  async reorderColumns(reorderData) {
+  async reorderColumns(boardId, reorderData) {
     try {
-      const response = await api.put(`${this.baseURL}/column/reorder`, reorderData);
+      const response = await api.put(`${this.baseURL}/kanban/boards/${boardId}/columns/reorder/positions`, reorderData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -230,11 +484,12 @@ class KanbanService {
   // ==================== ATTACHMENT MANAGEMENT ====================
 
   /**
-   * Add attachment to a card
+   * Upload attachment to a task
+   * POST /api/kanban/tasks/:taskId/attachments
    */
-  async addAttachment(cardId, attachmentData) {
+  async addAttachment(taskId, attachmentData) {
     try {
-      const response = await api.post(`${this.baseURL}/card/${cardId}/attachment`, attachmentData);
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/attachments`, attachmentData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -242,11 +497,25 @@ class KanbanService {
   }
 
   /**
-   * Delete attachment from a card
+   * Get attachments for a task
+   * GET /api/kanban/tasks/:taskId/attachments
    */
-  async deleteAttachment(cardId, attachmentId) {
+  async getAttachments(taskId) {
     try {
-      const response = await api.delete(`${this.baseURL}/card/${cardId}/attachment/${attachmentId}`);
+      const response = await api.get(`${this.baseURL}/kanban/tasks/${taskId}/attachments`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete attachment from a task
+   * DELETE /api/kanban/tasks/:taskId/attachments/:attachmentId
+   */
+  async deleteAttachment(taskId, attachmentId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/attachments/${attachmentId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -255,10 +524,24 @@ class KanbanService {
 
   /**
    * Set card cover image
+   * POST /api/kanban/tasks/:id/cover
    */
-  async setCardCover(cardId, coverData) {
+  async setCardCover(taskId, coverData) {
     try {
-      const response = await api.put(`${this.baseURL}/card/${cardId}/cover`, coverData);
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/cover`, coverData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Download attachment
+   * GET /api/kanban/attachments/:attachmentId/download
+   */
+  async downloadAttachment(attachmentId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/attachments/${attachmentId}/download`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -268,11 +551,25 @@ class KanbanService {
   // ==================== CHECKLIST MANAGEMENT ====================
 
   /**
-   * Add checklist to a card
+   * Add checklist to a task
+   * POST /api/kanban/checklists/:taskId
    */
-  async addChecklist(cardId, checklistData) {
+  async addChecklist(taskId, checklistData) {
     try {
-      const response = await api.post(`${this.baseURL}/card/${cardId}/checklist`, checklistData);
+      const response = await api.post(`${this.baseURL}/kanban/checklists/${taskId}`, checklistData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get all checklists for a task
+   * GET /api/kanban/checklists/:taskId
+   */
+  async getChecklists(taskId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/checklists/${taskId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -281,10 +578,11 @@ class KanbanService {
 
   /**
    * Update checklist
+   * PUT /api/kanban/checklists/:taskId/:checklistId
    */
-  async updateChecklist(cardId, checklistId, checklistData) {
+  async updateChecklist(taskId, checklistId, checklistData) {
     try {
-      const response = await api.put(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`, checklistData);
+      const response = await api.put(`${this.baseURL}/kanban/checklists/${taskId}/${checklistId}`, checklistData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -292,11 +590,12 @@ class KanbanService {
   }
 
   /**
-   * Delete checklist from a card
+   * Delete checklist from a task
+   * DELETE /api/kanban/checklists/:taskId/:checklistId
    */
-  async deleteChecklist(cardId, checklistId) {
+  async deleteChecklist(taskId, checklistId) {
     try {
-      const response = await api.delete(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`);
+      const response = await api.delete(`${this.baseURL}/kanban/checklists/${taskId}/${checklistId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -305,10 +604,11 @@ class KanbanService {
 
   /**
    * Toggle checklist item completion
+   * PUT /api/kanban/checklists/:taskId/:checklistId/items/:itemId
    */
-  async toggleChecklistItem(cardId, checklistId, itemId) {
+  async toggleChecklistItem(taskId, checklistId, itemId, completed) {
     try {
-      const response = await api.patch(`${this.baseURL}/card/${cardId}/checklist/${checklistId}/item/${itemId}/toggle`);
+      const response = await api.put(`${this.baseURL}/kanban/checklists/${taskId}/${checklistId}/items/${itemId}`, { completed });
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -344,30 +644,37 @@ class KanbanService {
   // ==================== COMMENT MANAGEMENT ====================
 
   /**
-   * Get comments for a card
+   * Get comments for a task
+   * GET /api/kanban/tasks/:id/comments
    */
-  async getComments(cardId, params = {}) {
+  async getComments(taskId, params = {}) {
+    const endpoint = `GET /api/kanban/tasks/${taskId}/comments`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, params });
+    
     try {
-      const response = await api.get(`${this.baseURL}/comment/card/${cardId}`, { params });
-      return this.handleResponse(response);
+      const response = await api.get(`${this.baseURL}/kanban/tasks/${taskId}/comments`, { params });
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
-   * Add a comment to a card
+   * Add a comment to a task
    * POST /api/kanban/tasks/:id/comments
    */
-  async addComment(cardId, commentData) {
+  async addComment(taskId, commentData) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/comments`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentData });
+    
     try {
-      if (!cardId) {
-        throw new Error('Card ID is required to add a comment');
+      if (!taskId) {
+        throw new Error('Task ID is required to add a comment');
       }
-      const response = await api.post(`${this.baseURL}/kanban/tasks/${cardId}/comments`, commentData);
-      return this.handleResponse(response);
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/comments`, commentData);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -375,15 +682,18 @@ class KanbanService {
    * Update a comment
    * PUT /api/kanban/tasks/:id/comments/:commentId
    */
-  async updateComment(cardId, commentId, updates) {
+  async updateComment(taskId, commentId, updates) {
+    const endpoint = `PUT /api/kanban/tasks/${taskId}/comments/${commentId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId, updates });
+    
     try {
-      if (!cardId || !commentId) {
-        throw new Error('Card ID and Comment ID are required to update a comment');
+      if (!taskId || !commentId) {
+        throw new Error('Task ID and Comment ID are required to update a comment');
       }
-      const response = await api.put(`${this.baseURL}/kanban/tasks/${cardId}/comments/${commentId}`, updates);
-      return this.handleResponse(response);
+      const response = await api.put(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}`, updates);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -391,26 +701,75 @@ class KanbanService {
    * Delete a comment
    * DELETE /api/kanban/tasks/:id/comments/:commentId
    */
-  async deleteComment(cardId, commentId) {
+  async deleteComment(taskId, commentId) {
+    const endpoint = `DELETE /api/kanban/tasks/${taskId}/comments/${commentId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId });
+    
     try {
-      if (!cardId || !commentId) {
-        throw new Error('Card ID and Comment ID are required to delete a comment');
+      if (!taskId || !commentId) {
+        throw new Error('Task ID and Comment ID are required to delete a comment');
       }
-      const response = await api.delete(`${this.baseURL}/kanban/tasks/${cardId}/comments/${commentId}`);
-      return this.handleResponse(response);
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}`);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Add reaction to a comment
+   * POST /api/kanban/tasks/:id/comments/:commentId/reactions
+   */
+  async addReaction(taskId, commentId, emoji) {
+    const endpoint = `POST /api/kanban/tasks/${taskId}/comments/${commentId}/reactions`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId, emoji });
+    
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}/reactions`, { emoji });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+    }
+  }
+
+  /**
+   * Remove reaction from a comment
+   * DELETE /api/kanban/tasks/:id/comments/:commentId/reactions
+   */
+  async removeReaction(taskId, commentId) {
+    const endpoint = `DELETE /api/kanban/tasks/${taskId}/comments/${commentId}/reactions`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId });
+    
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}/reactions`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
     }
   }
 
   // ==================== LABEL MANAGEMENT ====================
 
   /**
-   * Get labels for the board
+   * Get all labels
+   * GET /api/kanban/labels
    */
   async getLabels() {
       try {
-      const response = await api.get(`${this.baseURL}/label`);
+      const response = await api.get(`${this.baseURL}/kanban/labels`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get label by ID
+   * GET /api/kanban/labels/:id
+   */
+  async getLabel(labelId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/labels/${labelId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -419,10 +778,11 @@ class KanbanService {
 
   /**
    * Create a new label
+   * POST /api/kanban/labels
    */
   async createLabel(labelData) {
     try {
-      const response = await api.post(`${this.baseURL}/label`, labelData);
+      const response = await api.post(`${this.baseURL}/kanban/labels`, labelData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -431,10 +791,11 @@ class KanbanService {
 
   /**
    * Update a label
+   * PUT /api/kanban/labels/:id
    */
   async updateLabel(labelId, labelData) {
     try {
-      const response = await api.put(`${this.baseURL}/label/${labelId}`, labelData);
+      const response = await api.put(`${this.baseURL}/kanban/labels/${labelId}`, labelData);
       return this.handleResponse(response);
       } catch (error) {
       this.handleError(error);
@@ -443,10 +804,65 @@ class KanbanService {
 
   /**
    * Delete a label
+   * DELETE /api/kanban/labels/:id
    */
   async deleteLabel(labelId) {
     try {
-      const response = await api.delete(`${this.baseURL}/label/${labelId}`);
+      const response = await api.delete(`${this.baseURL}/kanban/labels/${labelId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get labels by board
+   * GET /api/kanban/labels/v2/labels
+   */
+  async getLabelsByBoard(boardId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/labels/v2/labels?board_id=${boardId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== CUSTOM FIELDS MANAGEMENT ====================
+
+  /**
+   * Get custom field definitions for a board
+   * GET /api/kanban/boards/:boardId/custom-fields
+   */
+  async getCustomFields(boardId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/boards/${boardId}/custom-fields`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Create custom field definition
+   * POST /api/kanban/boards/:boardId/custom-fields
+   */
+  async createCustomField(boardId, fieldData) {
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/boards/${boardId}/custom-fields`, fieldData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update card custom field value
+   * PUT /api/kanban/tasks/:id/custom-fields/:fieldId
+   */
+  async updateCustomFieldValue(taskId, fieldId, value) {
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/tasks/${taskId}/custom-fields/${fieldId}`, { value });
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -460,16 +876,21 @@ class KanbanService {
    * Uses Kanban-specific users API with workspace filtering
    */
   async getUsers() {
+    const endpoint = 'GET /api/kanban/users';
+    console.log(`🚀 [API Call] ${endpoint}:`);
+    
     try {
       // Use Kanban-specific users endpoint
       const response = await api.get(`${this.baseURL}/kanban/users`);
       response.data = response.data.data.users;
-      const result = this.handleResponse(response);
+      const result = this.handleResponse(response, endpoint);
       
       // Ensure we always return an array
-      return Array.isArray(result) ? result : [];
+      const users = Array.isArray(result) ? result : [];
+      console.log(`📊 [API Result] ${endpoint}: Found ${users.length} users`);
+      return users;
     } catch (error) {
-      console.warn('Kanban users endpoint not available:', error.message);
+      console.warn(`⚠️ [API Warning] ${endpoint}: Kanban users endpoint not available:`, error.message);
       
       // Return mock users for development/testing
       // console.log('Using mock users for development');
@@ -488,11 +909,14 @@ class KanbanService {
    * Get user by ID with memberships
    */
   async getUserById(userId) {
+    const endpoint = `GET /api/kanban/users/${userId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    
     try {
       const response = await api.get(`${this.baseURL}/kanban/users/${userId}`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -500,11 +924,14 @@ class KanbanService {
    * Create new user
    */
   async createUser(userData) {
+    const endpoint = 'POST /api/kanban/users';
+    console.log(`🚀 [API Call] ${endpoint}:`, { userData });
+    
     try {
       const response = await api.post(`${this.baseURL}/kanban/users`, userData);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -512,11 +939,14 @@ class KanbanService {
    * Update user
    */
   async updateUser(userId, userData) {
+    const endpoint = `PUT /api/kanban/users/${userId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId, userData });
+    
     try {
       const response = await api.put(`${this.baseURL}/kanban/users/${userId}`, userData);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -524,11 +954,14 @@ class KanbanService {
    * Soft delete user
    */
   async deleteUser(userId) {
+    const endpoint = `DELETE /api/kanban/users/${userId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    
     try {
       const response = await api.delete(`${this.baseURL}/kanban/users/${userId}`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -536,11 +969,14 @@ class KanbanService {
    * Get user activity summary
    */
   async getUserActivity(userId) {
+    const endpoint = `GET /api/kanban/users/${userId}/activity`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    
     try {
       const response = await api.get(`${this.baseURL}/kanban/users/${userId}/activity`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -548,11 +984,14 @@ class KanbanService {
    * Invite user to workspace
    */
   async inviteUserToWorkspace(userId, workspaceData) {
+    const endpoint = `POST /api/kanban/users/${userId}/invite-to-workspace`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId, workspaceData });
+    
     try {
       const response = await api.post(`${this.baseURL}/kanban/users/${userId}/invite-to-workspace`, workspaceData);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -677,97 +1116,126 @@ class KanbanService {
 
   /**
    * Get notifications for a user
+   * GET /api/notification/user/:userId
    */
   async getNotifications(userId, params = {}) {
+    const endpoint = `GET /api/notification/user/${userId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId, params });
+    
     try {
       const response = await api.get(`${this.baseURL}/notification/user/${userId}`, { params });
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.warn('Notifications endpoint not available:', error.message);
+      console.warn(`⚠️ [API Warning] ${endpoint}: Notifications endpoint not available:`, error.message);
       return []; // Return empty array if endpoint doesn't exist yet
     }
   }
 
   /**
    * Mark notification as read
+   * PUT /api/notification/:notificationId/read
    */
   async markNotificationAsRead(notificationId) {
+    const endpoint = `PUT /api/notification/${notificationId}/read`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    
     try {
       const response = await api.put(`${this.baseURL}/notification/${notificationId}/read`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
    * Mark notification as clicked
+   * PUT /api/notification/:notificationId/clicked
    */
   async markNotificationAsClicked(notificationId) {
+    const endpoint = `PUT /api/notification/${notificationId}/clicked`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    
     try {
       const response = await api.put(`${this.baseURL}/notification/${notificationId}/clicked`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
    * Mark all notifications as read for a user
+   * PUT /api/notification/user/:userId/read-all
    */
   async markAllNotificationsAsRead(userId) {
+    const endpoint = `PUT /api/notification/user/${userId}/read-all`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    
     try {
       const response = await api.put(`${this.baseURL}/notification/user/${userId}/read-all`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
    * Delete notification
+   * DELETE /api/notification/:notificationId
    */
   async deleteNotification(notificationId) {
+    const endpoint = `DELETE /api/notification/${notificationId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    
     try {
       const response = await api.delete(`${this.baseURL}/notification/${notificationId}`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
    * Clear all notifications for a user
+   * DELETE /api/notification/user/:userId/clear-all
    */
   async clearAllNotifications(userId) {
+    const endpoint = `DELETE /api/notification/user/${userId}/clear-all`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    
     try {
       const response = await api.delete(`${this.baseURL}/notification/user/${userId}/clear-all`);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   /**
    * Create mention notification
+   * POST /api/notification/mention
    */
   async createMentionNotification(notificationData) {
+    const endpoint = 'POST /api/notification/mention';
+    console.log(`🚀 [API Call] ${endpoint}:`, { notificationData });
+    
     try {
       const response = await api.post(`${this.baseURL}/notification/mention`, notificationData);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
   // ==================== SEARCH ====================
 
   /**
-   * Search cards
+   * Search tasks
+   * GET /api/kanban/search/tasks
    */
-  async searchCards(query, params = {}) {
+  async searchTasks(query, params = {}) {
     try {
-      const response = await api.get(`${this.baseURL}/card/search`, { 
+      const response = await api.get(`${this.baseURL}/kanban/search/tasks`, { 
         params: { q: query, ...params } 
       });
       return this.handleResponse(response);
@@ -777,12 +1245,13 @@ class KanbanService {
   }
 
   /**
-   * Search cards in specific column (for > 7 Days column)
+   * Search boards
+   * GET /api/kanban/search/boards
    */
-  async searchCardsInColumn(columnId, query, params = {}) {
+  async searchBoards(query, params = {}) {
     try {
-      const response = await api.get(`${this.baseURL}/card/search`, { 
-        params: { q: query, columnId, ...params } 
+      const response = await api.get(`${this.baseURL}/kanban/search/boards`, { 
+        params: { q: query, ...params } 
       });
       return this.handleResponse(response);
     } catch (error) {
@@ -790,69 +1259,98 @@ class KanbanService {
     }
   }
 
+  /**
+   * Get filter suggestions
+   * GET /api/kanban/filters/suggestions
+   */
+  async getFilterSuggestions(params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/filters/suggestions`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== LEGACY SEARCH METHODS (for backward compatibility) ====================
+
+  /**
+   * @deprecated Use searchTasks() instead
+   */
+  async searchCards(query, params = {}) {
+    return this.searchTasks(query, params);
+  }
+
+  /**
+   * @deprecated Use searchTasks() instead
+   */
+  async searchCardsInColumn(columnId, query, params = {}) {
+    return this.searchTasks(query, { columnId, ...params });
+  }
+
   // ==================== UTILITY METHODS ====================
 
   /**
-   * Transform card data to frontend format
+   * Transform task data to frontend format
    */
-  transformCardData(apiCard) {
+  transformTaskData(apiTask) {
     return {
-      id: apiCard._id || apiCard.id,
-      title: apiCard.title || 'Untitled Card',
-      description: apiCard.description || '',
-      cardId: apiCard.cardId || apiCard._id,
-      columnId: apiCard.columnId,
-      subcolumnId: apiCard.subcolumnId || null,
-      priority: apiCard.priority || 'medium',
-      labels: (apiCard.labels || []).map(label => ({
+      id: apiTask._id || apiTask.id,
+      title: apiTask.title || 'Untitled Task',
+      description: apiTask.description || '',
+      cardId: apiTask.cardId || apiTask._id,
+      columnId: apiTask.columnId,
+      subcolumnId: apiTask.subcolumnId || null,
+      priority: apiTask.priority || 'medium',
+      labels: (apiTask.labels || []).map(label => ({
         id: label._id || label.id,
         name: label.text || label.name,
         color: label.color || '#6b7280'
       })),
-      assignees: apiCard.assignees || [],
-      dueDate: apiCard.dueDate || null,
-      createdAt: apiCard.createdAt || new Date().toISOString(),
-      updatedAt: apiCard.updatedAt || new Date().toISOString(),
-      createdBy: apiCard.createdBy,
+      assignees: apiTask.assignees || [],
+      dueDate: apiTask.dueDate || null,
+      createdAt: apiTask.createdAt || new Date().toISOString(),
+      updatedAt: apiTask.updatedAt || new Date().toISOString(),
+      createdBy: apiTask.createdBy,
       // Additional fields
-      attachments: apiCard.attachments || [],
-      comments: apiCard.comments || [],
-      activities: apiCard.activities || [],
-      checklists: apiCard.checklists || [],
-      customFields: apiCard.customFields || [],
-      contacts: apiCard.contacts || [],
-      readyProducts: apiCard.readyProducts || [],
-      isDeleted: apiCard.isDeleted || false,
-      isArchived: apiCard.isArchived || false,
-      position: apiCard.position || 0,
-      branchId: apiCard.branchId,
+      attachments: apiTask.attachments || [],
+      comments: apiTask.comments || [],
+      activities: apiTask.activities || [],
+      checklists: apiTask.checklists || [],
+      customFields: apiTask.customFields || [],
+      contacts: apiTask.contacts || [],
+      readyProducts: apiTask.readyProducts || [],
+      isDeleted: apiTask.isDeleted || false,
+      isArchived: apiTask.isArchived || false,
+      position: apiTask.position || 0,
+      branchId: apiTask.branchId,
       // Keep original data for debugging
-      _originalData: apiCard
+      _originalData: apiTask
     };
   }
 
   /**
-   * Transform frontend card data to API format
+   * Transform frontend task data to API format
    */
-  transformCardToApi(frontendCard) {
+  transformTaskToApi(frontendTask) {
     return {
-      title: frontendCard.title,
-      description: frontendCard.description,
-      priority: frontendCard.priority,
-      dueDate: frontendCard.dueDate,
-      columnId: frontendCard.columnId,
-      subcolumnId: frontendCard.subcolumnId,
-      contacts: frontendCard.contacts || [],
-      labels: frontendCard.labels?.map(label => ({
+      title: frontendTask.title,
+      description: frontendTask.description,
+      priority: frontendTask.priority,
+      dueDate: frontendTask.dueDate,
+      columnId: frontendTask.columnId,
+      subcolumnId: frontendTask.subcolumnId,
+      contacts: frontendTask.contacts || [],
+      labels: frontendTask.labels?.map(label => ({
         text: label.name || label.text,
         color: label.color
       })) || [],
-      checklists: frontendCard.checklists || [],
-      readyProducts: frontendCard.readyProducts || [],
-      attachments: frontendCard.attachments || [],
-      customFields: frontendCard.customFields || [],
-      assignees: frontendCard.assignees || [],
-      position: frontendCard.position || 0
+      checklists: frontendTask.checklists || [],
+      readyProducts: frontendTask.readyProducts || [],
+      attachments: frontendTask.attachments || [],
+      customFields: frontendTask.customFields || [],
+      assignees: frontendTask.assignees || [],
+      position: frontendTask.position || 0
     };
   }
 
@@ -861,11 +1359,8 @@ class KanbanService {
    */
   transformMoveData(moveData) {
     return {
-      toColumnId: moveData.toColumnId || moveData.columnId,
-      toSubColumnId: moveData.toSubColumnId || moveData.subcolumnId,
-      position: moveData.position || 0,
-      fromColumnId: moveData.fromColumnId,
-      fromSubColumnId: moveData.fromSubColumnId
+      column_id: moveData.toColumnId || moveData.columnId,
+      position: moveData.position || 0
     };
   }
 
@@ -885,6 +1380,22 @@ class KanbanService {
     }
     
     return true;
+  }
+
+  // ==================== LEGACY UTILITY METHODS (for backward compatibility) ====================
+
+  /**
+   * @deprecated Use transformTaskData() instead
+   */
+  transformCardData(apiCard) {
+    return this.transformTaskData(apiCard);
+  }
+
+  /**
+   * @deprecated Use transformTaskToApi() instead
+   */
+  transformCardToApi(frontendCard) {
+    return this.transformTaskToApi(frontendCard);
   }
 }
 
