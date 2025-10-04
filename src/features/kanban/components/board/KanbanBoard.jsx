@@ -15,7 +15,7 @@ import KanbanColumn from '../columns/KanbanColumn';
 import FiltersPanel from '../ui/FiltersPanel';
 import HelpPanel from '../ui/HelpPanel';
 import KeyboardShortcuts from '../ui/KeyboardShortcuts';
-import CardModal from '../cards/CardModal';
+import TrelloCardModal from '../cards/TrelloCardModal';
 
 import { LoadingOverlay } from '../../../../components';
 
@@ -525,13 +525,14 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       <KeyboardShortcuts />
 
       {/* Card Modal */}
-      <CardModal
+      <TrelloCardModal
         card={selectedCard}
         isOpen={isCardModalOpen}
         onClose={handleCloseModal}
-        isEditing={isEditingCard}
-        onSave={handleSaveCard}
+        onUpdate={handleSaveCard}
         onDelete={handleDeleteCard}
+        onMove={(card) => console.log('Move card:', card)}
+        onCopy={(card) => console.log('Copy card:', card)}
       />
     </div>
     </>

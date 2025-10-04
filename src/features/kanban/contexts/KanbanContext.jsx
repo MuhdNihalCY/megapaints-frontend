@@ -622,6 +622,218 @@ export const KanbanProvider = ({ children, user }) => {
     return checkPermission(user, action, resource);
   }, [state.user]);
 
+  // ==================== ATTACHMENT METHODS ====================
+  
+  // Add attachment to card
+  const addAttachment = useCallback(async (cardId, attachmentData) => {
+    try {
+      const result = await kanbanService.addAttachment(cardId, attachmentData);
+      
+      if (result) {
+        // Optimistically update card with new attachment
+        const card = state.cards.find(c => c.id === cardId);
+        if (card) {
+          const updatedCard = {
+            ...card,
+            attachments: [...(card.attachments || []), result]
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        return result;
+      }
+    } catch (error) {
+      console.error('Error adding attachment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Delete attachment from card
+  const deleteAttachment = useCallback(async (cardId, attachmentId) => {
+    try {
+      await kanbanService.deleteAttachment(cardId, attachmentId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          attachments: (card.attachments || []).filter(a => a.id !== attachmentId)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Set card cover image
+  const setCardCover = useCallback(async (cardId, coverData) => {
+    try {
+      await kanbanService.setCardCover(cardId, coverData);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          coverImage: coverData
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error setting card cover:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // ==================== CHECKLIST METHODS ====================
+  
+  // Add checklist to card
+  const addChecklist = useCallback(async (cardId, checklistData) => {
+    try {
+      const result = await kanbanService.addChecklist(cardId, checklistData);
+      
+      if (result) {
+        // Optimistically update card with new checklist
+        const card = state.cards.find(c => c.id === cardId);
+        if (card) {
+          const updatedCard = {
+            ...card,
+            checklists: [...(card.checklists || []), result]
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        return result;
+      }
+    } catch (error) {
+      console.error('Error adding checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Update checklist
+  const updateChecklist = useCallback(async (cardId, checklistId, checklistData) => {
+    try {
+      await kanbanService.updateChecklist(cardId, checklistId, checklistData);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).map(cl =>
+            cl.id === checklistId ? { ...cl, ...checklistData } : cl
+          )
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error updating checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Delete checklist from card
+  const deleteChecklist = useCallback(async (cardId, checklistId) => {
+    try {
+      await kanbanService.deleteChecklist(cardId, checklistId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).filter(cl => cl.id !== checklistId)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error deleting checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Toggle checklist item
+  const toggleChecklistItem = useCallback(async (cardId, checklistId, itemId) => {
+    try {
+      await kanbanService.toggleChecklistItem(cardId, checklistId, itemId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).map(cl =>
+            cl.id === checklistId
+              ? {
+                  ...cl,
+                  items: cl.items.map(item =>
+                    item.id === itemId ? { ...item, completed: !item.completed } : item
+                  )
+                }
+              : cl
+          )
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error toggling checklist item:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // ==================== WATCH/SUBSCRIBE METHODS ====================
+  
+  // Watch card (subscribe to notifications)
+  const watchCard = useCallback(async (cardId) => {
+    try {
+      await kanbanService.watchCard(cardId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card && state.user) {
+        const updatedCard = {
+          ...card,
+          watchers: [...(card.watchers || []), state.user.id]
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error watching card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards, state.user]);
+
+  // Unwatch card (unsubscribe from notifications)
+  const unwatchCard = useCallback(async (cardId) => {
+    try {
+      await kanbanService.unwatchCard(cardId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card && state.user) {
+        const updatedCard = {
+          ...card,
+          watchers: (card.watchers || []).filter(id => id !== state.user.id)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error unwatching card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards, state.user]);
+
   const value = {
     // State
     ...state,
@@ -640,6 +852,21 @@ export const KanbanProvider = ({ children, user }) => {
     setSearchTerm,
     clearFilters,
     clearError,
+    
+    // Attachment Actions
+    addAttachment,
+    deleteAttachment,
+    setCardCover,
+    
+    // Checklist Actions
+    addChecklist,
+    updateChecklist,
+    deleteChecklist,
+    toggleChecklistItem,
+    
+    // Watch Actions
+    watchCard,
+    unwatchCard,
     
     // Utilities
     getCardsByColumn,

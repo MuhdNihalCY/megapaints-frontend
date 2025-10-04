@@ -8,8 +8,6 @@ export { default as KanbanBoard } from './components/board/KanbanBoard';
 export { default as KanbanColumn } from './components/columns/KanbanColumn';
 export { default as KanbanCard } from './components/cards/KanbanCard';
 export { default as PragmaticKanbanCard } from './components/cards/PragmaticKanbanCard';
-export { default as CardModal } from './components/cards/CardModal';
-export { default as CardChecklist } from './components/cards/CardChecklist';
 export { default as BoardHeader } from './components/board/BoardHeader';
 export { default as BoardStats } from './components/board/BoardStats';
 export { default as ColumnHeader } from './components/columns/ColumnHeader';
@@ -17,8 +15,16 @@ export { default as FiltersPanel } from './components/ui/FiltersPanel';
 export { default as CreateCardButton } from './components/ui/CreateCardButton';
 export { default as HelpPanel } from './components/ui/HelpPanel';
 export { default as KeyboardShortcuts } from './components/ui/KeyboardShortcuts';
+export { default as KeyboardShortcutsHelp } from './components/ui/KeyboardShortcutsHelp';
 export { default as LabelManager } from './components/ui/LabelManager';
 export { default as ColumnSearch } from './components/search/ColumnSearch';
+
+// New Trello-style Components
+export { default as TrelloCardModal } from './components/cards/TrelloCardModal';
+export { default as TrelloCardFront } from './components/cards/TrelloCardFront';
+export { default as TrelloAttachments } from './components/cards/TrelloAttachments';
+export { default as TrelloChecklist } from './components/cards/TrelloChecklist';
+export { default as CustomFieldsManager } from './components/cards/CustomFieldsManager';
 
 // Common Components
 export { default as ErrorBoundary } from './components/common/ErrorBoundary';

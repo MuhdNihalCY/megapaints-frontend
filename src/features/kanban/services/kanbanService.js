@@ -227,6 +227,120 @@ class KanbanService {
     }
   }
 
+  // ==================== ATTACHMENT MANAGEMENT ====================
+
+  /**
+   * Add attachment to a card
+   */
+  async addAttachment(cardId, attachmentData) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/attachment`, attachmentData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete attachment from a card
+   */
+  async deleteAttachment(cardId, attachmentId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/attachment/${attachmentId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Set card cover image
+   */
+  async setCardCover(cardId, coverData) {
+    try {
+      const response = await api.put(`${this.baseURL}/card/${cardId}/cover`, coverData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== CHECKLIST MANAGEMENT ====================
+
+  /**
+   * Add checklist to a card
+   */
+  async addChecklist(cardId, checklistData) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/checklist`, checklistData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Update checklist
+   */
+  async updateChecklist(cardId, checklistId, checklistData) {
+    try {
+      const response = await api.put(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`, checklistData);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete checklist from a card
+   */
+  async deleteChecklist(cardId, checklistId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/checklist/${checklistId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Toggle checklist item completion
+   */
+  async toggleChecklistItem(cardId, checklistId, itemId) {
+    try {
+      const response = await api.patch(`${this.baseURL}/card/${cardId}/checklist/${checklistId}/item/${itemId}/toggle`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== WATCH/SUBSCRIBE ====================
+
+  /**
+   * Subscribe to card updates
+   */
+  async watchCard(cardId) {
+    try {
+      const response = await api.post(`${this.baseURL}/card/${cardId}/watch`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Unsubscribe from card updates
+   */
+  async unwatchCard(cardId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/card/${cardId}/watch`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   // ==================== COMMENT MANAGEMENT ====================
 
   /**
