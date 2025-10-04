@@ -357,10 +357,14 @@ class KanbanService {
 
   /**
    * Add a comment to a card
+   * POST /api/kanban/tasks/:id/comments
    */
   async addComment(cardId, commentData) {
     try {
-      const response = await api.post(`${this.baseURL}/comment/card/${cardId}`, commentData);
+      if (!cardId) {
+        throw new Error('Card ID is required to add a comment');
+      }
+      const response = await api.post(`${this.baseURL}/kanban/tasks/${cardId}/comments`, commentData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -369,10 +373,14 @@ class KanbanService {
 
   /**
    * Update a comment
+   * PUT /api/kanban/tasks/:id/comments/:commentId
    */
-  async updateComment(commentId, updates) {
+  async updateComment(cardId, commentId, updates) {
     try {
-      const response = await api.put(`${this.baseURL}/comment/${commentId}`, updates);
+      if (!cardId || !commentId) {
+        throw new Error('Card ID and Comment ID are required to update a comment');
+      }
+      const response = await api.put(`${this.baseURL}/kanban/tasks/${cardId}/comments/${commentId}`, updates);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -381,10 +389,14 @@ class KanbanService {
 
   /**
    * Delete a comment
+   * DELETE /api/kanban/tasks/:id/comments/:commentId
    */
-  async deleteComment(commentId) {
+  async deleteComment(cardId, commentId) {
     try {
-      const response = await api.delete(`${this.baseURL}/comment/${commentId}`);
+      if (!cardId || !commentId) {
+        throw new Error('Card ID and Comment ID are required to delete a comment');
+      }
+      const response = await api.delete(`${this.baseURL}/kanban/tasks/${cardId}/comments/${commentId}`);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);
@@ -655,6 +667,93 @@ class KanbanService {
   async getCardActivity(cardId, params = {}) {
     try {
       const response = await api.get(`${this.baseURL}/activity/card/${cardId}`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  // ==================== NOTIFICATION MANAGEMENT ====================
+
+  /**
+   * Get notifications for a user
+   */
+  async getNotifications(userId, params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/notification/user/${userId}`, { params });
+      return this.handleResponse(response);
+    } catch (error) {
+      console.warn('Notifications endpoint not available:', error.message);
+      return []; // Return empty array if endpoint doesn't exist yet
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  async markNotificationAsRead(notificationId) {
+    try {
+      const response = await api.put(`${this.baseURL}/notification/${notificationId}/read`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Mark notification as clicked
+   */
+  async markNotificationAsClicked(notificationId) {
+    try {
+      const response = await api.put(`${this.baseURL}/notification/${notificationId}/clicked`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Mark all notifications as read for a user
+   */
+  async markAllNotificationsAsRead(userId) {
+    try {
+      const response = await api.put(`${this.baseURL}/notification/user/${userId}/read-all`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Delete notification
+   */
+  async deleteNotification(notificationId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/notification/${notificationId}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Clear all notifications for a user
+   */
+  async clearAllNotifications(userId) {
+    try {
+      const response = await api.delete(`${this.baseURL}/notification/user/${userId}/clear-all`);
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Create mention notification
+   */
+  async createMentionNotification(notificationData) {
+    try {
+      const response = await api.post(`${this.baseURL}/notification/mention`, notificationData);
       return this.handleResponse(response);
     } catch (error) {
       this.handleError(error);

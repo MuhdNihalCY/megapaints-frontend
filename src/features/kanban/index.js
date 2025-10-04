@@ -36,13 +36,19 @@ export { default as AuthGuard } from './components/common/AuthGuard';
 export { default as ActivityLog } from './components/activity/ActivityLog';
 export { default as CommentsSection } from './components/comments/CommentsSection';
 
+// Notifications
+export { default as NotificationPanel } from './components/notifications/NotificationPanel';
+export { default as NotificationBell } from './components/notifications/NotificationBell';
+
 // Contexts
 export { KanbanProvider, useKanban } from './contexts/KanbanContext';
 export { PermissionProvider, usePermissions } from './contexts/PermissionContext';
+export { NotificationProvider, useNotifications } from './contexts/NotificationContext';
 
 // Hooks
 export { default as useCardModal } from './hooks/useCardModal';
 export { default as useDragDrop } from './hooks/useDragDrop';
+export { useSafeNotifications } from './hooks/useSafeNotifications';
 
 // Services
 export { default as kanbanService } from './services/kanbanService';

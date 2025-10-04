@@ -95,6 +95,11 @@ const TrelloCardModal = ({
     }
   }, [card]);
   
+  // Debug: Monitor activeSection changes
+  useEffect(() => {
+    console.log('🔍 activeSection changed to:', activeSection);
+  }, [activeSection]);
+  
   // Handle ESC key to close
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -313,7 +318,7 @@ const TrelloCardModal = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-[768px] bg-white dark:bg-gray-900 rounded-none md:rounded-lg shadow-2xl my-0 md:my-8 h-full md:h-auto max-h-screen md:max-h-[90vh]"
+          className="w-full max-w-[868px] bg-white dark:bg-gray-900 rounded-none md:rounded-lg shadow-2xl my-0 md:my-8 h-full md:h-auto max-h-screen md:max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Cover Image */}
@@ -331,7 +336,7 @@ const TrelloCardModal = ({
           )}
           
           {/* Header */}
-          <div className="p-4 pb-2">
+          <div className="p-6 pb-2">
             <div className="flex items-start gap-3">
               <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-1" />
               <div className="flex-1">
@@ -377,9 +382,9 @@ const TrelloCardModal = ({
           </div>
           
           {/* Main Content Area */}
-          <div className="flex flex-col md:flex-row gap-4 p-4 overflow-y-auto">
+          <div className="flex flex-col md:flex-row gap-4 p-6 overflow-y-auto">
             {/* Left Column - 552px on desktop, full width on mobile */}
-            <div className="flex-1 md:max-w-[552px]">
+            <div className="flex-1 md:max-w-[614px]">
               {/* Members Section */}
               {cardMembers.length > 0 && (
                 <div className="mb-6">
@@ -695,55 +700,90 @@ const TrelloCardModal = ({
             </div>
             
             {/* Right Sidebar - 168px on desktop, full width on mobile */}
-            <div className="w-full md:w-[168px] flex-shrink-0">
+            <div className="w-full md:w-[200px] flex-shrink-0">
               {/* Add to Card */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ADD TO CARD</h3>
                 <div className="space-y-1">
                   <button
-                    onClick={() => setActiveSection('members')}
+                    onClick={() => {
+                      console.log('🔵 Members button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('members');
+                      console.log('Set activeSection to: members');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <User className="w-4 h-4" />
                     Members
                   </button>
                   <button
-                    onClick={() => setActiveSection('labels')}
+                    onClick={() => {
+                      console.log('🏷️ Labels button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('labels');
+                      console.log('Set activeSection to: labels');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Tag className="w-4 h-4" />
                     Labels
                   </button>
                   <button
-                    onClick={() => setActiveSection('checklist')}
+                    onClick={() => {
+                      console.log('✅ Checklist button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('checklist');
+                      console.log('Set activeSection to: checklist');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <CheckSquare className="w-4 h-4" />
                     Checklist
                   </button>
                   <button
-                    onClick={() => setActiveSection('dates')}
+                    onClick={() => {
+                      console.log('📅 Dates button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('dates');
+                      console.log('Set activeSection to: dates');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Clock className="w-4 h-4" />
                     Dates
                   </button>
                   <button
-                    onClick={() => setActiveSection('attachment')}
+                    onClick={() => {
+                      console.log('📎 Attachment button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('attachment');
+                      console.log('Set activeSection to: attachment');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Paperclip className="w-4 h-4" />
                     Attachment
                   </button>
                   <button
-                    onClick={() => setActiveSection('cover')}
+                    onClick={() => {
+                      console.log('🖼️ Cover button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('cover');
+                      console.log('Set activeSection to: cover');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <ImageIcon className="w-4 h-4" />
                     Cover
                   </button>
                   <button
-                    onClick={() => setActiveSection('custom-fields')}
+                    onClick={() => {
+                      console.log('⚙️ Custom Fields button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('custom-fields');
+                      console.log('Set activeSection to: custom-fields');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Hash className="w-4 h-4" />
@@ -757,35 +797,70 @@ const TrelloCardModal = ({
                 <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ACTIONS</h3>
                 <div className="space-y-1">
                   <button
-                    onClick={() => onMove && onMove(formData)}
+                    onClick={() => {
+                      console.log('🚀 Move button clicked');
+                      console.log('onMove function exists:', !!onMove);
+                      console.log('formData:', formData);
+                      if (onMove) {
+                        onMove(formData);
+                      } else {
+                        console.warn('⚠️ onMove callback not provided');
+                      }
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Move className="w-4 h-4" />
                     Move
                   </button>
                   <button
-                    onClick={() => onCopy && onCopy(formData)}
+                    onClick={() => {
+                      console.log('📋 Copy button clicked');
+                      console.log('onCopy function exists:', !!onCopy);
+                      console.log('formData:', formData);
+                      if (onCopy) {
+                        onCopy(formData);
+                      } else {
+                        console.warn('⚠️ onCopy callback not provided');
+                      }
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Copy className="w-4 h-4" />
                     Copy
                   </button>
                   <button
-                    onClick={handleWatch}
+                    onClick={() => {
+                      console.log('👁️ Watch/Unwatch button clicked');
+                      console.log('isWatching:', isWatching);
+                      console.log('formData.watchers:', formData.watchers);
+                      console.log('formData.subscriptions:', formData.subscriptions);
+                      console.log('currentUser:', currentUser);
+                      handleWatch();
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     {isWatching ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     {isWatching ? 'Unwatch' : 'Watch'}
                   </button>
                   <button
-                    onClick={handleArchive}
+                    onClick={() => {
+                      console.log('📦 Archive/Unarchive button clicked');
+                      console.log('formData.closed:', formData.closed);
+                      console.log('formData:', formData);
+                      handleArchive();
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Archive className="w-4 h-4" />
                     {formData.closed ? 'Unarchive' : 'Archive'}
                   </button>
                   <button
-                    onClick={() => setActiveSection('share')}
+                    onClick={() => {
+                      console.log('🔗 Share button clicked');
+                      console.log('Current activeSection:', activeSection);
+                      setActiveSection('share');
+                      console.log('Set activeSection to: share');
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
                     <Share2 className="w-4 h-4" />

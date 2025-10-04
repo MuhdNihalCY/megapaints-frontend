@@ -520,20 +520,18 @@ export const KanbanProvider = ({ children, user }) => {
   }, [state.cards]);
 
   // Update comment
-  const updateComment = useCallback(async (commentId, updates) => {
+  const updateComment = useCallback(async (cardId, commentId, updates) => {
     try {
-      const result = await kanbanService.updateComment(commentId, updates);
+      const result = await kanbanService.updateComment(cardId, commentId, updates);
       
       if (result.status === 'success') {
         // Update card with updated comment
-        const card = state.cards.find(c => 
-          c.comments?.some(comment => comment.id === commentId)
-        );
+        const card = state.cards.find(c => (c.id === cardId || c._id === cardId));
         if (card) {
           const updatedCard = {
             ...card,
             comments: card.comments.map(comment =>
-              comment.id === commentId ? { ...comment, ...updates } : comment
+              (comment.id === commentId || comment._id === commentId) ? { ...comment, ...updates } : comment
             )
           };
           dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
@@ -551,19 +549,17 @@ export const KanbanProvider = ({ children, user }) => {
   }, [state.cards]);
 
   // Delete comment
-  const deleteComment = useCallback(async (commentId) => {
+  const deleteComment = useCallback(async (cardId, commentId) => {
     try {
-      const result = await kanbanService.deleteComment(commentId);
+      const result = await kanbanService.deleteComment(cardId, commentId);
       
       if (result.status === 'success') {
         // Update card with deleted comment
-        const card = state.cards.find(c => 
-          c.comments?.some(comment => comment.id === commentId)
-        );
+        const card = state.cards.find(c => (c.id === cardId || c._id === cardId));
         if (card) {
           const updatedCard = {
             ...card,
-            comments: card.comments.filter(comment => comment.id !== commentId)
+            comments: card.comments.filter(comment => (comment.id !== commentId && comment._id !== commentId))
           };
           dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
         }

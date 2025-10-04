@@ -24,9 +24,12 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { useKanban } from '../../contexts/KanbanContext';
+import { extractMentionedUserIds } from '../../types/notificationModel';
+import { useSafeNotifications } from '../../hooks/useSafeNotifications';
 
 const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete }) => {
   const { users, addComment, currentUser } = useKanban();
+  const { createMentionNotificationsForComment } = useSafeNotifications();
   const [newComment, setNewComment] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editText, setEditText] = useState('');
@@ -193,7 +196,18 @@ const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete 
         }
       };
 
-      await addComment(card.id, commentData);
+      const savedComment = await addComment(card.id, commentData);
+      
+      // Create notification for mentions
+      if (mentions.length > 0 && savedComment) {
+        const mentionedUserIds = extractMentionedUserIds(newComment);
+        createMentionNotificationsForComment(
+          savedComment, 
+          mentionedUserIds, 
+          currentUser, 
+          card
+        );
+      }
       
       // Send mention notifications
       await sendMentionNotifications(mentions);
