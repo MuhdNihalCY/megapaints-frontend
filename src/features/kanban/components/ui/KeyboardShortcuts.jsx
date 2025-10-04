@@ -4,8 +4,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useKanban } from '../contexts/KanbanContext';
-import { LoadingOverlay } from '../../../components';
+import { useKanban } from '../../contexts/KanbanContext';
+import { LoadingOverlay } from '../../../../components';
 
 /**
  * Keyboard Shortcuts Component

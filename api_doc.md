@@ -2123,7 +2123,101 @@ The Label Management system provides comprehensive APIs for managing labels with
 }
 ```
 
-## 👥 Alternative User Management APIs
+## 👥 User Management APIs (Non-Admin)
+
+These endpoints allow regular users to access limited user information without admin privileges.
+
+### 🎯 User Colleagues Management
+
+#### 1. Get Colleagues
+**GET** `/api/user/colleagues`
+
+**Description:** Get colleagues/users in the same branch(es) as current user  
+**Authentication:** User Required  
+**Headers:** `Authorization: Bearer <user_access_token>`
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 50)
+- `search` (optional): Search term for username, email, first_name, last_name
+- `designation` (optional): Filter by designation
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "colleagues": [
+      {
+        "_id": "68d2cafbbc474bb92a425543",
+        "username": "john_doe",
+        "email": "john@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "phone": "+1-555-123-4567",
+        "designation": "Developer",
+        "company": "Test Company",
+        "branches": [],
+        "is_active": true,
+        "createdAt": "2025-09-23T16:29:47.870Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 3,
+      "pages": 1
+    },
+    "filters": {
+      "search": null,
+      "designation": null,
+      "branch_filter": "all_users"
+    }
+  }
+}
+```
+
+#### 2. Get User Profile by ID
+**GET** `/api/user/profile/:id`
+
+**Description:** Get limited user profile by ID (colleague info)  
+**Authentication:** User Required  
+**Headers:** `Authorization: Bearer <user_access_token>`
+
+**Path Parameters:**
+- `id`: User ID
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "_id": "68d2cafbbc474bb92a425543",
+      "username": "john_doe",
+      "email": "john@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "phone": "+1-555-123-4567",
+      "company": "Test Company",
+      "designation": "Developer",
+      "branches": [],
+      "is_active": true,
+      "createdAt": "2025-09-23T16:29:47.870Z"
+    }
+  }
+}
+```
+
+**Security Notes:**
+- Users can only view profiles of colleagues in their branch
+- Sensitive data (passwords, permissions, roles) is excluded
+- Maximum limit of 50 items per page for non-admin users
+- Admin users are excluded from colleague listings
+
+---
+
+## 👥 Alternative User Management APIs (Admin Only)
 
 These endpoints provide alternative routes for user management to ensure frontend compatibility.
 
@@ -3458,6 +3552,8 @@ For technical support or questions:
 - `GET /api/user/dashboard` - Get dashboard data (placeholder)
 - `GET /api/auth/user/me` - Get current user profile
 - `PUT /api/auth/user/profile` ✨ **NEW** - Update user profile
+- `GET /api/user/colleagues` ✨ **NEW** - Get colleagues/users in same branch
+- `GET /api/user/profile/:id` ✨ **NEW** - Get limited user profile by ID
 
 #### User Management (Admin)
 - `GET /api/admin/business/users` - Get all users with pagination and filters
@@ -3520,6 +3616,12 @@ All previously missing endpoints have been successfully implemented and are now 
 - ✅ Usage Tracking & Analytics
 - ✅ Board-specific Label Access
 
+**User Management (Non-Admin) (100% Complete) ✨ **NEW**
+- ✅ Colleague Listing with Branch Filtering
+- ✅ Limited User Profile Access
+- ✅ Security Controls (No Sensitive Data)
+- ✅ Pagination & Search Support
+
 **Alternative User Routes (100% Complete) ✨ **NEW**
 - ✅ Frontend Compatibility Routes
 - ✅ Multiple Access Patterns
@@ -3551,10 +3653,11 @@ The backend is **production-ready** with:
 - **6 Business Management APIs** (Branches, Users)
 - **6 Board Management APIs** (Kanban boards) ✨ **NEW**
 - **6 Label Management APIs** (Label management) ✨ **NEW**
+- **2 User Management APIs** (Non-admin colleague access) ✨ **NEW**
 - **4 Alternative User APIs** (Frontend compatibility) ✨ **NEW**
 - **4 Health Check APIs** (Basic, Detailed, Readiness, Liveness)
 
-**Total: 52 Production-Ready API Endpoints** 🚀
+**Total: 54 Production-Ready API Endpoints** 🚀
 - **Complete Security Implementation**
 - **Comprehensive Documentation**
 - **JavaScript Service Classes**

@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiServiceFactory from '../../services/ApiServiceFactory.js';
+import UserForm from './components/UserForm.jsx';
+import { getApiUrl } from '../../config/api.js';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const { apiRequest } = useAuth();
 
   useEffect(() => {
@@ -93,7 +97,7 @@ const UserManagement = () => {
       }
 
       console.log('🧪 Testing direct API call to /api/admin/users');
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(getApiUrl('/admin/users'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -124,6 +128,25 @@ const UserManagement = () => {
     }
   };
 
+  const handleAddUser = () => {
+    setEditingUser(null);
+    setShowUserForm(true);
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setShowUserForm(true);
+  };
+
+  const handleCloseUserForm = () => {
+    setShowUserForm(false);
+    setEditingUser(null);
+  };
+
+  const handleUserFormSuccess = () => {
+    fetchUsers(); // Refresh the user list
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -138,6 +161,15 @@ const UserManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h2>
         <div className="flex gap-2">
+          <button
+            onClick={handleAddUser}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add User
+          </button>
           <button
             onClick={fetchUsers}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
@@ -204,12 +236,15 @@ const UserManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Created
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     No users found
                   </td>
                 </tr>
@@ -253,6 +288,41 @@ const UserManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="Edit user"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to ${user.is_active ? 'deactivate' : 'activate'} this user?`)) {
+                              // TODO: Implement user activation/deactivation
+                              console.log('Toggle user status:', user._id);
+                            }
+                          }}
+                          className={`${
+                            user.is_active 
+                              ? 'text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300'
+                              : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                          }`}
+                          title={user.is_active ? 'Deactivate user' : 'Activate user'}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {user.is_active ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            )}
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -264,6 +334,15 @@ const UserManagement = () => {
       <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
         Total users: {users.length}
       </div>
+
+      {/* User Form Modal */}
+      {showUserForm && (
+        <UserForm
+          user={editingUser}
+          onClose={handleCloseUserForm}
+          onSuccess={handleUserFormSuccess}
+        />
+      )}
     </div>
   );
 };

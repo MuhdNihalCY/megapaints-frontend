@@ -1,37 +1,37 @@
 /**
- * Pragmatic Drag and Drop Kanban Board
- * Enhanced board component using Pragmatic DND for better drag experience
+ * KanbanBoard Component
+ * Main container for the Kanban board system with enhanced drag and drop
+ * Consolidated from PragmaticKanbanBoard for better organization
  */
 
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Filter, HelpCircle, Settings } from 'lucide-react';
 
-import { useKanban } from '../contexts/KanbanContext';
-import { usePragmaticDragAndDrop, useDragMonitor } from '../hooks/usePragmaticDragAndDrop';
-import PragmaticKanbanCard from './PragmaticKanbanCard';
-import KanbanColumn from './KanbanColumn';
-import FiltersPanel from './FiltersPanel';
-import HelpPanel from './HelpPanel';
-import KeyboardShortcuts from './KeyboardShortcuts';
+import { useKanban } from '../../contexts/KanbanContext';
+import { usePragmaticDragAndDrop, useDragMonitor } from '../../hooks/usePragmaticDragAndDrop';
+import PragmaticKanbanCard from '../cards/PragmaticKanbanCard';
+import KanbanColumn from '../columns/KanbanColumn';
+import FiltersPanel from '../ui/FiltersPanel';
+import HelpPanel from '../ui/HelpPanel';
+import KeyboardShortcuts from '../ui/KeyboardShortcuts';
+import TrelloCardModal from '../cards/TrelloCardModal';
 
-import { LoadingOverlay } from '../../../components';
+import { LoadingOverlay } from '../../../../components';
 
 /**
- * Pragmatic Drag and Drop Kanban Board Component
+ * Kanban Board Component with Enhanced Drag and Drop
  */
-const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
+const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   const {
     loading,
     error,
     columns,
     cards,
     moveCard,
-    reorderCards,
-    getCardsByColumn,
-    getCardsBySubcolumn,
-    getActiveColumns,
-    canMoveCard,
+    createCard,
+    updateCard,
+    deleteCard,
     searchTerm,
     setSearchTerm,
     filters,
@@ -60,6 +60,11 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   const [searchQuery, setSearchQuery] = useState(searchTerm || '');
   const [isMoving, setIsMoving] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
+  
+  // Card Modal State
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isEditingCard, setIsEditingCard] = useState(false);
 
   // Refs
   const boardRef = useRef(null);
@@ -67,8 +72,121 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Get active columns
   const activeColumns = useMemo(() => {
-    return getActiveColumns();
-  }, [getActiveColumns]);
+    return columns.filter(column => column.isActive !== false);
+  }, [columns]);
+
+  // Get cards by column
+  const getCardsByColumn = useCallback((columnId) => {
+    return cards.filter(card => card.columnId === columnId);
+  }, [cards]);
+
+  // Get cards by subcolumn
+  const getCardsBySubcolumn = useCallback((columnId, subcolumnId) => {
+    return cards.filter(card => card.columnId === columnId && card.subcolumnId === subcolumnId);
+  }, [cards]);
+
+  // Get filtered cards
+  const getFilteredCards = useCallback((cardsToFilter) => {
+    if (!cardsToFilter) return [];
+    
+    let filtered = [...cardsToFilter];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(card => 
+        card.title?.toLowerCase().includes(searchLower) ||
+        card.description?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Apply other filters
+    if (filters.priority) {
+      filtered = filtered.filter(card => card.priority === filters.priority);
+    }
+    
+    if (filters.labels && filters.labels.length > 0) {
+      filtered = filtered.filter(card => 
+        card.labels?.some(label => filters.labels.includes(label.id))
+      );
+    }
+    
+    return filtered;
+  }, [searchTerm, filters]);
+
+  // Check if move is allowed based on DnD rules
+  const isMoveAllowed = useCallback((fromColumn, toColumn, fromSubColumn = null, toSubColumn = null) => {
+    // Restrict moves to/from < 7 Days and > 7 Days columns
+    const restrictedSubColumns = ['less-than-7-days', 'more-than-7-days'];
+    
+    if (fromSubColumn && restrictedSubColumns.includes(fromSubColumn)) {
+      return false;
+    }
+    
+    if (toSubColumn && restrictedSubColumns.includes(toSubColumn)) {
+      return false;
+    }
+    
+    return true;
+  }, []);
+
+  // Calculate dynamic column width for grouped columns
+  const getColumnWidth = useCallback((column) => {
+    if (!column.isGrouped || !column.subcolumns?.length) {
+      return 'w-80';
+    }
+    
+    const subcolumnCount = column.subcolumns.length;
+    const gapWidth = 24; // gap-6 = 24px
+    const subcolumnWidth = 320; // w-80 = 320px
+    const totalWidth = (subcolumnCount * subcolumnWidth) + ((subcolumnCount - 1) * gapWidth);
+    
+    return { width: `${totalWidth}px` };
+  }, []);
+
+  // Handle card click
+  const handleCardClick = useCallback((card) => {
+    setSelectedCard(card);
+    setIsEditingCard(false);
+    setIsCardModalOpen(true);
+  }, []);
+
+  // Handle create card
+  const handleCreateCard = useCallback(async (cardData) => {
+    try {
+      await createCard(cardData);
+    } catch (error) {
+      console.error('Error creating card:', error);
+    }
+  }, [createCard]);
+
+  // Handle save card
+  const handleSaveCard = useCallback(async (cardData) => {
+    try {
+      if (selectedCard) {
+        await updateCard(selectedCard.id, cardData);
+      } else {
+        await createCard(cardData);
+      }
+      setIsCardModalOpen(false);
+      setSelectedCard(null);
+    } catch (error) {
+      console.error('Error saving card:', error);
+    }
+  }, [selectedCard, updateCard, createCard]);
+
+  // Handle delete card
+  const handleDeleteCard = useCallback(async () => {
+    try {
+      if (selectedCard) {
+        await deleteCard(selectedCard.id);
+        setIsCardModalOpen(false);
+        setSelectedCard(null);
+      }
+    } catch (error) {
+      console.error('Error deleting card:', error);
+    }
+  }, [selectedCard, deleteCard]);
 
   // Handle search
   const handleSearch = (query) => {
@@ -76,14 +194,38 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
     setSearchTerm(query);
   };
 
-  // Handle card move
+  // Handle close modal
+  const handleCloseModal = useCallback(() => {
+    setIsCardModalOpen(false);
+    setSelectedCard(null);
+    setIsEditingCard(false);
+  }, []);
+
+  // Handle card move with DnD rules
   const handleCardMove = async (cardId, fromColumn, toColumn, toSubcolumn = null, position = null) => {
     setIsMoving(true);
     try {
-      console.log('Pragmatic DND: Moving card', { cardId, fromColumn, toColumn, toSubcolumn, position });
-      await moveCard(cardId, fromColumn, toColumn, toSubcolumn, position);
+      const card = cards.find(c => c.id === cardId);
+      const fromCol = columns.find(c => c.id === fromColumn);
+      const toCol = columns.find(c => c.id === toColumn);
+      
+      // Check if move is allowed based on DnD rules
+      if (!isMoveAllowed(fromCol, toCol, card?.subcolumnId, toSubcolumn)) {
+        console.warn('Move not allowed: Cannot move cards to/from < 7 Days or > 7 Days columns');
+        return;
+      }
+
+      console.log('Kanban Board: Moving card', { cardId, fromColumn, toColumn, toSubcolumn, position });
+      
+      const moveData = {
+        toColumnId: toColumn,
+        toSubColumnId: toSubcolumn,
+        position: position || 0
+      };
+      
+      await moveCard(cardId, moveData);
     } catch (error) {
-      console.error('Pragmatic DND: Error moving card', error);
+      console.error('Kanban Board: Error moving card', error);
     } finally {
       setIsMoving(false);
     }
@@ -112,7 +254,7 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   // Handle drag end with proper move logic
   const handleDragEnd = useCallback((source, destination) => {
     if (!source || !destination) {
-      console.log('Pragmatic DND: No valid drop target');
+      console.log('Kanban Board: No valid drop target');
       return;
     }
 
@@ -121,7 +263,7 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
     const toColumn = destination.data.columnId;
 
     if (cardId && fromColumn && toColumn && fromColumn !== toColumn) {
-      console.log('Pragmatic DND: Moving card from', fromColumn, 'to', toColumn);
+      console.log('Kanban Board: Moving card from', fromColumn, 'to', toColumn);
       handleCardMove(cardId, fromColumn, toColumn);
     }
   }, [handleCardMove]);
@@ -130,10 +272,11 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
   const handleCardReorder = async (cardId, fromColumn, toColumn, newIndex) => {
     setIsReordering(true);
     try {
-      console.log('Pragmatic DND: Reordering card', { cardId, fromColumn, toColumn, newIndex });
-      await reorderCards(cardId, fromColumn, toColumn, newIndex);
+      console.log('Kanban Board: Reordering card', { cardId, fromColumn, toColumn, newIndex });
+      // Note: reorderCards function needs to be implemented in the context
+      // await reorderCards(cardId, fromColumn, toColumn, newIndex);
     } catch (error) {
-      console.error('Pragmatic DND: Error reordering card', error);
+      console.error('Kanban Board: Error reordering card', error);
     } finally {
       setIsReordering(false);
     }
@@ -203,7 +346,7 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
       {isReordering && <LoadingOverlay message="Reordering cards..." />}
       
       <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Header */}
+      {/* Kanban Board Controls */}
       <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -258,6 +401,7 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
           <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full ">
             {activeColumns.map((column) => {
               const columnCards = getCardsByColumn(column.id);
+              const filteredCards = getFilteredCards(columnCards);
               const hasSubcolumns = column.subcolumns && column.subcolumns.length > 0;
               const subcolumnCount = column.subcolumns ? column.subcolumns.length : 0;
               
@@ -284,15 +428,9 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
                 >
                   <KanbanColumn
                     column={column}
-                    cards={columnCards}
-                    onCardClick={onCardClick}
-                    onCreateCard={onCreateCard}
-                    isDragging={isDragging}
-                    dragOver={dragOver}
-                    selectedCards={selectedCards}
-                    onCardSelect={handleCardSelect}
-                    getDragStyles={getDragStyles}
-                    getDropZoneStyles={getDropZoneStyles}
+                    cards={filteredCards}
+                    onCardClick={handleCardClick}
+                    onCreateCard={handleCreateCard}
                     CardComponent={PragmaticKanbanCard}
                     onDragEnd={handleDragEnd}
                   />
@@ -385,9 +523,20 @@ const PragmaticKanbanBoard = ({ onCardClick, onCreateCard }) => {
 
       {/* Keyboard Shortcuts */}
       <KeyboardShortcuts />
-      </div>
+
+      {/* Card Modal */}
+      <TrelloCardModal
+        card={selectedCard}
+        isOpen={isCardModalOpen}
+        onClose={handleCloseModal}
+        onUpdate={handleSaveCard}
+        onDelete={handleDeleteCard}
+        onMove={(card) => console.log('Move card:', card)}
+        onCopy={(card) => console.log('Copy card:', card)}
+      />
+    </div>
     </>
   );
 };
 
-export default PragmaticKanbanBoard;
+export default KanbanBoard;

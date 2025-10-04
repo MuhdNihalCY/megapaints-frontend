@@ -1,107 +1,92 @@
 /**
- * Kanban Board Context
- * Provides state management and API integration for the entire Kanban board
+ * KanbanContext
+ * Main context for Kanban board state management
+ * Implements Trello-style Kanban with proper column structure and live API integration
  */
 
-import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-// Removed @dnd-kit dependency - using custom array move function
-const arrayMove = (array, from, to) => {
-  const newArray = [...array];
-  const item = newArray.splice(from, 1)[0];
-  newArray.splice(to, 0, item);
-  return newArray;
-};
-import { useAuth } from '../../../contexts/AuthContext';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { kanbanService } from '../services/kanbanService';
-import { COLUMN_TYPES, ACTIVITY_TYPES } from '../utils/constants';
-// Removed sorting utilities - using Pragmatic DND only
-
-// Action types for the reducer
-const ACTIONS = {
-  SET_LOADING: 'SET_LOADING',
-  SET_ERROR: 'SET_ERROR',
-  SET_BOARD_DATA: 'SET_BOARD_DATA',
-  SET_CARDS: 'SET_CARDS',
-  SET_COLUMNS: 'SET_COLUMNS',
-  SET_USERS: 'SET_USERS',
-  SET_LABELS: 'SET_LABELS',
-  ADD_CARD: 'ADD_CARD',
-  UPDATE_CARD: 'UPDATE_CARD',
-  MOVE_CARD: 'MOVE_CARD',
-  DELETE_CARD: 'DELETE_CARD',
-  ADD_COLUMN: 'ADD_COLUMN',
-  UPDATE_COLUMN: 'UPDATE_COLUMN',
-  DELETE_COLUMN: 'DELETE_COLUMN',
-  TOGGLE_COLUMN_ACTIVATION: 'TOGGLE_COLUMN_ACTIVATION',
-  ADD_COMMENT: 'ADD_COMMENT',
-  UPDATE_COMMENT: 'UPDATE_COMMENT',
-  DELETE_COMMENT: 'DELETE_COMMENT',
-  ADD_LABEL: 'ADD_LABEL',
-  UPDATE_LABEL: 'UPDATE_LABEL',
-  DELETE_LABEL: 'DELETE_LABEL',
-  SET_FILTERS: 'SET_FILTERS',
-  SET_SEARCH_TERM: 'SET_SEARCH_TERM',
-  // Removed sorting action types - using Pragmatic DND only
-  MARK_INITIALIZED: 'MARK_INITIALIZED'
-};
+import { logCardCreated, logCardUpdated, logCardMoved, logCardDeleted } from '../utils/activityLogger';
+import { canPerformAction as checkPermission } from '../utils/permissions';
 
 // Initial state
 const initialState = {
-  loading: true,
-  error: null,
   cards: [],
   columns: [],
   users: [],
   labels: [],
+  user: null,
   filters: {
+    text: '',
     labels: [],
     assignees: [],
-    dueDate: null,
-    priority: null,
-    text: ''
+    dueDateRange: {
+      start: null,
+      end: null
+    },
+    priority: [],
+    columns: []
   },
   searchTerm: '',
-  // Removed columnSorts - using Pragmatic DND only
-  isInitialized: false
+  isLoading: false,
+  error: null,
+  lastUpdated: null,
+  initialized: false
 };
 
-// Reducer function
-function kanbanReducer(state, action) {
+// Action types
+const ACTION_TYPES = {
+  SET_LOADING: 'SET_LOADING',
+  SET_ERROR: 'SET_ERROR',
+  SET_CARDS: 'SET_CARDS',
+  SET_COLUMNS: 'SET_COLUMNS',
+  SET_USERS: 'SET_USERS',
+  SET_LABELS: 'SET_LABELS',
+  SET_USER: 'SET_USER',
+  ADD_CARD: 'ADD_CARD',
+  UPDATE_CARD: 'UPDATE_CARD',
+  DELETE_CARD: 'DELETE_CARD',
+  MOVE_CARD: 'MOVE_CARD',
+  SET_FILTERS: 'SET_FILTERS',
+  SET_SEARCH_TERM: 'SET_SEARCH_TERM',
+  CLEAR_FILTERS: 'CLEAR_FILTERS',
+  UPDATE_COLUMN: 'UPDATE_COLUMN',
+  SET_LAST_UPDATED: 'SET_LAST_UPDATED',
+  MARK_INITIALIZED: 'MARK_INITIALIZED',
+  CLEAR_ERROR: 'CLEAR_ERROR'
+};
+
+// Reducer
+const kanbanReducer = (state, action) => {
   switch (action.type) {
-    case ACTIONS.SET_LOADING:
-      return { ...state, loading: action.payload };
-
-    case ACTIONS.SET_ERROR:
-      return { ...state, error: action.payload, loading: false };
-
-    case ACTIONS.SET_BOARD_DATA:
-      return {
-        ...state,
-        columns: action.payload.columns || [],
-        cards: action.payload.cards || [],
-        loading: false,
-        error: null
-      };
-
-    case ACTIONS.SET_CARDS:
+    case ACTION_TYPES.SET_LOADING:
+      return { ...state, isLoading: action.payload };
+    
+    case ACTION_TYPES.SET_ERROR:
+      return { ...state, error: action.payload, isLoading: false };
+    
+    case ACTION_TYPES.CLEAR_ERROR:
+      return { ...state, error: null };
+    
+    case ACTION_TYPES.SET_CARDS:
       return { ...state, cards: action.payload };
 
-    case ACTIONS.SET_COLUMNS:
+    case ACTION_TYPES.SET_COLUMNS:
       return { ...state, columns: action.payload };
 
-    case ACTIONS.SET_USERS:
+    case ACTION_TYPES.SET_USERS:
       return { ...state, users: action.payload };
-
-    case ACTIONS.SET_LABELS:
-      return { ...state, labels: Array.isArray(action.payload) ? action.payload : [] };
-
-    case ACTIONS.ADD_CARD:
-      return {
-        ...state,
-        cards: [...state.cards, action.payload]
-      };
-
-    case ACTIONS.UPDATE_CARD:
+    
+    case ACTION_TYPES.SET_LABELS:
+      return { ...state, labels: action.payload };
+    
+    case ACTION_TYPES.SET_USER:
+      return { ...state, user: action.payload };
+    
+    case ACTION_TYPES.ADD_CARD:
+      return { ...state, cards: [...state.cards, action.payload] };
+    
+    case ACTION_TYPES.UPDATE_CARD:
       return {
         ...state,
         cards: state.cards.map(card =>
@@ -109,740 +94,746 @@ function kanbanReducer(state, action) {
         )
       };
 
-    case ACTIONS.MOVE_CARD:
-      return {
-        ...state,
-        cards: state.cards.map(card =>
-          card.id === action.payload.cardId
-            ? { 
-                ...card, 
-                columnId: action.payload.toColumn,
-                subcolumnId: action.payload.toSubcolumn || null
-              }
-            : card
-        )
-      };
-
-    case ACTIONS.DELETE_CARD:
+    case ACTION_TYPES.DELETE_CARD:
       return {
         ...state,
         cards: state.cards.filter(card => card.id !== action.payload)
       };
 
-    case ACTIONS.ADD_COLUMN:
+    case ACTION_TYPES.MOVE_CARD:
       return {
         ...state,
-        columns: [...state.columns, action.payload]
+        cards: state.cards.map(card =>
+          card.id === action.payload.cardId
+            ? { ...card, columnId: action.payload.columnId, subcolumnId: action.payload.subcolumnId }
+            : card
+        )
       };
 
-    case ACTIONS.UPDATE_COLUMN:
+    case ACTION_TYPES.SET_FILTERS:
+      return { ...state, filters: { ...state.filters, ...action.payload } };
+
+    case ACTION_TYPES.SET_SEARCH_TERM:
+      return { ...state, searchTerm: action.payload };
+
+    case ACTION_TYPES.CLEAR_FILTERS:
+      return { ...state, filters: initialState.filters };
+    
+    case ACTION_TYPES.UPDATE_COLUMN:
       return {
         ...state,
         columns: state.columns.map(column =>
           column.id === action.payload.id ? { ...column, ...action.payload } : column
         )
       };
-
-    case ACTIONS.DELETE_COLUMN:
-      return {
-        ...state,
-        columns: state.columns.filter(column => column.id !== action.payload)
-      };
-
-    case ACTIONS.TOGGLE_COLUMN_ACTIVATION:
-      return {
-        ...state,
-        columns: state.columns.map(column =>
-          column.id === action.payload.columnId
-            ? { ...column, isActive: action.payload.isActive }
-            : column
-        )
-      };
-
-    case ACTIONS.ADD_COMMENT:
-      return {
-        ...state,
-        cards: state.cards.map(card =>
-          card.id === action.payload.cardId
-            ? { ...card, comments: [...(card.comments || []), action.payload.comment] }
-            : card
-        )
-      };
-
-    case ACTIONS.UPDATE_COMMENT:
-      return {
-        ...state,
-        cards: state.cards.map(card =>
-          card.id === action.payload.cardId
-            ? {
-                ...card,
-                comments: (card.comments || []).map(comment =>
-                  comment.id === action.payload.commentId
-                    ? { ...comment, ...action.payload.updates }
-                    : comment
-                )
-              }
-            : card
-        )
-      };
-
-    case ACTIONS.DELETE_COMMENT:
-      return {
-        ...state,
-        cards: state.cards.map(card =>
-          card.id === action.payload.cardId
-            ? {
-                ...card,
-                comments: (card.comments || []).filter(
-                  comment => comment.id !== action.payload.commentId
-                )
-              }
-            : card
-        )
-      };
-
-    case ACTIONS.ADD_LABEL:
-      return {
-        ...state,
-        labels: [...state.labels, action.payload]
-      };
-
-    case ACTIONS.UPDATE_LABEL:
-      return {
-        ...state,
-        labels: state.labels.map(label => 
-          label.id === action.payload.id ? action.payload : label
-        )
-      };
-
-    case ACTIONS.DELETE_LABEL:
-      return {
-        ...state,
-        labels: state.labels.filter(label => label.id !== action.payload)
-      };
-
-    case ACTIONS.SET_FILTERS:
-      return { ...state, filters: { ...state.filters, ...action.payload } };
-
-    case ACTIONS.SET_SEARCH_TERM:
-      return { ...state, searchTerm: action.payload };
-
-    // Removed sorting reducer cases - using Pragmatic DND only
-
-    case ACTIONS.MARK_INITIALIZED:
-      return { ...state, isInitialized: true };
+    
+    case ACTION_TYPES.SET_LAST_UPDATED:
+      return { ...state, lastUpdated: action.payload };
+    
+    case ACTION_TYPES.MARK_INITIALIZED:
+      return { ...state, initialized: true, isLoading: false };
 
     default:
       return state;
   }
-}
+};
 
 // Create context
 const KanbanContext = createContext();
 
 // Provider component
-export const KanbanProvider = ({ children }) => {
+export const KanbanProvider = ({ children, user }) => {
   const [state, dispatch] = useReducer(kanbanReducer, initialState);
-  const { user } = useAuth();
 
-  // Load board data from API
-  const loadBoardData = useCallback(async (forceRefresh = false) => {
-    if (!user) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: 'Authentication required' });
-      return;
+  // Set user when provided
+  useEffect(() => {
+    if (user) {
+      dispatch({ type: ACTION_TYPES.SET_USER, payload: user });
+    } else {
+      // Create a mock user for development
+      const mockUser = {
+        id: 'dev-user-1',
+        name: 'Development User',
+        email: 'dev@example.com',
+        role: 'Sales',
+        permissions: ['VIEW_BOARD', 'CREATE_CARD', 'EDIT_CARD', 'MOVE_CARD', 'COMMENT', 'SEARCH_CARDS', 'VIEW_ACTIVITY']
+      };
+      dispatch({ type: ACTION_TYPES.SET_USER, payload: mockUser });
     }
+  }, [user]);
 
-    // Skip loading if already initialized and not forcing refresh
-    if (state.isInitialized && !forceRefresh) {
-      return;
-    }
+  // Create default column structure according to specifications
+  const createDefaultColumnStructure = useCallback((users = []) => {
+    // Filter users by role/type for Production and Drivers
+    const productionUsers = users.filter(user => 
+      user.role === 'production' || 
+      user.type === 'production' || 
+      user.department === 'production' ||
+      user.groupType === 'production'
+    );
+    
+    const driverUsers = users.filter(user => 
+      user.role === 'driver' || 
+      user.type === 'driver' || 
+      user.department === 'drivers' ||
+      user.groupType === 'drivers'
+    );
 
+    // Create subcolumns for Production users
+    const productionSubcolumns = productionUsers.map((user, index) => ({
+      id: `production-${user.id || user._id}`,
+      title: user.name || user.username || `User ${index + 1}`,
+      position: index,
+      isActive: true,
+      userId: user.id || user._id,
+      userData: user
+    }));
+
+    // Create subcolumns for Driver users
+    const driverSubcolumns = driverUsers.map((user, index) => ({
+      id: `driver-${user.id || user._id}`,
+      title: user.name || user.username || `Driver ${index + 1}`,
+      position: index,
+      isActive: true,
+      userId: user.id || user._id,
+      userData: user
+    }));
+
+    console.log('Creating columns with users:', {
+      totalUsers: users.length,
+      productionUsers: productionUsers.length,
+      driverUsers: driverUsers.length,
+      productionSubcolumns: productionSubcolumns.length,
+      driverSubcolumns: driverSubcolumns.length
+    });
+
+    return [
+      // Non-grouped columns
+      {
+        id: 'sales',
+        title: 'Sales',
+        type: 'static',
+        position: 0,
+        isActive: true,
+        isGrouped: false,
+        cards: [],
+        settings: { allowCreateCard: true }
+      },
+      {
+        id: 'office',
+        title: 'Office',
+        type: 'static',
+        position: 1,
+        isActive: true,
+        isGrouped: false,
+        cards: [],
+        settings: {}
+      },
+      // Grouped columns
+      {
+        id: 'production',
+        title: 'Production',
+        type: 'grouped',
+        position: 2,
+        isActive: true,
+        isGrouped: true,
+        groupType: 'production',
+        cards: [],
+        subcolumns: productionSubcolumns,
+        settings: { allowToggle: true }
+      },
+      {
+        id: 'ready',
+        title: 'Ready',
+        type: 'grouped',
+        position: 3,
+        isActive: true,
+        isGrouped: true,
+        groupType: 'ready',
+        cards: [],
+        subcolumns: [
+          { id: 'for-dispatch', title: 'For Dispatch', position: 0, isActive: true },
+          { id: 'for-customer-collection', title: 'For Customer Collection', position: 1, isActive: true }
+        ],
+        settings: {}
+      },
+      {
+        id: 'drivers',
+        title: 'Drivers',
+        type: 'grouped',
+        position: 4,
+        isActive: true,
+        isGrouped: true,
+        groupType: 'drivers',
+        cards: [],
+        subcolumns: driverSubcolumns,
+        settings: { allowToggle: true }
+      },
+      {
+        id: 'done',
+        title: 'Done',
+        type: 'grouped',
+        position: 5,
+        isActive: true,
+        isGrouped: true,
+        groupType: 'done',
+        cards: [],
+        subcolumns: [
+          { id: 'done-today', title: 'Done Today', position: 0, isActive: true },
+          { id: 'less-than-7-days', title: '< 7 Days', position: 1, isActive: true, restricted: true },
+          { id: 'more-than-7-days', title: '> 7 Days', position: 2, isActive: true, restricted: true, hasSearch: true }
+        ],
+        settings: {}
+      }
+    ];
+  }, []);
+
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
     try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
       
-      // Load board data, labels, and users in parallel (API v2.0)
-      const [boardData, labels, users] = await Promise.all([
-        kanbanService.getBoard(),
-        kanbanService.getLabels(),
-        kanbanService.getUsers().catch(() => []) // Users endpoint might not exist
-      ]);
-
-      console.log('Loaded API v2.0 board data:', boardData);
-
-      // Extract cards and columns from board data (API v2.0 structure)
-      const cards = boardData?.cards || [];
-      const columns = boardData?.columns || [];
-
-      // Transform cards data for API v2.0
-      const transformedCards = Array.isArray(cards) 
-        ? cards.map(card => kanbanService.transformCardData(card))
-        : [];
-
-      // Transform columns data for API v2.0
-      const transformedColumns = Array.isArray(columns) 
-        ? columns.map(column => ({
-            id: column._id || column.id,
-            title: column.title,
-            type: column.type || 'static',
-            position: column.position || 0,
-            cards: column.cards || [],
-            settings: column.settings || {},
-            isActive: column.isActive !== false
-          }))
-        : [];
-
-      // Set board data
-      dispatch({ 
-        type: ACTIONS.SET_BOARD_DATA, 
-        payload: {
-          columns: transformedColumns,
-          cards: transformedCards
+      // Try to fetch users from API
+      let users = [];
+      try {
+        users = await kanbanService.getUsers();
+        console.log('Fetched users from API:', users);
+        
+        // Ensure users is an array (handle null/undefined responses)
+        if (!Array.isArray(users)) {
+          console.warn('API returned non-array users data:', users);
+          users = [];
         }
-      });
-
-      // Set additional data
-      dispatch({ type: ACTIONS.SET_LABELS, payload: labels || [] });
-      dispatch({ type: ACTIONS.SET_USERS, payload: users || [] });
-      dispatch({ type: ACTIONS.MARK_INITIALIZED });
+      } catch (error) {
+        console.warn('Users API not available, using empty array:', error.message);
+        users = [];
+      }
+      
+      // Create default column structure with dynamic subcolumns
+      const defaultColumns = createDefaultColumnStructure(users);
+      
+      // Set default data
+      dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: defaultColumns });
+      dispatch({ type: ACTION_TYPES.SET_CARDS, payload: [] });
+      dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [] });
+      dispatch({ type: ACTION_TYPES.SET_USERS, payload: users });
+      dispatch({ type: ACTION_TYPES.SET_BOARD, payload: {} });
+      dispatch({ type: ACTION_TYPES.SET_LAST_UPDATED, payload: new Date().toISOString() });
+      dispatch({ type: ACTION_TYPES.MARK_INITIALIZED });
       
     } catch (error) {
       console.error('Error loading board data:', error);
-      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
     }
-  }, [user, state.isInitialized]);
+  }, [createDefaultColumnStructure]);
 
-  // Load data on mount and when user changes
-  useEffect(() => {
-    if (user) {
-      loadBoardData();
-    } else {
-      // Clear data when user is not authenticated
-      dispatch({ type: ACTIONS.SET_BOARD_DATA, payload: { cards: [], columns: [] } });
-      dispatch({ type: ACTIONS.SET_USERS, payload: [] });
-      dispatch({ type: ACTIONS.SET_ERROR, payload: null });
-    }
-  }, [user?.id, loadBoardData]);
-
-  // Refresh data (force reload)
-  const refreshData = useCallback(() => {
-    loadBoardData(true);
-  }, [loadBoardData]);
-
-  // Create a new card
+  // Create card
   const createCard = useCallback(async (cardData) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
     try {
-      const apiCardData = kanbanService.transformCardToApi({
-        ...cardData,
-        createdBy: user.username
-      });
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+
+      const result = await kanbanService.createCard(cardData);
       
-      const newCard = await kanbanService.createCard(apiCardData);
-      const transformedCard = kanbanService.transformCardData(newCard);
-      
-      dispatch({ type: ACTIONS.ADD_CARD, payload: transformedCard });
-      return transformedCard;
+      if (result.status === 'success') {
+        const transformedCard = kanbanService.transformCardData(result.data);
+        dispatch({ type: ACTION_TYPES.ADD_CARD, payload: transformedCard });
+        
+        // Log activity
+        const activity = logCardCreated(transformedCard, state.user);
+        await kanbanService.logActivity(activity);
+        
+        return transformedCard;
+      } else {
+        throw new Error(result.error || 'Failed to create card');
+      }
     } catch (error) {
       console.error('Error creating card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [user]);
+  }, [state.user]);
 
-  // Update a card
+  // Update card
   const updateCard = useCallback(async (cardId, updates) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
     try {
-      const apiUpdates = kanbanService.transformCardToApi({
-        ...updates,
-        updatedBy: user.username
-      });
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+
+      const result = await kanbanService.updateCard(cardId, updates);
       
-      const updatedCard = await kanbanService.updateCard(cardId, apiUpdates);
-      const transformedCard = kanbanService.transformCardData(updatedCard);
-      
-      dispatch({ type: ACTIONS.UPDATE_CARD, payload: transformedCard });
-      return transformedCard;
+      if (result.status === 'success') {
+        const transformedCard = kanbanService.transformCardData(result.data);
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: transformedCard });
+        
+        // Log activity
+        const activity = logCardUpdated(transformedCard, state.user, updates);
+        await kanbanService.logActivity(activity);
+        
+        return transformedCard;
+      } else {
+        throw new Error(result.error || 'Failed to update card');
+      }
     } catch (error) {
       console.error('Error updating card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [user]);
+  }, [state.user]);
 
-  // Move a card
-  const moveCard = useCallback(async (cardId, fromColumn, toColumn, toSubcolumn = null, position = null) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    // Validate required parameters
-    if (!cardId) {
-      throw new Error('Card ID is required');
-    }
-    if (!fromColumn) {
-      throw new Error('From column is required');
-    }
-    if (!toColumn) {
-      throw new Error('To column is required');
-    }
-
-    // Find the card to get its current data
-    const card = state.cards.find(c => c.id === cardId);
-    if (!card) {
-      throw new Error(`Card with ID ${cardId} not found`);
-    }
-
-    // Use card's actual columnId if fromColumn is undefined
-    const actualFromColumn = fromColumn || card.columnId;
-    if (!actualFromColumn) {
-      throw new Error('Unable to determine source column for card');
-    }
-
-    console.log('Moving card:', {
-      cardId,
-      fromColumn: actualFromColumn,
-      toColumn,
-      toSubcolumn,
-      cardData: {
-        id: card.id,
-        title: card.title,
-        columnId: card.columnId,
-        subcolumnId: card.subcolumnId
-      },
-      user: user
-    });
-
-    try {
-      // Optimistic update
-      dispatch({
-        type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn: actualFromColumn, toColumn, toSubcolumn }
-      });
-
-      // Ensure we have proper user data
-      const userId = user?.id || user?.username || user?.userId || 'unknown';
-      const userName = user?.name || user?.username || user?.displayName || 'Unknown User';
-      const userRole = user?.role || user?.userRole || 'user';
-
-      // Transform move data for API v2.0
-      const moveData = kanbanService.transformMoveData({
-        toList: toColumn,
-        subcolumnId: toSubcolumn,
-        position: position
-      });
-
-      console.log('Move data details:', {
-        toColumn,
-        toSubcolumn,
-        moveData
-      });
-
-      const result = await kanbanService.moveCard(cardId, moveData);
-      return result;
-    } catch (error) {
-      console.error('Error moving card:', error);
-      // Rollback optimistic update
-      dispatch({
-        type: ACTIONS.MOVE_CARD,
-        payload: { cardId, fromColumn: toColumn, toColumn: actualFromColumn, toSubcolumn: null }
-      });
-      throw error;
-    }
-  }, [user, state.cards]);
-
-  // Delete a card
+  // Delete card
   const deleteCard = useCallback(async (cardId) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
     try {
-      await kanbanService.deleteCard(cardId);
-      dispatch({ type: ACTIONS.DELETE_CARD, payload: cardId });
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+
+      const result = await kanbanService.deleteCard(cardId);
+      
+      if (result.status === 'success') {
+        dispatch({ type: ACTION_TYPES.DELETE_CARD, payload: cardId });
+        
+        // Log activity
+        const activity = logCardDeleted(cardId, state.user);
+        await kanbanService.logActivity(activity);
+        
+      return result;
+      } else {
+        throw new Error(result.error || 'Failed to delete card');
+      }
     } catch (error) {
       console.error('Error deleting card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [user]);
+  }, [state.user]);
 
-  // Reorder cards within a column or subcolumn
-  const reorderCards = useCallback(async (containerId, oldIndex, newIndex) => {
+  // Move card with DnD rules enforcement
+  const moveCard = useCallback(async (cardId, moveData) => {
     try {
-      // Get cards for the container
-      let containerCards;
-      if (containerId.includes('production-') || containerId.includes('driver-')) {
-        // Subcolumn
-        containerCards = state.cards.filter(card => card.subcolumnId === containerId);
-      } else {
-        // Main column
-        containerCards = state.cards.filter(card => card.columnId === containerId && !card.subcolumnId);
-      }
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
-      if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0 || 
-          oldIndex >= containerCards.length || newIndex >= containerCards.length) {
-        return;
-      }
-
-      // Reorder the cards locally
-      const reorderedCards = arrayMove(containerCards, oldIndex, newIndex);
+      // Check if move is allowed based on DnD rules
+      const card = state.cards.find(c => c.id === cardId);
+      const fromColumn = state.columns.find(c => c.id === card?.columnId);
+      const toColumn = state.columns.find(c => c.id === moveData.toColumnId);
       
-      // Update the order in the state
-      const updatedCards = state.cards.map(card => {
-        const reorderedCard = reorderedCards.find(rc => rc.id === card.id);
-        if (reorderedCard) {
-          return { ...card, order: reorderedCards.indexOf(reorderedCard) };
-        }
-        return card;
-      });
+      if (!kanbanService.isMoveAllowed(fromColumn, toColumn, card?.subcolumnId, moveData.toSubColumnId)) {
+        throw new Error('Move not allowed: Cannot move cards to/from < 7 Days or > 7 Days columns');
+      }
 
-      dispatch({ type: ACTIONS.SET_CARDS, payload: updatedCards });
-
-      // Send to API
-      const reorderData = {
-        cardOrders: reorderedCards.map((card, index) => ({
-          cardId: card.id,
-          order: index
-        }))
-      };
-
-      await kanbanService.reorderCards(containerId, reorderData);
+      const result = await kanbanService.moveCard(cardId, moveData);
+      
+      if (result.status === 'success') {
+        const transformedCard = kanbanService.transformCardData(result.data);
+        dispatch({ type: ACTION_TYPES.MOVE_CARD, payload: {
+          cardId,
+          columnId: moveData.toColumnId,
+          subcolumnId: moveData.toSubColumnId
+        }});
+        
+        // Log activity
+        const activity = logCardMoved(transformedCard, state.user, moveData);
+        await kanbanService.logActivity(activity);
+        
+        return transformedCard;
+      } else {
+        throw new Error(result.error || 'Failed to move card');
+      }
     } catch (error) {
-      console.error('Error reordering cards:', error);
+      console.error('Error moving card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards, state.columns, state.user]);
+
+  // Toggle column activation
+  const toggleColumnActivation = useCallback(async (columnId, isActive) => {
+    try {
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+
+      const result = await kanbanService.toggleColumnActivation(columnId, isActive);
+      
+      if (result.status === 'success') {
+        dispatch({ type: ACTION_TYPES.UPDATE_COLUMN, payload: {
+          id: columnId,
+        isActive
+        }});
+
+      // Log activity
+        const activity = {
+          type: 'column_toggled',
+        columnId,
+          isActive,
+          timestamp: new Date().toISOString(),
+          userId: state.user?.id
+        };
+        await kanbanService.logActivity(activity);
+        
+        return result;
+      } else {
+        throw new Error(result.error || 'Failed to toggle column');
+      }
+    } catch (error) {
+      console.error('Error toggling column:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.user]);
+
+  // Search cards in specific column (for > 7 Days column)
+  const searchCardsInColumn = useCallback(async (columnId, query) => {
+    try {
+      const result = await kanbanService.searchCardsInColumn(columnId, query);
+      return result;
+    } catch (error) {
+      console.error('Error searching cards:', error);
+      throw error;
+    }
+  }, []);
+
+  // Add comment to card
+  const addComment = useCallback(async (cardId, commentData) => {
+    try {
+      const result = await kanbanService.addComment(cardId, commentData);
+      
+      if (result.status === 'success') {
+        // Update card with new comment
+        const card = state.cards.find(c => c.id === cardId);
+        if (card) {
+          const updatedCard = {
+            ...card,
+            comments: [...(card.comments || []), result.data]
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
   }, [state.cards]);
 
-  // Toggle column activation
-  const toggleColumnActivation = useCallback(async (columnId, isActive) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const updatedColumn = await kanbanService.toggleColumnActivation(columnId, { isActive });
-      
-      dispatch({
-        type: ACTIONS.TOGGLE_COLUMN_ACTIVATION,
-        payload: { columnId, isActive }
-      });
-      
-      return updatedColumn;
-    } catch (error) {
-      console.error('Error toggling column activation:', error);
-      throw error;
-    }
-  }, [user]);
-
-  // Add comment
-  const addComment = useCallback(async (cardId, commentText) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const comment = await kanbanService.addComment(cardId, {
-        text: commentText,
-        mentions: [] // Extract mentions from text if needed
-      });
-      
-      dispatch({
-        type: ACTIONS.ADD_COMMENT,
-        payload: { cardId, comment }
-      });
-      
-      return comment;
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      throw error;
-    }
-  }, [user]);
-
   // Update comment
-  const updateComment = useCallback(async (commentId, cardId, updates) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
+  const updateComment = useCallback(async (commentId, updates) => {
     try {
-      const updatedComment = await kanbanService.updateComment(commentId, updates);
+      const result = await kanbanService.updateComment(commentId, updates);
       
-      dispatch({
-        type: ACTIONS.UPDATE_COMMENT,
-        payload: { cardId, commentId, updates: updatedComment }
-      });
-      
-      return updatedComment;
+      if (result.status === 'success') {
+        // Update card with updated comment
+        const card = state.cards.find(c => 
+          c.comments?.some(comment => comment.id === commentId)
+        );
+        if (card) {
+          const updatedCard = {
+            ...card,
+            comments: card.comments.map(comment =>
+              comment.id === commentId ? { ...comment, ...updates } : comment
+            )
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to update comment');
+      }
     } catch (error) {
       console.error('Error updating comment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [user]);
+  }, [state.cards]);
 
   // Delete comment
-  const deleteComment = useCallback(async (commentId, cardId) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
+  const deleteComment = useCallback(async (commentId) => {
     try {
-      await kanbanService.deleteComment(commentId);
+      const result = await kanbanService.deleteComment(commentId);
       
-      dispatch({
-        type: ACTIONS.DELETE_COMMENT,
-        payload: { cardId, commentId }
-      });
+      if (result.status === 'success') {
+        // Update card with deleted comment
+        const card = state.cards.find(c => 
+          c.comments?.some(comment => comment.id === commentId)
+        );
+        if (card) {
+          const updatedCard = {
+            ...card,
+            comments: card.comments.filter(comment => comment.id !== commentId)
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        
+        return result;
+      } else {
+        throw new Error(result.error || 'Failed to delete comment');
+      }
     } catch (error) {
       console.error('Error deleting comment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [user]);
+  }, [state.cards]);
 
   // Set filters
   const setFilters = useCallback((filters) => {
-    dispatch({ type: ACTIONS.SET_FILTERS, payload: filters });
-  }, []);
-
-  // Clear filters
-  const clearFilters = useCallback(() => {
-    dispatch({ 
-      type: ACTIONS.SET_FILTERS, 
-      payload: {
-        labels: [],
-        assignees: [],
-        dueDate: null,
-        priority: null,
-        text: ''
-      }
-    });
+    dispatch({ type: ACTION_TYPES.SET_FILTERS, payload: filters });
   }, []);
 
   // Set search term
   const setSearchTerm = useCallback((searchTerm) => {
-    dispatch({ type: ACTIONS.SET_SEARCH_TERM, payload: searchTerm });
+    dispatch({ type: ACTION_TYPES.SET_SEARCH_TERM, payload: searchTerm });
   }, []);
 
-  // Label management functions
-  const createLabel = useCallback(async (labelData) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+  // Clear filters
+  const clearFilters = useCallback(() => {
+    dispatch({ type: ACTION_TYPES.CLEAR_FILTERS });
+  }, []);
 
-    try {
-      const newLabel = await kanbanService.createLabel({
-        ...labelData,
-        createdBy: user.username
-      });
-      
-      dispatch({ type: ACTIONS.ADD_LABEL, payload: newLabel });
-      return newLabel;
-    } catch (error) {
-      console.error('Error creating label:', error);
-      throw error;
-    }
-  }, [user]);
-
-  const updateLabel = useCallback(async (labelId, updates) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const updatedLabel = await kanbanService.updateLabel(labelId, {
-        ...updates,
-        updatedBy: user.username
-      });
-      
-      dispatch({ type: ACTIONS.UPDATE_LABEL, payload: updatedLabel });
-      return updatedLabel;
-    } catch (error) {
-      console.error('Error updating label:', error);
-      throw error;
-    }
-  }, [user]);
-
-  const deleteLabel = useCallback(async (labelId) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      await kanbanService.deleteLabel(labelId);
-      dispatch({ type: ACTIONS.DELETE_LABEL, payload: labelId });
-    } catch (error) {
-      console.error('Error deleting label:', error);
-      throw error;
-    }
-  }, [user]);
-
-  // Get filtered cards
-  const getFilteredCards = useCallback(() => {
-    let filteredCards = state.cards;
-
-    // Apply text filter
-    if (state.filters.text) {
-      const searchText = state.filters.text.toLowerCase();
-      filteredCards = filteredCards.filter(card =>
-        card.title.toLowerCase().includes(searchText) ||
-        card.description?.toLowerCase().includes(searchText)
-      );
-    }
-
-    // Apply label filter
-    if (state.filters.labels.length > 0) {
-      filteredCards = filteredCards.filter(card =>
-        card.labels?.some(label => state.filters.labels.includes(label.id || label))
-      );
-    }
-
-    // Apply assignee filter
-    if (state.filters.assignees.length > 0) {
-      filteredCards = filteredCards.filter(card =>
-        card.assignees?.some(assignee => state.filters.assignees.includes(assignee))
-      );
-    }
-
-    // Apply priority filter
-    if (state.filters.priority) {
-      filteredCards = filteredCards.filter(card => card.priority === state.filters.priority);
-    }
-
-    // Apply due date filter
-    if (state.filters.dueDate) {
-      const filterDate = new Date(state.filters.dueDate);
-      filteredCards = filteredCards.filter(card => {
-        if (!card.dueDate) return false;
-        const cardDate = new Date(card.dueDate);
-        return cardDate.toDateString() === filterDate.toDateString();
-      });
-    }
-
-    return filteredCards;
-  }, [state.cards, state.filters]);
+  // Clear error
+  const clearError = useCallback(() => {
+    dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
+  }, []);
 
   // Get cards by column
   const getCardsByColumn = useCallback((columnId) => {
-    const filteredCards = getFilteredCards();
-    return filteredCards.filter(card => card.columnId === columnId && !card.subcolumnId);
-  }, [getFilteredCards]);
+    return state.cards.filter(card => card.columnId === columnId);
+  }, [state.cards]);
 
   // Get cards by subcolumn
-  const getCardsBySubcolumn = useCallback((subcolumnId) => {
-    const filteredCards = getFilteredCards();
-    return filteredCards.filter(card => card.subcolumnId === subcolumnId);
-  }, [getFilteredCards]);
+  const getCardsBySubcolumn = useCallback((columnId, subcolumnId) => {
+    return state.cards.filter(card => 
+      card.columnId === columnId && card.subcolumnId === subcolumnId
+    );
+  }, [state.cards]);
 
   // Get active columns
   const getActiveColumns = useCallback(() => {
     return state.columns.filter(column => column.isActive !== false);
   }, [state.columns]);
 
-  // Check if a column is currently being activated/deactivated
-  const isActivating = useCallback((columnId) => {
-    return false; // No loading state for now
-  }, []);
+  // Check if user can perform action (permissions)
+  const canPerformAction = useCallback((action, resource = null) => {
+    const user = state.user;
+    return checkPermission(user, action, resource);
+  }, [state.user]);
 
-  // Search cards
-  const searchCards = useCallback(async (columnId, searchTerm, filters = {}) => {
+  // ==================== ATTACHMENT METHODS ====================
+  
+  // Add attachment to card
+  const addAttachment = useCallback(async (cardId, attachmentData) => {
     try {
-      const params = {
-        q: searchTerm,
-        ...filters
-      };
+      const result = await kanbanService.addAttachment(cardId, attachmentData);
       
-      if (columnId) {
-        // If searching within a specific column, add column filter
-        params.columnId = columnId;
+      if (result) {
+        // Optimistically update card with new attachment
+        const card = state.cards.find(c => c.id === cardId);
+        if (card) {
+          const updatedCard = {
+            ...card,
+            attachments: [...(card.attachments || []), result]
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        return result;
       }
-      
-      const results = await kanbanService.searchCards(params);
-      return Array.isArray(results) 
-        ? results.map(card => kanbanService.transformCardData(card))
-        : [];
     } catch (error) {
-      console.error('Error searching cards:', error);
-      return [];
+      console.error('Error adding attachment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
     }
-  }, []);
+  }, [state.cards]);
 
-  // Removed column sorting functions - using Pragmatic DND only
-
-  // Debug function to show card distribution
-  const debugCardDistribution = useCallback(() => {
-    console.log('=== KANBAN CARD DISTRIBUTION DEBUG ===');
-    console.log('Total cards:', state.cards.length);
-    console.log('Total columns:', state.columns.length);
-    
-    state.columns.forEach(column => {
-      console.log(`\n--- Column: ${column.title} (${column.id}) ---`);
-      console.log('Type:', column.type);
-      console.log('Is Active:', column.isActive);
-      console.log('Is Grouped:', column.isGrouped);
+  // Delete attachment from card
+  const deleteAttachment = useCallback(async (cardId, attachmentId) => {
+    try {
+      await kanbanService.deleteAttachment(cardId, attachmentId);
       
-      if (column.isGrouped && column.subcolumns) {
-        console.log('Subcolumns:', column.subcolumns.length);
-        column.subcolumns.forEach(subcolumn => {
-          const subcolumnCards = getCardsBySubcolumn(subcolumn.id);
-          console.log(`  └─ Subcolumn: ${subcolumn.title} (${subcolumn.id})`);
-          console.log(`     Cards: ${subcolumnCards.length}`);
-          subcolumnCards.forEach((card, index) => {
-            console.log(`       ${index + 1}. ${card.title} (${card.id})`);
-          });
-        });
-      } else {
-        const columnCards = getCardsByColumn(column.id);
-        console.log(`Cards: ${columnCards.length}`);
-        columnCards.forEach((card, index) => {
-          console.log(`  ${index + 1}. ${card.title} (${card.id})`);
-          if (card.subcolumnId) {
-            console.log(`      └─ In subcolumn: ${card.subcolumnId}`);
-          }
-        });
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          attachments: (card.attachments || []).filter(a => a.id !== attachmentId)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
-    });
-    
-    console.log('\n=== UNASSIGNED CARDS ===');
-    const unassignedCards = state.cards.filter(card => !card.columnId);
-    console.log('Unassigned cards:', unassignedCards.length);
-    unassignedCards.forEach((card, index) => {
-      console.log(`  ${index + 1}. ${card.title} (${card.id})`);
-    });
-    
-    console.log('=== END DEBUG ===');
-  }, [state.cards, state.columns, getCardsByColumn, getCardsBySubcolumn]);
-
-  // Escape key handler - clear selections and close modals
-  const handleEscape = useCallback(() => {
-    // Clear any active filters or search
-    if (state.searchTerm) {
-      setSearchTerm('');
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
     }
-    
-    // Reset any column sorts to default
-    // Removed columnSorts reset - using Pragmatic DND only
-    
-    // Clear filters if any are active
-    const hasActiveFilters = Object.values(state.filters).some(filter => 
-      Array.isArray(filter) ? filter.length > 0 : filter
-    );
-    if (hasActiveFilters) {
-      clearFilters();
-    }
-    
-    // Dispatch custom event for other components to handle
-    window.dispatchEvent(new CustomEvent('kanban:escape', {
-      detail: { timestamp: Date.now() }
-    }));
-    
-    console.log('Kanban escape handler executed');
-    return true;
-  }, [state.searchTerm, state.filters, clearFilters]);
+  }, [state.cards]);
 
-  // Context value
+  // Set card cover image
+  const setCardCover = useCallback(async (cardId, coverData) => {
+    try {
+      await kanbanService.setCardCover(cardId, coverData);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          coverImage: coverData
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error setting card cover:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // ==================== CHECKLIST METHODS ====================
+  
+  // Add checklist to card
+  const addChecklist = useCallback(async (cardId, checklistData) => {
+    try {
+      const result = await kanbanService.addChecklist(cardId, checklistData);
+      
+      if (result) {
+        // Optimistically update card with new checklist
+        const card = state.cards.find(c => c.id === cardId);
+        if (card) {
+          const updatedCard = {
+            ...card,
+            checklists: [...(card.checklists || []), result]
+          };
+          dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+        }
+        return result;
+      }
+    } catch (error) {
+      console.error('Error adding checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Update checklist
+  const updateChecklist = useCallback(async (cardId, checklistId, checklistData) => {
+    try {
+      await kanbanService.updateChecklist(cardId, checklistId, checklistData);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).map(cl =>
+            cl.id === checklistId ? { ...cl, ...checklistData } : cl
+          )
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error updating checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Delete checklist from card
+  const deleteChecklist = useCallback(async (cardId, checklistId) => {
+    try {
+      await kanbanService.deleteChecklist(cardId, checklistId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).filter(cl => cl.id !== checklistId)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error deleting checklist:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // Toggle checklist item
+  const toggleChecklistItem = useCallback(async (cardId, checklistId, itemId) => {
+    try {
+      await kanbanService.toggleChecklistItem(cardId, checklistId, itemId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card) {
+        const updatedCard = {
+          ...card,
+          checklists: (card.checklists || []).map(cl =>
+            cl.id === checklistId
+              ? {
+                  ...cl,
+                  items: cl.items.map(item =>
+                    item.id === itemId ? { ...item, completed: !item.completed } : item
+                  )
+                }
+              : cl
+          )
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error toggling checklist item:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards]);
+
+  // ==================== WATCH/SUBSCRIBE METHODS ====================
+  
+  // Watch card (subscribe to notifications)
+  const watchCard = useCallback(async (cardId) => {
+    try {
+      await kanbanService.watchCard(cardId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card && state.user) {
+        const updatedCard = {
+          ...card,
+          watchers: [...(card.watchers || []), state.user.id]
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error watching card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards, state.user]);
+
+  // Unwatch card (unsubscribe from notifications)
+  const unwatchCard = useCallback(async (cardId) => {
+    try {
+      await kanbanService.unwatchCard(cardId);
+      
+      // Optimistically update card
+      const card = state.cards.find(c => c.id === cardId);
+      if (card && state.user) {
+        const updatedCard = {
+          ...card,
+          watchers: (card.watchers || []).filter(id => id !== state.user.id)
+        };
+        dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
+      }
+    } catch (error) {
+      console.error('Error unwatching card:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.cards, state.user]);
+
   const value = {
     // State
     ...state,
@@ -850,40 +841,41 @@ export const KanbanProvider = ({ children }) => {
     // Actions
     createCard,
     updateCard,
-    moveCard,
-    reorderCards,
     deleteCard,
-    createLabel,
-    updateLabel,
-    deleteLabel,
+    moveCard,
     toggleColumnActivation,
+    searchCardsInColumn,
     addComment,
     updateComment,
     deleteComment,
     setFilters,
-    clearFilters,
     setSearchTerm,
-    loadBoardData,
-    refreshData,
-    searchCards,
+    clearFilters,
+    clearError,
     
-    // Computed values
-    getFilteredCards,
+    // Attachment Actions
+    addAttachment,
+    deleteAttachment,
+    setCardCover,
+    
+    // Checklist Actions
+    addChecklist,
+    updateChecklist,
+    deleteChecklist,
+    toggleChecklistItem,
+    
+    // Watch Actions
+    watchCard,
+    unwatchCard,
+    
+    // Utilities
     getCardsByColumn,
     getCardsBySubcolumn,
     getActiveColumns,
-    isActivating,
+    canPerformAction,
     
-    // Permissions (simplified - all authenticated users can do everything for now)
-    canCreateCard: () => !!user,
-    canEditCard: () => !!user,
-    canMoveCard: () => !!user,
-    canManageColumn: () => !!user,
-    canToggleColumnActivation: () => !!user,
-    canAssignUsers: () => !!user,
-    canChangeDue: () => !!user,
-    canChangeLabels: () => !!user,
-    hasPermission: () => !!user
+    // Service
+    kanbanService
   };
 
   return (
@@ -893,8 +885,8 @@ export const KanbanProvider = ({ children }) => {
   );
 };
 
-// Hook to use the Kanban context
-const useKanban = () => {
+// Hook to use Kanban context
+export const useKanban = () => {
   const context = useContext(KanbanContext);
   if (!context) {
     throw new Error('useKanban must be used within a KanbanProvider');
@@ -902,4 +894,4 @@ const useKanban = () => {
   return context;
 };
 
-export { useKanban };
+export default KanbanContext;
