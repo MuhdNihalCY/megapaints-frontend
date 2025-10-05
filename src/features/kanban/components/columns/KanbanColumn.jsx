@@ -16,7 +16,8 @@ const KanbanColumn = ({
   onCardClick,
   onCreateCard,
   CardComponent = KanbanCard,
-  onDragEnd
+  onDragEnd,
+  boardId
 }) => {
   const { toggleColumnActivation, canPerformAction } = useKanban();
   const [isHovered, setIsHovered] = useState(false);
@@ -174,6 +175,7 @@ const KanbanColumn = ({
             <CreateCardButton 
               columnId={column.id} 
               onCreateCard={handleCreateCard}
+              boardId={boardId}
             />
           </div>
         )}

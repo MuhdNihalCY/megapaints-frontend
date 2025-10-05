@@ -40,6 +40,10 @@ export { default as CommentsSection } from './components/comments/CommentsSectio
 export { default as NotificationPanel } from './components/notifications/NotificationPanel';
 export { default as NotificationBell } from './components/notifications/NotificationBell';
 
+// Customer Management
+export { default as CustomerDropdown } from './components/customers/CustomerDropdown';
+export { default as CustomerManagementModal } from './components/customers/CustomerManagementModal';
+
 // Contexts
 export { KanbanProvider, useKanban } from './contexts/KanbanContext';
 export { PermissionProvider, usePermissions } from './contexts/PermissionContext';
@@ -59,6 +63,7 @@ export * from './utils/constants';
 export * from './utils/permissions';
 export * from './utils/dragDropRules';
 export * from './utils/activityLogger';
+export * from './utils/cardTitleUtils';
 
 // Types
 export * from './types/index';

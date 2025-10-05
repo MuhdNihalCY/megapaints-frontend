@@ -1297,6 +1297,7 @@ class KanbanService {
     return {
       id: apiTask._id || apiTask.id,
       title: apiTask.title || 'Untitled Task',
+      identifier: apiTask.identifier || null, // Add identifier field
       description: apiTask.description || '',
       cardId: apiTask.cardId || apiTask._id,
       columnId: apiTask.columnId,
@@ -1380,6 +1381,175 @@ class KanbanService {
     }
     
     return true;
+  }
+
+  // ==================== PRIMARY IDENTIFIER SYSTEM ====================
+  async reserveIdentifier(boardId, format = 'DD-MM-YY-###') {
+    const endpoint = 'POST /api/kanban/cards/reserve-identifier';
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId, format });
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/cards/reserve-identifier`, {
+        board_id: boardId,
+        format: format
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async useReservation(reservationId, taskId) {
+    const endpoint = 'POST /api/kanban/cards/use-reservation';
+    console.log(`🚀 [API Call] ${endpoint}:`, { reservationId, taskId });
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/cards/use-reservation`, {
+        reservation_id: reservationId,
+        task_id: taskId
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async releaseReservation(reservationId) {
+    const endpoint = 'DELETE /api/kanban/cards/release-reservation';
+    console.log(`🚀 [API Call] ${endpoint}:`, { reservationId });
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/cards/release-reservation`, {
+        data: { reservation_id: reservationId }
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async getActiveReservations(boardId) {
+    const endpoint = `GET /api/kanban/cards/reservations/board/${boardId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/cards/reservations/board/${boardId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async getTaskByIdentifier(identifier) {
+    const endpoint = `GET /api/kanban/cards/identifier/${identifier}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { identifier });
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/cards/identifier/${identifier}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async getBoardIdentifiers(boardId) {
+    const endpoint = `GET /api/kanban/cards/identifiers/board/${boardId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/cards/identifiers/board/${boardId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async updateTaskIdentifier(taskId, identifier) {
+    const endpoint = `PUT /api/kanban/cards/${taskId}/identifier`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, identifier });
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/cards/${taskId}/identifier`, {
+        identifier: identifier
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  // ==================== CUSTOMER MANAGEMENT ====================
+  async getCustomers(params = {}) {
+    const endpoint = 'GET /api/kanban/customers';
+    console.log(`🚀 [API Call] ${endpoint}:`, { params });
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/customers`, { params });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async getCustomerById(customerId) {
+    const endpoint = `GET /api/kanban/customers/${customerId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { customerId });
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/customers/${customerId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async createCustomer(customerData) {
+    const endpoint = 'POST /api/kanban/customers';
+    console.log(`🚀 [API Call] ${endpoint}:`, { customerData });
+    try {
+      const response = await api.post(`${this.baseURL}/kanban/customers`, customerData);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async updateCustomer(customerId, updates) {
+    const endpoint = `PUT /api/kanban/customers/${customerId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { customerId, updates });
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/customers/${customerId}`, updates);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async deleteCustomer(customerId) {
+    const endpoint = `DELETE /api/kanban/customers/${customerId}`;
+    console.log(`🚀 [API Call] ${endpoint}:`, { customerId });
+    try {
+      const response = await api.delete(`${this.baseURL}/kanban/customers/${customerId}`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  async searchCustomers(query, params = {}) {
+    const endpoint = 'GET /api/kanban/customers/search';
+    console.log(`🚀 [API Call] ${endpoint}:`, { query, params });
+    try {
+      const searchParams = { q: query, ...params };
+      const response = await api.get(`${this.baseURL}/kanban/customers/search`, { params: searchParams });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
   }
 
   // ==================== LEGACY UTILITY METHODS (for backward compatibility) ====================

@@ -433,6 +433,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     onCreateCard={handleCreateCard}
                     CardComponent={PragmaticKanbanCard}
                     onDragEnd={handleDragEnd}
+                    boardId={boardId}
                   />
                 </motion.div>
               );

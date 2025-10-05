@@ -12,14 +12,16 @@ This documentation provides comprehensive information for implementing a complet
 2. [Database Models](#database-models)
 3. [Core Board Management](#core-board-management)
 4. [Task Management](#task-management)
-5. [Team Collaboration](#team-collaboration)
-6. [Notification System](#notification-system)
-7. [Automation & Workflows](#automation--workflows)
-8. [Analytics & Reporting](#analytics--reporting)
-9. [Security & Permissions](#security--permissions)
-10. [Real-time Features](#real-time-features)
-11. [API Endpoints Summary](#api-endpoints-summary)
-12. [Implementation Roadmap](#implementation-roadmap)
+5. [Primary Identifier System](#primary-identifier-system)
+6. [Customer Management](#customer-management)
+7. [Team Collaboration](#team-collaboration)
+8. [Notification System](#notification-system)
+9. [Automation & Workflows](#automation--workflows)
+10. [Analytics & Reporting](#analytics--reporting)
+11. [Security & Permissions](#security--permissions)
+12. [Real-time Features](#real-time-features)
+13. [API Endpoints Summary](#api-endpoints-summary)
+14. [Implementation Roadmap](#implementation-roadmap)
 
 ---
 
@@ -896,6 +898,568 @@ const automationSchema = new mongoose.Schema({
 
 ---
 
+## 🆔 Primary Identifier System APIs
+
+The Primary Identifier System provides unique, human-readable identifiers for tasks/cards with reservation-based conflict prevention, enabling easy reference and tracking across the system.
+
+### 🎯 Identifier Operations
+
+#### 1. Reserve Primary Identifier
+**POST** `/api/kanban/cards/reserve-identifier`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "board_id": "68d2bcf322e5515f73468f30",
+  "format": "DD-MM-YY-###"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Identifier reserved successfully",
+  "data": {
+    "identifier": "05-10-25-001",
+    "reservation_id": "68d2bcf322e5515f73468f31",
+    "board_id": "68d2bcf322e5515f73468f30",
+    "format": "DD-MM-YY-###",
+    "expires_at": "2025-10-05T10:35:00.000Z",
+    "reserved_at": "2025-10-05T10:30:00.000Z"
+  }
+}
+```
+
+**Note:** Reserved identifiers expire after 15 minutes if not used.
+
+#### 2. Get Task by Identifier
+**GET** `/api/kanban/cards/identifier/:identifier`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "task": {
+      "_id": "68d2bcf322e5515f73468f40",
+      "identifier": "05-10-25-001",
+      "title": "Implement user authentication",
+      "description": "Add JWT-based authentication system",
+      "board_id": {
+        "_id": "68d2bcf322e5515f73468f30",
+        "name": "Project Alpha"
+      },
+      "column_id": {
+        "_id": "68d2bcf322e5515f73468f31",
+        "name": "To Do",
+        "color": "#6c757d"
+      },
+      "priority": "high",
+      "assignees": [...],
+      "labels": [...],
+      "created_at": "2025-10-05T13:19:38.000Z"
+    }
+  }
+}
+```
+
+#### 3. Get All Identifiers for Board
+**GET** `/api/kanban/cards/identifiers/board/:boardId`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "board_id": "68d2bcf322e5515f73468f30",
+    "identifiers": [
+      {
+        "identifier": "05-10-25-001",
+        "title": "Implement user authentication",
+        "created_at": "2025-10-05T13:19:38.000Z"
+      },
+      {
+        "identifier": "05-10-25-002",
+        "title": "Setup database",
+        "created_at": "2025-10-05T13:20:15.000Z"
+      }
+    ],
+    "count": 2
+  }
+}
+```
+
+#### 4. Update Task Identifier (Admin Only)
+**PUT** `/api/kanban/cards/:taskId/identifier`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "identifier": "CUSTOM-001"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Task identifier updated successfully",
+  "data": {
+    "task_id": "68d2bcf322e5515f73468f40",
+    "old_identifier": "05-10-25-001",
+    "new_identifier": "CUSTOM-001",
+    "updated_by": "admin",
+    "updated_at": "2025-10-05T13:25:00.000Z"
+  }
+}
+```
+
+#### 5. Use Reserved Identifier
+**POST** `/api/kanban/cards/use-reservation`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "reservation_id": "68d2bcf322e5515f73468f31",
+  "task_id": "68d2bcf322e5515f73468f40"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Reservation used successfully",
+  "data": {
+    "identifier": "05-10-25-001",
+    "task_id": "68d2bcf322e5515f73468f40",
+    "reservation_id": "68d2bcf322e5515f73468f31",
+    "used_at": "2025-10-05T10:32:00.000Z"
+  }
+}
+```
+
+#### 6. Release Reserved Identifier
+**DELETE** `/api/kanban/cards/release-reservation`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "reservation_id": "68d2bcf322e5515f73468f31"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Reservation released successfully",
+  "data": {
+    "reservation_id": "68d2bcf322e5515f73468f31",
+    "released_at": "2025-10-05T10:33:00.000Z"
+  }
+}
+```
+
+#### 7. Get Active Reservations for Board
+**GET** `/api/kanban/cards/reservations/board/:boardId`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "board_id": "68d2bcf322e5515f73468f30",
+    "reservations": [
+      {
+        "reservation_id": "68d2bcf322e5515f73468f31",
+        "identifier": "05-10-25-001",
+        "reserved_by": {
+          "_id": "68d2bcf322e5515f73468f20",
+          "username": "john_doe",
+          "first_name": "John",
+          "last_name": "Doe"
+        },
+        "reserved_at": "2025-10-05T10:30:00.000Z",
+        "expires_at": "2025-10-05T10:35:00.000Z"
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+### 🔧 Identifier Format Options
+
+The system supports flexible identifier formats:
+
+- **Default**: `DD-MM-YY-###` (e.g., `05-10-25-001`)
+- **Custom**: Any format with `DD`, `MM`, `YY`, and `###` placeholders
+- **Examples**:
+  - `YY-MM-DD-###` → `25-10-05-001`
+  - `DD/MM/YY-###` → `05/10/25-001`
+  - `YYYY-MM-DD-###` → `2025-10-05-001`
+
+### 🔄 Reservation-Based Generation
+
+Identifiers must be reserved before creating tasks to prevent conflicts:
+
+```javascript
+// Step 1: Reserve an identifier
+const reservation = await fetch('/api/kanban/cards/reserve-identifier', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    board_id: '68d2bcf322e5515f73468f30',
+    format: 'DD-MM-YY-###'
+  })
+}).then(r => r.json());
+
+// Step 2: Create task with reserved identifier
+const task = await Task.create({
+  title: "New Task",
+  board_id: "68d2bcf322e5515f73468f30",
+  column_id: "68d2bcf322e5515f73468f31",
+  identifier: reservation.data.identifier
+});
+
+// Step 3: Use the reservation (optional - marks reservation as used)
+await fetch('/api/kanban/cards/use-reservation', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    reservation_id: reservation.data.reservation_id,
+    task_id: task._id
+  })
+});
+```
+
+### ⏰ Reservation Expiry
+
+- **Expiry Time**: 15 minutes from reservation
+- **Auto-cleanup**: Expired reservations are automatically marked as expired
+- **Conflict Prevention**: Reserved identifiers cannot be used by other users
+- **Release**: Unused reservations can be manually released
+
+---
+
+## 👥 Customer Management APIs
+
+The Customer Management system provides comprehensive APIs for managing customers and their associated projects within the Kanban system, with duplicate name prevention and advanced search capabilities.
+
+### 🎯 Customer Operations
+
+#### 1. Get All Customers
+**GET** `/api/kanban/customers`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+- `search` (optional): Search term for name, email, company
+- `customer_type` (optional): Filter by type (individual, business, contractor, retailer, wholesaler)
+- `status` (optional): Filter by status (active, inactive, prospect, lead, customer)
+- `branch_id` (optional): Filter by branch ID
+- `tags` (optional): Filter by tags (comma-separated)
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "customers": [
+      {
+        "_id": "68d2bcf322e5515f73468f60",
+        "name": "John Doe",
+        "email": "john@example.com",
+        "phone": "+91-98765-43210",
+        "company": "Acme Corp",
+        "customer_type": "business",
+        "status": "customer",
+        "branch_id": {
+          "_id": "68d2bcf322e5515f73468f21",
+          "name": "Main Branch",
+          "code": "MAIN"
+        },
+        "address": {
+          "street": "123 Main St",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "zip_code": "400001",
+          "country": "India"
+        },
+        "projects": [
+          {
+            "_id": "68d2bcf322e5515f73468f61",
+            "name": "Website Redesign",
+            "status": "active",
+            "estimated_value": 50000,
+            "board_id": "68d2bcf322e5515f73468f30"
+          }
+        ],
+        "contacts": [
+          {
+            "_id": "68d2bcf322e5515f73468f62",
+            "name": "Jane Smith",
+            "email": "jane@acmecorp.com",
+            "phone": "+91-98765-43211",
+            "position": "Project Manager",
+            "is_primary": true
+          }
+        ],
+        "tags": ["vip", "enterprise"],
+        "is_active": true,
+        "created_at": "2025-10-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "pages": 1
+    }
+  }
+}
+```
+
+#### 2. Get Customer by ID
+**GET** `/api/kanban/customers/:id`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "customer": {
+      "_id": "68d2bcf322e5515f73468f60",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+91-98765-43210",
+      "company": "Acme Corp",
+      "customer_type": "business",
+      "status": "customer",
+      "full_address": "123 Main St, Mumbai, Maharashtra, 400001, India",
+      "primary_contact": {
+        "name": "Jane Smith",
+        "email": "jane@acmecorp.com",
+        "phone": "+91-98765-43211",
+        "position": "Project Manager"
+      },
+      "active_projects_count": 1,
+      "total_project_value": 50000,
+      "projects": [...],
+      "contacts": [...],
+      "business_info": {
+        "tax_id": "TAX123456",
+        "industry": "Technology",
+        "website": "https://acmecorp.com",
+        "annual_revenue": 1000000,
+        "employee_count": 50
+      },
+      "created_by": {
+        "_id": "68d2bcf322e5515f73468f0c",
+        "username": "admin",
+        "email": "admin@megapaints.com",
+        "first_name": "Admin",
+        "last_name": "User"
+      },
+      "created_at": "2025-10-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### 3. Create Customer
+**POST** `/api/kanban/customers`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "name": "Acme Corporation",
+  "email": "contact@acmecorp.com",
+  "phone": "+91-98765-43210",
+  "company": "Acme Corp",
+  "customer_type": "business",
+  "status": "prospect",
+  "branch_id": "68d2bcf322e5515f73468f21",
+  "notes": "Potential enterprise customer",
+  "tags": ["enterprise", "high-value"],
+  "address": {
+    "street": "123 Business Ave",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "zip_code": "400001",
+    "country": "India"
+  },
+  "business_info": {
+    "tax_id": "TAX123456",
+    "industry": "Technology",
+    "website": "https://acmecorp.com",
+    "annual_revenue": 1000000,
+    "employee_count": 50
+  },
+  "contacts": [
+    {
+      "name": "John Smith",
+      "email": "john@acmecorp.com",
+      "phone": "+91-98765-43211",
+      "position": "CEO",
+      "is_primary": true
+    },
+    {
+      "name": "Jane Doe",
+      "email": "jane@acmecorp.com",
+      "phone": "+91-98765-43212",
+      "position": "CTO"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Customer created successfully",
+  "data": {
+    "customer": {
+      "_id": "68d2bcf322e5515f73468f60",
+      "name": "Acme Corporation",
+      "email": "contact@acmecorp.com",
+      "phone": "+91-98765-43210",
+      "company": "Acme Corp",
+      "customer_type": "business",
+      "status": "prospect",
+      "branch_id": {
+        "_id": "68d2bcf322e5515f73468f21",
+        "name": "Main Branch",
+        "code": "MAIN"
+      },
+      "tags": ["enterprise", "high-value"],
+      "contacts": [...],
+      "is_active": true,
+      "created_by": "68d2bcf322e5515f73468f0c",
+      "created_at": "2025-10-05T13:19:38.000Z"
+    }
+  }
+}
+```
+
+**Error Response (Duplicate Name):**
+```json
+{
+  "status": "error",
+  "code": 409,
+  "message": "Customer name already exists",
+  "details": "A customer with the name \"Acme Corporation\" already exists. Please choose a different name."
+}
+```
+
+**Note:** Customer names must be unique across the system. The system performs case-insensitive duplicate checking.
+
+#### 4. Update Customer
+**PUT** `/api/kanban/customers/:id`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:** (All fields are optional)
+```json
+{
+  "name": "Acme Corporation Updated",
+  "status": "customer",
+  "notes": "Converted from prospect to customer",
+  "tags": ["enterprise", "high-value", "customer"]
+}
+```
+
+#### 5. Delete Customer (Soft Delete)
+**DELETE** `/api/kanban/customers/:id`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Customer deleted successfully",
+  "details": "Customer has been soft deleted and can be restored if needed"
+}
+```
+
+#### 6. Search Customers
+**GET** `/api/kanban/customers/search?q=search_term`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `q` (required): Search query
+- `page` (optional): Page number
+- `limit` (optional): Items per page
+- `branch_id` (optional): Filter by branch
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "customers": [...],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5,
+      "pages": 1
+    }
+  }
+}
+```
+
+### 🔍 Customer Search Features
+
+The search functionality supports:
+- **Name matching** (partial and case-insensitive)
+- **Email search**
+- **Company name search**
+- **Address search** (city, state)
+- **Notes search**
+- **Tag filtering**
+- **Full-text search** across multiple fields
+
+### 📊 Customer Analytics
+
+Each customer includes computed fields:
+- `full_address`: Concatenated address string
+- `primary_contact`: Main contact person
+- `active_projects_count`: Number of active projects
+- `total_project_value`: Sum of all project values
+
+---
+
 ## 👥 User Management APIs
 
 The User Management system provides comprehensive APIs for managing users within the Kanban system, including workspace context, role management, and activity tracking.
@@ -1751,7 +2315,24 @@ socket.on('task:edit:content', (data) => {
 
 ## 📊 API Endpoints Summary
 
-### ✅ IMPLEMENTED ENDPOINTS (54/79 = 68%)
+### ✅ IMPLEMENTED ENDPOINTS (69/92 = 75%)
+
+#### Primary Identifier System (7 endpoints) ✅ COMPLETE
+- ✅ `POST /api/kanban/cards/reserve-identifier` - Reserve primary identifier
+- ✅ `POST /api/kanban/cards/use-reservation` - Use reserved identifier
+- ✅ `DELETE /api/kanban/cards/release-reservation` - Release reserved identifier
+- ✅ `GET /api/kanban/cards/reservations/board/:boardId` - Get active reservations
+- ✅ `GET /api/kanban/cards/identifier/:identifier` - Get task by identifier
+- ✅ `GET /api/kanban/cards/identifiers/board/:boardId` - Get all identifiers for board
+- ✅ `PUT /api/kanban/cards/:taskId/identifier` - Update task identifier (admin only)
+
+#### Customer Management (6 endpoints) ✅ COMPLETE
+- ✅ `GET /api/kanban/customers` - Get all customers
+- ✅ `GET /api/kanban/customers/:id` - Get customer by ID
+- ✅ `POST /api/kanban/customers` - Create customer
+- ✅ `PUT /api/kanban/customers/:id` - Update customer
+- ✅ `DELETE /api/kanban/customers/:id` - Delete customer (soft delete)
+- ✅ `GET /api/kanban/customers/search` - Search customers
 
 #### User Management (7 endpoints) ✅ COMPLETE
 - ✅ `GET /api/kanban/users` - Get all users
@@ -1881,9 +2462,11 @@ socket.on('task:edit:content', (data) => {
 - ❌ `GET /api/kanban/search/boards` - Search boards
 - ❌ `GET /api/kanban/filters/suggestions` - Get filter suggestions
 
-**Total: 79 Kanban-specific API endpoints**
+**Total: 89 Kanban-specific API endpoints**
 
 ### Endpoint Breakdown by Category:
+- Primary Identifier System: 4 endpoints
+- Customer Management: 6 endpoints
 - User Management: 7 endpoints
 - Board Management: 12 endpoints (6 implemented, 6 missing)
 - Task Management: 11 endpoints
@@ -2521,6 +3104,27 @@ DELETE /api/notification/:notificationId                # Delete notification
 DELETE /api/notification/user/:userId/clear-all          # Clear all notifications
 ```
 
+#### Primary Identifiers
+```bash
+POST   /api/kanban/cards/reserve-identifier              # Reserve identifier
+POST   /api/kanban/cards/use-reservation                  # Use reserved identifier
+DELETE /api/kanban/cards/release-reservation              # Release reservation
+GET    /api/kanban/cards/reservations/board/:boardId      # Get active reservations
+GET    /api/kanban/cards/identifier/:identifier           # Get task by identifier
+GET    /api/kanban/cards/identifiers/board/:boardId       # Get board identifiers
+PUT    /api/kanban/cards/:taskId/identifier               # Update identifier (admin)
+```
+
+#### Customer Management
+```bash
+GET    /api/kanban/customers                            # List customers
+POST   /api/kanban/customers                             # Create customer
+GET    /api/kanban/customers/:id                        # Get customer
+PUT    /api/kanban/customers/:id                        # Update customer
+DELETE /api/kanban/customers/:id                        # Delete customer
+GET    /api/kanban/customers/search                     # Search customers
+```
+
 ### 🚧 Missing Endpoints (Optional Features)
 
 #### Board Advanced Features (Priority 3)
@@ -2595,6 +3199,8 @@ curl -H "Authorization: Bearer TOKEN" \
 | Feature | Status | Endpoints | Priority |
 |---------|--------|-----------|----------|
 | **Authentication** | ✅ Complete | Flexible admin/user tokens | - |
+| **Primary Identifier System** | ✅ Complete | 4/4 (100%) | High |
+| **Customer Management** | ✅ Complete | 6/6 (100%) | High |
 | **Board Management** | 🟡 Partial | 6/12 (50%) | High |
 | **Label Management** | ✅ Complete | 6/6 (100%) | High |
 | **User Management** | ✅ Complete | 7/7 (100%) | High |
@@ -2609,17 +3215,19 @@ curl -H "Authorization: Bearer TOKEN" \
 | **Automation** | ❌ Missing | 0/6 (0%) | Low |
 | **Analytics** | ❌ Missing | 0/8 (0%) | Low |
 
-**Overall Progress: 54/79 endpoints (68% complete)**
+**Overall Progress: 66/89 endpoints (74% complete)**
 
 ---
 
 ## 🎯 Next Steps
 
-1. **✅ COMPLETED**: Core Kanban functionality (54/79 endpoints)
-2. **✅ COMPLETED**: Notification system (7/7 endpoints)
-3. **Optional**: Board advanced features (6 endpoints) - Low priority
-4. **Optional**: Analytics & reporting (8 endpoints) - Low priority  
-5. **Optional**: Automation & workflows (6 endpoints) - Low priority
-6. **Optional**: Templates & search (7 endpoints) - Low priority
+1. **✅ COMPLETED**: Core Kanban functionality (66/89 endpoints)
+2. **✅ COMPLETED**: Primary identifier system (4/4 endpoints)
+3. **✅ COMPLETED**: Customer management system (6/6 endpoints)
+4. **✅ COMPLETED**: Notification system (7/7 endpoints)
+5. **Optional**: Board advanced features (6 endpoints) - Low priority
+6. **Optional**: Analytics & reporting (8 endpoints) - Low priority  
+7. **Optional**: Automation & workflows (6 endpoints) - Low priority
+8. **Optional**: Templates & search (7 endpoints) - Low priority
 
-**The Kanban system is now production-ready with all core features and notifications implemented! 🎉**
+**The Kanban system is now production-ready with all core features, identifiers, customer management, and notifications implemented! 🎉**

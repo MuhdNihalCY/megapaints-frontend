@@ -43,6 +43,15 @@ import TrelloChecklist from './TrelloChecklist';
 import TrelloAttachments from './TrelloAttachments';
 import CustomFieldsManager from './CustomFieldsManager';
 import { DEFAULT_CUSTOM_FIELDS } from '../../types/customFields';
+import CustomerDropdown from '../customers/CustomerDropdown';
+import CustomerManagementModal from '../customers/CustomerManagementModal';
+import { 
+  generateCardTitle, 
+  parseCardTitle, 
+  formatCardTitleForDisplay,
+  formatIdentifierForDisplay,
+  getCardTitleComponents
+} from '../../utils/cardTitleUtils';
 
 const TrelloCardModal = ({
   card,
@@ -51,7 +60,9 @@ const TrelloCardModal = ({
   onUpdate,
   onDelete,
   onMove,
-  onCopy
+  onCopy,
+  isNewCard = false,
+  reservation = null
 }) => {
   const { 
     users, 
@@ -78,6 +89,11 @@ const TrelloCardModal = ({
   const [activeSection, setActiveSection] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
   
+  // Card Title System State
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [titleComponents, setTitleComponents] = useState({ identifier: '', customerName: '', customerSlug: '' });
+  
   // Don't render if no card data
   if (!isOpen || !card) {
     return null;
@@ -92,8 +108,19 @@ const TrelloCardModal = ({
   useEffect(() => {
     if (card) {
       setFormData(card);
+      
+      // Initialize card title system
+      if (card.title) {
+        const components = getCardTitleComponents(card.title);
+        setTitleComponents(components);
+        
+        // If this is a new card with just an identifier, start title editing
+        if (isNewCard && components.identifier && !components.customerName) {
+          setIsTitleEditing(true);
+        }
+      }
     }
-  }, [card]);
+  }, [card, isNewCard]);
   
   // Debug: Monitor activeSection changes
   useEffect(() => {
@@ -119,6 +146,34 @@ const TrelloCardModal = ({
     };
   }, [isOpen, onClose]);
   
+  // Handle customer selection
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomer(customer);
+    
+    // Generate complete card title
+    const completeTitle = generateCardTitle(titleComponents.identifier, customer.name);
+    
+    // Update form data with new title
+    const updatedFormData = {
+      ...formData,
+      title: completeTitle,
+      customer: customer
+    };
+    
+    setFormData(updatedFormData);
+    
+    // Update title components
+    const newComponents = getCardTitleComponents(completeTitle);
+    setTitleComponents(newComponents);
+    
+    console.log('✅ Customer selected:', customer.name, 'Title:', completeTitle);
+  };
+
+  const handleCustomerCreate = (newCustomer) => {
+    console.log('✅ New customer created:', newCustomer.name);
+    // The CustomerDropdown will automatically select the new customer
+  };
+
   // Handle title editing
   const handleTitleEdit = () => {
     setIsTitleEditing(true);
@@ -132,13 +187,20 @@ const TrelloCardModal = ({
   
   const handleTitleSave = () => {
     setIsTitleEditing(false);
-    if (formData.title.trim() !== card.title) {
+    
+    // Generate complete title if customer is selected
+    let finalTitle = formData.title;
+    if (selectedCustomer && titleComponents.identifier) {
+      finalTitle = generateCardTitle(titleComponents.identifier, selectedCustomer.name);
+    }
+    
+    if (finalTitle.trim() !== card.title) {
       const updatedCard = addActivity(
-        formData,
+        { ...formData, title: finalTitle },
         'edit',
         currentUser?.id,
-        { field: 'title', from: card.title, to: formData.title },
-        `changed title from "${card.title}" to "${formData.title}"`
+        { field: 'title', from: card.title, to: finalTitle },
+        `changed title from "${card.title}" to "${finalTitle}"`
       );
       onUpdate(updatedCard);
     }
@@ -340,33 +402,71 @@ const TrelloCardModal = ({
             <div className="flex items-start gap-3">
               <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-1" />
               <div className="flex-1">
-                {/* Title */}
-                {isTitleEditing ? (
-                  <textarea
-                    ref={titleRef}
-                    value={formData.title}
-                    onChange={(e) => handleFieldUpdate('title', e.target.value)}
-                    onBlur={handleTitleSave}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleTitleSave();
-                      }
-                    }}
-                    className="w-full px-2 py-1 text-xl font-semibold border-2 border-blue-500 rounded focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
-                    rows={1}
-                  />
-                ) : (
-                  <h2
-                    onClick={handleTitleEdit}
-                    className="text-xl font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded -ml-2"
-                  >
-                    {formData.title}
-                  </h2>
-                )}
+                {/* Card Title System */}
+                <div className="space-y-3">
+                  {/* Primary Identifier (Read-only) */}
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                      {formatIdentifierForDisplay(titleComponents.identifier)}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-500">(Auto-generated)</span>
+                  </div>
+                  
+                  {/* Customer Selection */}
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      <CustomerDropdown
+                        selectedCustomer={selectedCustomer}
+                        onCustomerSelect={handleCustomerSelect}
+                        onCustomerCreate={handleCustomerCreate}
+                        placeholder="Select customer..."
+                        className="max-w-md"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowCustomerModal(true)}
+                      className="px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                  
+                  {/* Complete Title Display */}
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      {isTitleEditing ? (
+                        <textarea
+                          ref={titleRef}
+                          value={formData.title}
+                          onChange={(e) => handleFieldUpdate('title', e.target.value)}
+                          onBlur={handleTitleSave}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleTitleSave();
+                            }
+                          }}
+                          className="w-full px-2 py-1 text-lg font-semibold border-2 border-blue-500 rounded focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                          rows={1}
+                          placeholder="Complete card title..."
+                        />
+                      ) : (
+                        <h2
+                          onClick={handleTitleEdit}
+                          className="text-lg font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded -ml-2"
+                        >
+                          {formatCardTitleForDisplay(formData.title, selectedCustomer)}
+                        </h2>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Subtitle */}
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 px-2">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-2 px-2">
                   in list <span className="font-medium">{currentColumn?.name || 'Unknown'}</span>
                 </div>
               </div>
@@ -1077,6 +1177,13 @@ const TrelloCardModal = ({
           </AnimatePresence>
         </motion.div>
       </motion.div>
+      
+      {/* Customer Management Modal */}
+      <CustomerManagementModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onCustomerSelect={handleCustomerSelect}
+      />
     </AnimatePresence>
   );
 };
