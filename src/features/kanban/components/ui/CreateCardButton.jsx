@@ -1,9 +1,7 @@
 /**
- * CreateCardButton Component - Advanced Card Creation with Identifier Reservation
- * Implements the Primary Identifier System workflow:
- * 1. Reserve identifier when button is clicked
- * 2. Open TrelloCardModal with reserved identifier
- * 3. Complete card creation with identifier + customer
+ * CreateCardButton Component - Card Creation with Fallback Support
+ * Implements card creation with identifier system when backend APIs are available,
+ * falls back to simple card creation when APIs are not implemented yet.
  */
 
 import React, { useState } from 'react';
@@ -21,6 +19,14 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
   const [reservation, setReservation] = useState(null);
   const [reserving, setReserving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Generate a simple identifier for fallback
+  const generateFallbackIdentifier = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    return `${dateStr}-${timeStr}`;
+  };
 
   // Handle button click - reserve identifier and create card
   const handleClick = async () => {
@@ -71,7 +77,7 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
     }
   };
 
-  // Handle card save - create the card and use reservation
+  // Handle card save - create the card and use reservation (if available)
   const handleSave = async (cardData) => {
     if (!cardData.title || !cardData.title.trim()) {
       return;
@@ -92,8 +98,8 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       // Call the parent's onCreateCard function
       const createdCard = await onCreateCard(cardToCreate);
       
-      // Step 3: Use the reservation (mark it as used)
-      if (reservation && createdCard) {
+      // Try to use the reservation (only if it exists and was successful)
+      if (reservation && reservation.id && createdCard) {
         try {
           await kanbanService.useReservation(reservation.id, createdCard.id);
           console.log('✅ Reservation used for card:', createdCard.id);
@@ -114,10 +120,10 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
     }
   };
 
-  // Handle modal close - release reservation if not used
+  // Handle modal close - release reservation if not used (only if reservation exists)
   const handleClose = async () => {
-    // Release reservation if it wasn't used
-    if (reservation) {
+    // Release reservation if it exists and wasn't used
+    if (reservation && reservation.id) {
       try {
         await kanbanService.releaseReservation(reservation.id);
         console.log('✅ Reservation released:', reservation.id);

@@ -490,9 +490,9 @@ const TrelloCardModal = ({
                 <div className="mb-6">
                   <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">MEMBERS</h3>
                   <div className="flex flex-wrap gap-2">
-                    {cardMembers.map((member) => (
+                    {cardMembers.map((member, index) => (
                       <div
-                        key={member.id || member._id}
+                        key={member.id || member._id || `member-${index}`}
                         className="flex items-center gap-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
                         title={member.name || member.email}
                       >
@@ -517,9 +517,9 @@ const TrelloCardModal = ({
                 <div className="mb-6">
                   <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">LABELS</h3>
                   <div className="flex flex-wrap gap-2">
-                    {cardLabels.map((label) => (
+                    {cardLabels.map((label, index) => (
                       <div
-                        key={label.id || label._id}
+                        key={label.id || label._id || `label-${index}`}
                         className="px-3 py-1.5 rounded text-sm font-medium"
                         style={{
                           backgroundColor: label.color,
@@ -702,9 +702,9 @@ const TrelloCardModal = ({
               />
               
               {/* Checklists Section */}
-              {(formData.checklists || []).map((checklist) => (
+              {(formData.checklists || []).map((checklist, index) => (
                 <TrelloChecklist
-                  key={checklist.id}
+                  key={checklist.id || `checklist-${index}`}
                   checklist={checklist}
                   onUpdate={async (updatedChecklist) => {
                     try {
@@ -1000,9 +1000,9 @@ const TrelloCardModal = ({
                   </button>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {users.map((user) => (
+                  {users.map((user, index) => (
                     <label
-                      key={user.id || user._id}
+                      key={user.id || user._id || `user-${index}`}
                       className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
                     >
                       <input
@@ -1038,9 +1038,9 @@ const TrelloCardModal = ({
                   </button>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {labels.map((label) => (
+                  {labels.map((label, index) => (
                     <label
-                      key={label.id || label._id}
+                      key={label.id || label._id || `label-${index}`}
                       className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
                     >
                       <input

@@ -17,7 +17,7 @@ import HelpPanel from '../ui/HelpPanel';
 import KeyboardShortcuts from '../ui/KeyboardShortcuts';
 import TrelloCardModal from '../cards/TrelloCardModal';
 
-import { LoadingOverlay } from '../../../../components';
+import { LoadingOverlay, CustomerManagementButton } from '../../../../components';
 
 /**
  * Kanban Board Component with Enhanced Drag and Drop
@@ -28,6 +28,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     error,
     columns,
     cards,
+    board,
+    user: currentUser,
     moveCard,
     createCard,
     updateCard,
@@ -38,6 +40,9 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     setFilters,
     clearFilters
   } = useKanban();
+
+  // Use board ID from context or fallback to default
+  const boardId = board?.id || board?._id || 'default-board-id';
 
   const {
     draggedCard,
@@ -346,8 +351,25 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       {isReordering && <LoadingOverlay message="Reordering cards..." />}
       
       <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Kanban Board Controls */}
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
+        {/* Customer Management Actions */}
+        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Customer Management</h2>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                Quick actions for customer and follow-up management
+              </div>
+            </div>
+            
+            <CustomerManagementButton 
+              user={currentUser} 
+              className="flex-shrink-0"
+            />
+          </div>
+        </div>
+
+        {/* Kanban Board Controls */}
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Kanban Board</h1>

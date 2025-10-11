@@ -16,6 +16,7 @@ const initialState = {
   users: [],
   labels: [],
   user: null,
+  board: null,
   filters: {
     text: '',
     labels: [],
@@ -43,6 +44,7 @@ const ACTION_TYPES = {
   SET_USERS: 'SET_USERS',
   SET_LABELS: 'SET_LABELS',
   SET_USER: 'SET_USER',
+  SET_BOARD: 'SET_BOARD',
   ADD_CARD: 'ADD_CARD',
   UPDATE_CARD: 'UPDATE_CARD',
   DELETE_CARD: 'DELETE_CARD',
@@ -82,6 +84,9 @@ const kanbanReducer = (state, action) => {
     
     case ACTION_TYPES.SET_USER:
       return { ...state, user: action.payload };
+    
+    case ACTION_TYPES.SET_BOARD:
+      return { ...state, board: action.payload };
     
     case ACTION_TYPES.ADD_CARD:
       return { ...state, cards: [...state.cards, action.payload] };
@@ -321,7 +326,7 @@ export const KanbanProvider = ({ children, user }) => {
       dispatch({ type: ACTION_TYPES.SET_CARDS, payload: [] });
       dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [] });
       dispatch({ type: ACTION_TYPES.SET_USERS, payload: users });
-      dispatch({ type: ACTION_TYPES.SET_BOARD, payload: {} });
+      dispatch({ type: ACTION_TYPES.SET_BOARD, payload: { id: 'default-board-id', name: 'Default Board' } });
       dispatch({ type: ACTION_TYPES.SET_LAST_UPDATED, payload: new Date().toISOString() });
       dispatch({ type: ACTION_TYPES.MARK_INITIALIZED });
       

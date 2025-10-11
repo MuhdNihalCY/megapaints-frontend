@@ -43,7 +43,10 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
     setError(null);
     
     try {
-      const params = searchQuery ? { search: searchQuery } : {};
+      const params = {
+        branch_id: 'default-branch-id', // TODO: Get from context or props
+        ...(searchQuery ? { search: searchQuery } : {})
+      };
       const response = await kanbanService.getCustomers(params);
       setCustomers(response.customers || []);
     } catch (err) {

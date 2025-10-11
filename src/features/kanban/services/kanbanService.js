@@ -1394,6 +1394,13 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Identifier Reservation Failed] ${endpoint}:`, {
+        boardId,
+        format,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1409,6 +1416,13 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Use Reservation Failed] ${endpoint}:`, {
+        reservationId,
+        taskId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1423,6 +1437,12 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Release Reservation Failed] ${endpoint}:`, {
+        reservationId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1435,6 +1455,12 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/reservations/board/${boardId}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Get Active Reservations Failed] ${endpoint}:`, {
+        boardId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1447,6 +1473,12 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifier/${identifier}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Get Task by Identifier Failed] ${endpoint}:`, {
+        identifier,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1459,6 +1491,12 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifiers/board/${boardId}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Get Board Identifiers Failed] ${endpoint}:`, {
+        boardId,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1473,6 +1511,13 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      console.error(`❌ [Update Task Identifier Failed] ${endpoint}:`, {
+        taskId,
+        identifier,
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       this.handleError(error, endpoint);
       throw error;
     }
