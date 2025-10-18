@@ -426,6 +426,116 @@ This documentation provides comprehensive information for the complete Kanban bo
 
 **Headers:** `Authorization: Bearer <token>`
 
+### Reserve Identifier
+**POST** `/api/kanban/cards/reserve-identifier`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "board_id": "68e15b23a596d1cf148f82ca",
+  "format": "DD-MM-YY-###"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Identifier reserved successfully",
+  "data": {
+    "identifier": "11-10-25-001",
+    "reservation_id": "68ea8bcc04e0fc57cd1ab32d",
+    "expires_at": "2025-10-11T17:09:36.615Z",
+    "board_id": "68e15b23a596d1cf148f82ca"
+  }
+}
+```
+
+### Use Reserved Identifier
+**POST** `/api/kanban/cards/use-reservation`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "reservation_id": "68ea8bcc04e0fc57cd1ab32d",
+  "card_id": "68e15b23a596d1cf148f82cb"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Reservation used successfully",
+  "data": {
+    "identifier": "11-10-25-001",
+    "reservation_id": "68ea8bcc04e0fc57cd1ab32d",
+    "card_id": "68e15b23a596d1cf148f82cb"
+  }
+}
+```
+
+### Release Reserved Identifier
+**DELETE** `/api/kanban/cards/release-reservation`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "reservation_id": "68ea8bcc04e0fc57cd1ab32d"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Reservation released successfully",
+  "data": {
+    "reservation_id": "68ea8bcc04e0fc57cd1ab32d"
+  }
+}
+```
+
+### Get Active Reservations
+**GET** `/api/kanban/cards/reservations/board/:boardId`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `status` (optional): Filter by status (`reserved`, `used`, `expired`)
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "reservations": [
+      {
+        "_id": "68ea8bcc04e0fc57cd1ab32d",
+        "identifier": "11-10-25-001",
+        "board_id": "68e15b23a596d1cf148f82ca",
+        "reserved_by": {
+          "_id": "68d2bcf322e5515f73468f0c",
+          "username": "Admin",
+          "email": "admin@megapaints.com"
+        },
+        "reserved_at": "2025-10-11T17:09:25.000Z",
+        "status": "reserved",
+        "card_id": null
+      }
+    ],
+    "board_id": "68e15b23a596d1cf148f82ca",
+    "total": 1
+  }
+}
+```
+
 ---
 
 ## 📊 Column Management
@@ -1257,7 +1367,7 @@ This documentation provides comprehensive information for the complete Kanban bo
 ## 🔌 WebSocket Events
 
 ### Connection
-Connect to WebSocket server at `ws://localhost:3000`
+Connect to WebSocket server at `ws://localhost:3000` 
 
 ### Authentication
 ```javascript
@@ -1415,11 +1525,60 @@ const addComment = async (token, cardId, commentData) => {
 };
 ```
 
+### 5. Reserve and Use Identifier
+```javascript
+// Step 1: Reserve an identifier
+const reserveIdentifier = async (token, boardId) => {
+  const response = await fetch('/api/kanban/cards/reserve-identifier', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      board_id: boardId,
+      format: 'DD-MM-YY-###'
+    })
+  });
+  return response.json();
+};
+
+// Step 2: Create card with reserved identifier
+const createCardWithIdentifier = async (token, cardData, reservationId) => {
+  const response = await fetch('/api/kanban/cards', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(cardData)
+  });
+  const result = await response.json();
+  
+  // Step 3: Use the reservation
+  if (result.status === 'success') {
+    await fetch('/api/kanban/cards/use-reservation', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        reservation_id: reservationId,
+        card_id: result.data.task._id
+      })
+    });
+  }
+  
+  return result;
+};
+```
+
 ---
 
 ## 📊 Implementation Status
 
-### ✅ Working Endpoints (87 total)
+### ✅ Working Endpoints (91 total)
 
 | Category | Endpoints | Status |
 |----------|-----------|---------|
@@ -1428,7 +1587,7 @@ const addComment = async (token, cardId, commentData) => {
 | **Board Management** | 6 | ✅ Working |
 | **Label Management** | 6 | ✅ Working |
 | **User Management** | 7 | ✅ Working |
-| **Card Management** | 11 | ✅ Working |
+| **Card Management** | 15 | ✅ Working |
 | **Column Management** | 6 | ✅ Working |
 | **Comment Management** | 6 | ✅ Working |
 | **File Attachments** | 5 | ✅ Working |
@@ -1516,7 +1675,7 @@ await fetch(`/api/kanban/cards/${card.data.card._id}/move`, {
 });
 ```
 
-**This documentation includes all 87 working endpoints! 🎯**
+**This documentation includes all 91 working endpoints! 🎯**
 
 ## 🆕 **NEW FEATURES ADDED**
 
@@ -1552,7 +1711,15 @@ await fetch(`/api/kanban/cards/${card.data.card._id}/move`, {
 - **Real data testing** - tested with actual branch, user, and board data
 - **Production-ready** - comprehensive validation and security controls
 
+### **🆔 Primary Identifier Reservation System**
+- **4 new API endpoints** for conflict-free identifier generation
+- **Reservation-based approach** - prevents conflicts during concurrent card creation
+- **15-minute expiry system** - reserved identifiers automatically expire if not used
+- **Manual release capability** - users can release unused reservations
+- **Active reservation tracking** - view all active reservations for a board
+- **Production-ready** - robust validation and conflict prevention
+
 ### **📊 Updated API Count**
-- **Previous**: 72 endpoints
-- **Current**: 87 endpoints (+15 new Customer Management endpoints)
-- **Coverage**: Complete Kanban system + General Customer Management
+- **Previous**: 87 endpoints
+- **Current**: 91 endpoints (+4 new Identifier Reservation endpoints)
+- **Coverage**: Complete Kanban system + General Customer Management + Identifier Reservation System
