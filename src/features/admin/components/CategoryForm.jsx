@@ -1,0 +1,418 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
+import {
+  X,
+  Folder,
+  Image as ImageIcon,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Save,
+  FileText,
+  Hash,
+  Layers,
+} from 'lucide-react';
+
+const CategoryForm = ({ category = null, parentCategory = null, onClose, onSuccess }) => {
+  const { getAdminServices } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    parent_id: '',
+    image_url: '',
+    sort_order: 0,
+    is_active: true,
+  });
+
+  useEffect(() => {
+    fetchCategories();
+    if (category) {
+      setFormData({
+        name: category.name || '',
+        description: category.description || '',
+        parent_id: category.parent_id?._id || category.parent_id || '',
+        image_url: category.image_url || '',
+        sort_order: category.sort_order || 0,
+        is_active: category.is_active !== undefined ? category.is_active : true,
+      });
+    } else if (parentCategory) {
+      setFormData(prev => ({
+        ...prev,
+        parent_id: parentCategory._id || parentCategory,
+      }));
+    }
+  }, [category, parentCategory]);
+
+  const fetchCategories = async () => {
+    try {
+      const adminServices = getAdminServices();
+      const response = await adminServices.productCatalog.getCategories({ limit: 200 });
+      if (response.status === 'success') {
+        // Filter out the current category if editing to prevent circular references
+        const filteredCategories = category
+          ? response.data.categories.filter(cat => cat._id !== category._id)
+          : response.data.categories;
+        setCategories(filteredCategories);
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    if (formData.image_url && !/^https?:\/\/.+/.test(formData.image_url)) {
+      errors.image_url = 'Please enter a valid URL';
+    }
+
+    if (formData.sort_order < 0) {
+      errors.sort_order = 'Sort order must be a non-negative number';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked,
+      }));
+    } else if (type === 'number') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value === '' ? 0 : parseInt(value, 10),
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+
+    // Clear validation error for this field
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const adminServices = getAdminServices();
+
+      // Prepare data for API
+      const submitData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        image_url: formData.image_url.trim(),
+        sort_order: formData.sort_order || 0,
+        is_active: formData.is_active,
+      };
+
+      // Only include parent_id if provided
+      if (formData.parent_id) {
+        submitData.parent_id = formData.parent_id;
+      }
+
+      let response;
+      if (category) {
+        // Update existing category
+        response = await adminServices.productCatalog.updateCategory(category._id, submitData);
+      } else {
+        // Create new category
+        response = await adminServices.productCatalog.createCategory(submitData);
+      }
+
+      if (response.status === 'success') {
+        setSuccess(category ? 'Category updated successfully!' : 'Category created successfully!');
+        setTimeout(() => {
+          onSuccess && onSuccess(response.data);
+          onClose && onClose();
+        }, 1500);
+      } else {
+        setError(response.message || 'Operation failed');
+      }
+    } catch (err) {
+      console.error('Category operation failed:', err);
+      setError(err.message || 'Operation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getParentCategoryName = () => {
+    if (parentCategory) {
+      return parentCategory.name || 'Selected Parent';
+    }
+    if (formData.parent_id) {
+      const parent = categories.find(cat => cat._id === formData.parent_id);
+      return parent?.name || 'Selected Parent';
+    }
+    return null;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <Folder className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                {category ? 'Edit Category' : parentCategory ? 'Add Subcategory' : 'Add New Category'}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {category 
+                  ? 'Update category information'
+                  : parentCategory 
+                    ? `Create subcategory under "${parentCategory.name || 'parent'}"`
+                    : 'Create a new product category'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg text-red-700 dark:text-red-400 flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Error</p>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded-lg text-green-700 dark:text-green-400 flex items-start space-x-3">
+              <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Success</p>
+                <p className="text-sm mt-1">{success}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Parent Category Info */}
+          {getParentCategoryName() && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                  Parent Category: {getParentCategoryName()}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                <Folder className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                  <Folder className="w-4 h-4 mr-2 text-gray-500" />
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                    validationErrors.name ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter category name"
+                />
+                {validationErrors.name && (
+                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {validationErrors.name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                  <FileText className="w-4 h-4 mr-2 text-gray-500" />
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                  placeholder="Enter category description"
+                />
+              </div>
+
+              {!parentCategory && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Layers className="w-4 h-4 mr-2 text-gray-500" />
+                    Parent Category
+                  </label>
+                  <select
+                    name="parent_id"
+                    value={formData.parent_id}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                  >
+                    <option value="">None (Root Category)</option>
+                    {categories
+                      .filter(cat => !cat.parent_id || !cat.parent_id._id)
+                      .map(cat => (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Leave empty to create a root category
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <ImageIcon className="w-4 h-4 mr-2 text-gray-500" />
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    name="image_url"
+                    value={formData.image_url}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.image_url ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  {validationErrors.image_url && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.image_url}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Hash className="w-4 h-4 mr-2 text-gray-500" />
+                    Sort Order
+                  </label>
+                  <input
+                    type="number"
+                    name="sort_order"
+                    value={formData.sort_order}
+                    onChange={handleInputChange}
+                    min="0"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.sort_order ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0"
+                  />
+                  {validationErrors.sort_order && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.sort_order}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={formData.is_active}
+                  onChange={handleInputChange}
+                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active Category</span>
+              </label>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {category ? 'Update Category' : 'Create Category'}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CategoryForm;
+

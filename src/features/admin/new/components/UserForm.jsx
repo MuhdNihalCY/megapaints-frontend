@@ -1,23 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import apiServiceFactory from '../../../services/ApiServiceFactory.js';
-import {
-  X,
-  User,
-  Mail,
-  Lock,
-  UserCircle,
-  Phone,
-  Briefcase,
-  Shield,
-  Building2,
-  Key,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader2,
-  Save,
-} from 'lucide-react';
 
 const UserForm = ({ user = null, onClose, onSuccess }) => {
   const { apiRequest } = useAuth();
@@ -245,64 +228,40 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {user ? 'Edit User' : 'Add New User'}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {user ? 'Update user information and permissions' : 'Create a new user account'}
-              </p>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {user ? 'Edit User' : 'Add New User'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg text-red-700 dark:text-red-400 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium">Error</p>
-                <p className="text-sm mt-1">{error}</p>
-              </div>
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+              {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded-lg text-green-700 dark:text-green-400 flex items-start space-x-3">
-              <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium">Success</p>
-                <p className="text-sm mt-1">{success}</p>
-              </div>
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
+              {success}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information Section */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <UserCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <User className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Username *
                 </label>
                 <input
@@ -310,22 +269,18 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
-                    validationErrors.username ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.username ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter username"
                 />
                 {validationErrors.username && (
-                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.username}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.username}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <Mail className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email *
                 </label>
                 <input
@@ -333,30 +288,21 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
-                    validationErrors.email ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter email address"
                 />
                 {validationErrors.email && (
-                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.email}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.email}</p>
                 )}
               </div>
             </div>
 
-            {/* Password Section */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Password</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Password Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <Key className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Password {!user && '*'}
                 </label>
                 <input
@@ -364,22 +310,18 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
-                    validationErrors.password ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder={user ? "Leave blank to keep current password" : "Enter password"}
                 />
                 {validationErrors.password && (
-                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.password}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.password}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <Lock className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Confirm Password {formData.password && '*'}
                 </label>
                 <input
@@ -387,27 +329,19 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
-                    validationErrors.confirmPassword ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Confirm password"
                 />
                 {validationErrors.confirmPassword && (
-                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.confirmPassword}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.confirmPassword}</p>
                 )}
               </div>
             </div>
 
-            {/* Personal Information Section */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <UserCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Personal Information</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Personal Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   First Name *
@@ -449,8 +383,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Phone
                 </label>
                 <input
@@ -458,14 +391,13 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Enter phone number"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                  <Briefcase className="w-4 h-4 mr-2 text-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Designation *
                 </label>
                 <input
@@ -473,30 +405,22 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
-                    validationErrors.designation ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.designation ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter designation"
                 />
                 {validationErrors.designation && (
-                  <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.designation}
-                  </p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.designation}</p>
                 )}
               </div>
             </div>
 
-            {/* Roles Section */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Roles & Permissions</h3>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Roles *
-                </label>
+            {/* Roles */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Roles *
+              </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {roles.map((role) => (
                   <label key={role} className="flex items-center">
@@ -521,10 +445,9 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
               )}
             </div>
 
-            {/* Branches Section */}
+            {/* Branches */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                <Building2 className="w-4 h-4 mr-2 text-gray-500" />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Branches *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -592,30 +515,26 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors flex items-center"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {user ? 'Update User' : 'Create User'}
-                  </>
+                {loading && (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 )}
+                {loading ? 'Saving...' : (user ? 'Update User' : 'Create User')}
               </button>
             </div>
           </form>

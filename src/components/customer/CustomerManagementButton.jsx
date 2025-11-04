@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Plus, Calendar, Search } from 'lucide-react';
-import CustomerManagementModal from './CustomerManagementModal';
+import CustomerManagementModal from '../../features/kanban/components/customers/CustomerManagementModal';
 import CustomerFollowupModal from './CustomerFollowupModal';
 
 const CustomerManagementButton = ({ user, className = "" }) => {
@@ -90,8 +90,6 @@ const CustomerManagementButton = ({ user, className = "" }) => {
           setShowCustomerModal(false);
           setActiveAction(null);
         }}
-        user={user}
-        mode="create"
       />
 
       {/* Customer Follow-up Modal */}

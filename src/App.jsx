@@ -9,6 +9,15 @@ import AdminLogin from './features/admin/Login';
 import UserDashboard from './features/user/Dashboard';
 import AdminDashboard from './features/admin/Dashboard';
 import UserManagement from './features/admin/UserManagement';
+import Branches from './features/admin/Branches';
+import Categories from './features/admin/Categories';
+import Products from './features/admin/Products';
+import Additives from './features/admin/Additives';
+import Binders from './features/admin/Binders';
+import Auxiliaries from './features/admin/Auxiliaries';
+import Accessories from './features/admin/Accessories';
+import ThirdPartyProducts from './features/admin/ThirdPartyProducts';
+import AdminLayout from './features/admin/components/AdminLayout';
 import UserProtectedRoute from './components/UserProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import CreateFormula from './features/user/CreateFormula';
@@ -90,21 +99,25 @@ function App() {
               
               {/* Admin Protected Routes */}
               <Route 
-                path="/admin/dashboard" 
+                path="/admin" 
                 element={
                   <AdminProtectedRoute>
-                    <AdminDashboard />
+                    <AdminLayout />
                   </AdminProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/users" 
-                element={
-                  <AdminProtectedRoute>
-                    <UserManagement />
-                  </AdminProtectedRoute>
-                } 
-              />
+                }
+              >
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="branches" element={<Branches />} />
+                <Route path="categories" element={<Categories />} />
+                <Route path="products" element={<Products />} />
+                <Route path="additives" element={<Additives />} />
+                <Route path="binders" element={<Binders />} />
+                <Route path="auxiliaries" element={<Auxiliaries />} />
+                <Route path="accessories" element={<Accessories />} />
+                <Route path="third-party-products" element={<ThirdPartyProducts />} />
+              </Route>
               
               {/* Default redirect */}
               <Route path="/" element={<Navigate to="/login" replace />} />

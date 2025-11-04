@@ -62,6 +62,25 @@ class ProductCatalogService {
   }
 
   /**
+   * Update a category
+   * @param {string} categoryId - Category ID
+   * @param {Object} categoryData - Category data
+   * @returns {Promise<Object>} Updated category
+   */
+  async updateCategory(categoryId, categoryData) {
+    return await this.adminApi.updateCategory(categoryId, categoryData);
+  }
+
+  /**
+   * Delete a category
+   * @param {string} categoryId - Category ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteCategory(categoryId) {
+    return await this.adminApi.deleteCategory(categoryId);
+  }
+
+  /**
    * Search categories by name or description
    * @param {string} searchTerm - Search term
    * @param {Object} options - Additional options
@@ -130,6 +149,25 @@ class ProductCatalogService {
   }
 
   /**
+   * Update a product
+   * @param {string} productId - Product ID
+   * @param {Object} productData - Product data
+   * @returns {Promise<Object>} Updated product
+   */
+  async updateProduct(productId, productData) {
+    return await this.adminApi.updateProduct(productId, productData);
+  }
+
+  /**
+   * Delete a product
+   * @param {string} productId - Product ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteProduct(productId) {
+    return await this.adminApi.deleteProduct(productId);
+  }
+
+  /**
    * Search products by name, code, or description
    * @param {string} searchTerm - Search term
    * @param {Object} options - Additional options
@@ -167,6 +205,25 @@ class ProductCatalogService {
    */
   async createAdditive(additiveData) {
     return await this.adminApi.createAdditive(additiveData);
+  }
+
+  /**
+   * Update an additive
+   * @param {string} additiveId - Additive ID
+   * @param {Object} additiveData - Additive data
+   * @returns {Promise<Object>} Updated additive
+   */
+  async updateAdditive(additiveId, additiveData) {
+    return await this.adminApi.updateAdditive(additiveId, additiveData);
+  }
+
+  /**
+   * Delete an additive
+   * @param {string} additiveId - Additive ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAdditive(additiveId) {
+    return await this.adminApi.deleteAdditive(additiveId);
   }
 
   /**
@@ -210,6 +267,25 @@ class ProductCatalogService {
   }
 
   /**
+   * Update a binder
+   * @param {string} binderId - Binder ID
+   * @param {Object} binderData - Binder data
+   * @returns {Promise<Object>} Updated binder
+   */
+  async updateBinder(binderId, binderData) {
+    return await this.adminApi.updateBinder(binderId, binderData);
+  }
+
+  /**
+   * Delete a binder
+   * @param {string} binderId - Binder ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteBinder(binderId) {
+    return await this.adminApi.deleteBinder(binderId);
+  }
+
+  /**
    * Search binders
    * @param {string} searchTerm - Search term
    * @param {Object} options - Additional options
@@ -247,6 +323,25 @@ class ProductCatalogService {
    */
   async createAuxiliary(auxiliaryData) {
     return await this.adminApi.createAuxiliary(auxiliaryData);
+  }
+
+  /**
+   * Update an auxiliary
+   * @param {string} auxiliaryId - Auxiliary ID
+   * @param {Object} auxiliaryData - Auxiliary data
+   * @returns {Promise<Object>} Updated auxiliary
+   */
+  async updateAuxiliary(auxiliaryId, auxiliaryData) {
+    return await this.adminApi.updateAuxiliary(auxiliaryId, auxiliaryData);
+  }
+
+  /**
+   * Delete an auxiliary
+   * @param {string} auxiliaryId - Auxiliary ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAuxiliary(auxiliaryId) {
+    return await this.adminApi.deleteAuxiliary(auxiliaryId);
   }
 
   /**
@@ -290,6 +385,25 @@ class ProductCatalogService {
   }
 
   /**
+   * Update an accessory
+   * @param {string} accessoryId - Accessory ID
+   * @param {Object} accessoryData - Accessory data
+   * @returns {Promise<Object>} Updated accessory
+   */
+  async updateAccessory(accessoryId, accessoryData) {
+    return await this.adminApi.updateAccessory(accessoryId, accessoryData);
+  }
+
+  /**
+   * Delete an accessory
+   * @param {string} accessoryId - Accessory ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAccessory(accessoryId) {
+    return await this.adminApi.deleteAccessory(accessoryId);
+  }
+
+  /**
    * Search accessories
    * @param {string} searchTerm - Search term
    * @param {Object} options - Additional options
@@ -327,6 +441,25 @@ class ProductCatalogService {
    */
   async createThirdPartyProduct(thirdPartyData) {
     return await this.adminApi.createThirdPartyProduct(thirdPartyData);
+  }
+
+  /**
+   * Update a third party product
+   * @param {string} thirdPartyId - Third party product ID
+   * @param {Object} thirdPartyData - Third party product data
+   * @returns {Promise<Object>} Updated third party product
+   */
+  async updateThirdPartyProduct(thirdPartyId, thirdPartyData) {
+    return await this.adminApi.updateThirdPartyProduct(thirdPartyId, thirdPartyData);
+  }
+
+  /**
+   * Delete a third party product
+   * @param {string} thirdPartyId - Third party product ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteThirdPartyProduct(thirdPartyId) {
+    return await this.adminApi.deleteThirdPartyProduct(thirdPartyId);
   }
 
   /**

@@ -421,6 +421,7 @@ const TrelloCardModal = ({
                         selectedCustomer={selectedCustomer}
                         onCustomerSelect={handleCustomerSelect}
                         onCustomerCreate={handleCustomerCreate}
+                        onRequestCreateCustomer={() => setShowCustomerModal(true)}
                         placeholder="Select customer..."
                         className="max-w-md"
                       />

@@ -41,8 +41,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     clearFilters
   } = useKanban();
 
-  // Use board ID from context or fallback to default
-  const boardId = board?.id || board?._id || 'default-board-id';
+  // Use board ID from context; avoid invalid fallbacks that break API validation
+  const boardId = board?.id || board?._id || null;
 
   const {
     draggedCard,

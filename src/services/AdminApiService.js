@@ -248,6 +248,30 @@ class AdminApiService {
   }
 
   /**
+   * Update Product Category
+   * @param {string} categoryId - Category ID
+   * @param {Object} categoryData - Category data
+   * @returns {Promise<Object>} Updated category
+   */
+  async updateCategory(categoryId, categoryData) {
+    return await this.apiRequest(`/admin/products/categories/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData)
+    });
+  }
+
+  /**
+   * Delete Product Category
+   * @param {string} categoryId - Category ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteCategory(categoryId) {
+    return await this.apiRequest(`/admin/products/categories/${categoryId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
    * Get Products
    * @param {Object} params - Query parameters
    * @returns {Promise<Object>} Products data
@@ -270,6 +294,30 @@ class AdminApiService {
     return await this.apiRequest('/admin/products', {
       method: 'POST',
       body: JSON.stringify(productData)
+    });
+  }
+
+  /**
+   * Update Product
+   * @param {string} productId - Product ID
+   * @param {Object} productData - Product data
+   * @returns {Promise<Object>} Updated product
+   */
+  async updateProduct(productId, productData) {
+    return await this.apiRequest(`/admin/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData)
+    });
+  }
+
+  /**
+   * Delete Product
+   * @param {string} productId - Product ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteProduct(productId) {
+    return await this.apiRequest(`/admin/products/${productId}`, {
+      method: 'DELETE'
     });
   }
 
@@ -301,6 +349,30 @@ class AdminApiService {
     });
   }
 
+  /**
+   * Update Additive
+   * @param {string} additiveId - Additive ID
+   * @param {Object} additiveData - Additive data
+   * @returns {Promise<Object>} Updated additive
+   */
+  async updateAdditive(additiveId, additiveData) {
+    return await this.apiRequest(`/admin/products/additives/${additiveId}`, {
+      method: 'PUT',
+      body: JSON.stringify(additiveData)
+    });
+  }
+
+  /**
+   * Delete Additive
+   * @param {string} additiveId - Additive ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAdditive(additiveId) {
+    return await this.apiRequest(`/admin/products/additives/${additiveId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // ==================== BINDERS ====================
 
   /**
@@ -326,6 +398,30 @@ class AdminApiService {
     return await this.apiRequest('/admin/products/binders', {
       method: 'POST',
       body: JSON.stringify(binderData)
+    });
+  }
+
+  /**
+   * Update Binder
+   * @param {string} binderId - Binder ID
+   * @param {Object} binderData - Binder data
+   * @returns {Promise<Object>} Updated binder
+   */
+  async updateBinder(binderId, binderData) {
+    return await this.apiRequest(`/admin/products/binders/${binderId}`, {
+      method: 'PUT',
+      body: JSON.stringify(binderData)
+    });
+  }
+
+  /**
+   * Delete Binder
+   * @param {string} binderId - Binder ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteBinder(binderId) {
+    return await this.apiRequest(`/admin/products/binders/${binderId}`, {
+      method: 'DELETE'
     });
   }
 
@@ -357,6 +453,30 @@ class AdminApiService {
     });
   }
 
+  /**
+   * Update Auxiliary
+   * @param {string} auxiliaryId - Auxiliary ID
+   * @param {Object} auxiliaryData - Auxiliary data
+   * @returns {Promise<Object>} Updated auxiliary
+   */
+  async updateAuxiliary(auxiliaryId, auxiliaryData) {
+    return await this.apiRequest(`/admin/products/auxiliaries/${auxiliaryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(auxiliaryData)
+    });
+  }
+
+  /**
+   * Delete Auxiliary
+   * @param {string} auxiliaryId - Auxiliary ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAuxiliary(auxiliaryId) {
+    return await this.apiRequest(`/admin/products/auxiliaries/${auxiliaryId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // ==================== ACCESSORIES ====================
 
   /**
@@ -385,6 +505,30 @@ class AdminApiService {
     });
   }
 
+  /**
+   * Update Accessory
+   * @param {string} accessoryId - Accessory ID
+   * @param {Object} accessoryData - Accessory data
+   * @returns {Promise<Object>} Updated accessory
+   */
+  async updateAccessory(accessoryId, accessoryData) {
+    return await this.apiRequest(`/admin/products/accessories/${accessoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(accessoryData)
+    });
+  }
+
+  /**
+   * Delete Accessory
+   * @param {string} accessoryId - Accessory ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteAccessory(accessoryId) {
+    return await this.apiRequest(`/admin/products/accessories/${accessoryId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // ==================== THIRD PARTY PRODUCTS ====================
 
   /**
@@ -410,6 +554,30 @@ class AdminApiService {
     return await this.apiRequest('/admin/products/third-party', {
       method: 'POST',
       body: JSON.stringify(thirdPartyData)
+    });
+  }
+
+  /**
+   * Update Third Party Product
+   * @param {string} thirdPartyId - Third party product ID
+   * @param {Object} thirdPartyData - Third party product data
+   * @returns {Promise<Object>} Updated third party product
+   */
+  async updateThirdPartyProduct(thirdPartyId, thirdPartyData) {
+    return await this.apiRequest(`/admin/products/third-party/${thirdPartyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(thirdPartyData)
+    });
+  }
+
+  /**
+   * Delete Third Party Product
+   * @param {string} thirdPartyId - Third party product ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteThirdPartyProduct(thirdPartyId) {
+    return await this.apiRequest(`/admin/products/third-party/${thirdPartyId}`, {
+      method: 'DELETE'
     });
   }
 

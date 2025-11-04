@@ -1,117 +1,254 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-import Header from './components/Header';
+import apiServiceFactory from '../../services/ApiServiceFactory.js';
+import {
+  Folder,
+  Package,
+  Users,
+  Store,
+  ShoppingCart,
+  TrendingUp,
+  Activity,
+  ArrowRight,
+} from 'lucide-react';
 
-const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+const Dashboard = () => {
   const navigate = useNavigate();
+  const { getAdminServices } = useAuth();
+  const [stats, setStats] = useState({
+    categories: 0,
+    products: 0,
+    users: 0,
+    branches: 0,
+    customers: 0,
+    loading: true,
+  });
+  const [error, setError] = useState('');
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/admin/login');
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setStats(prev => ({ ...prev, loading: true }));
+      setError('');
+
+      const adminServices = getAdminServices();
+      
+      // Fetch all stats in parallel
+      const [categoriesRes, productsRes, usersRes, branchesRes, customersRes] = await Promise.allSettled([
+        adminServices?.productCatalog?.getCategories({ limit: 1 }).catch(() => ({ data: { pagination: { total: 0 } } })),
+        adminServices?.productCatalog?.getProducts({ limit: 1 }).catch(() => ({ data: { pagination: { total: 0 } } })),
+        adminServices?.businessManagement?.getUsers({ limit: 1 }).catch(() => ({ data: { pagination: { total: 0 } } })),
+        adminServices?.businessManagement?.getBranches({ limit: 1 }).catch(() => ({ data: { pagination: { total: 0 } } })),
+        // Customers API - use direct API call since it's not under /api/admin
+        fetch('/api/customers?limit=1').then(res => res.json()).catch(() => ({ data: { pagination: { total: 0 } } })),
+      ]);
+
+      const newStats = {
+        categories: categoriesRes.status === 'fulfilled' && categoriesRes.value?.data?.pagination?.total || 0,
+        products: productsRes.status === 'fulfilled' && productsRes.value?.data?.pagination?.total || 0,
+        users: usersRes.status === 'fulfilled' && usersRes.value?.data?.pagination?.total || 0,
+        branches: branchesRes.status === 'fulfilled' && branchesRes.value?.data?.pagination?.total || 0,
+        customers: customersRes.status === 'fulfilled' && customersRes.value?.data?.pagination?.total || 0,
+        loading: false,
+      };
+
+      setStats(newStats);
+    } catch (err) {
+      console.error('Failed to fetch dashboard stats:', err);
+      setError('Failed to load dashboard statistics');
+      setStats(prev => ({ ...prev, loading: false }));
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
+  const statCards = [
+    {
+      title: 'Categories',
+      value: stats.categories,
+      icon: Folder,
+      color: 'from-purple-500 to-indigo-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+      iconColor: 'text-purple-600 dark:text-purple-400',
+      path: '/admin/categories',
+    },
+    {
+      title: 'Products',
+      value: stats.products,
+      icon: Package,
+      color: 'from-blue-500 to-cyan-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      path: '/admin/products',
+    },
+    {
+      title: 'Users',
+      value: stats.users,
+      icon: Users,
+      color: 'from-pink-500 to-rose-600',
+      bgColor: 'bg-pink-50 dark:bg-pink-900/20',
+      iconColor: 'text-pink-600 dark:text-pink-400',
+      path: '/admin/users',
+    },
+    {
+      title: 'Branches',
+      value: stats.branches,
+      icon: Store,
+      color: 'from-emerald-500 to-teal-600',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+      path: '/admin/branches',
+    },
+    {
+      title: 'Customers',
+      value: stats.customers,
+      icon: ShoppingCart,
+      color: 'from-orange-500 to-amber-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+      iconColor: 'text-orange-600 dark:text-orange-400',
+      path: '/admin/customers',
+    },
+  ];
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h3>
-                <p className="text-gray-600 dark:text-gray-300">Manage registered users</p>
-              </div>
-            </div>
-            <Link
-              to="/admin/users"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              View Users
-            </Link>
-          </div>
+  const quickActions = [
+    {
+      title: 'Manage Categories',
+      description: 'View and manage product categories',
+      icon: Folder,
+      path: '/admin/categories',
+      color: 'from-purple-500 to-indigo-600',
+    },
+    {
+      title: 'Manage Products',
+      description: 'View and manage products',
+      icon: Package,
+      path: '/admin/products',
+      color: 'from-blue-500 to-cyan-600',
+    },
+    {
+      title: 'Manage Users',
+      description: 'View and manage user accounts',
+      icon: Users,
+      path: '/admin/users',
+      color: 'from-pink-500 to-rose-600',
+    },
+    {
+      title: 'Manage Customers',
+      description: 'View and manage customers',
+      icon: ShoppingCart,
+      path: '/admin/customers',
+      color: 'from-orange-500 to-amber-600',
+    },
+    {
+      title: 'Manage Branches',
+      description: 'View and manage branches',
+      icon: Store,
+      path: '/admin/branches',
+      color: 'from-emerald-500 to-teal-600',
+    },
+  ];
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Platform Statistics</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">1,247</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Total Users</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">89</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Active Today</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">5,432</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Projects Created</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">156</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">New This Week</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">User Management</h3>
-            <div className="space-y-3">
-              <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
-                View All Users
-              </button>
-              <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                Manage Permissions
-              </button>
-              <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                User Analytics
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notifications</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-300">Pending Approvals</span>
-                <span className="text-sm font-semibold text-red-600 dark:text-red-400">3</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-300">Support Tickets</span>
-                <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">7</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-300">System Alerts</span>
-                <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">2</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <button className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105">
-                Create Announcement
-              </button>
-              <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                View Reports
-              </button>
-              <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                System Settings
-              </button>
-            </div>
-          </div>
+  if (stats.loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4">
+          <Activity className="w-8 h-8 text-blue-500 animate-spin" />
+          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
         </div>
-      </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Dashboard Overview
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Welcome to your MegaPaints Admin Dashboard
+        </p>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        {statCards.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={index}
+              onClick={() => navigate(stat.path)}
+              className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                    {stats.loading ? '...' : stat.value.toLocaleString()}
+                  </div>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {stat.title}
+                  </div>
+                </div>
+                <ArrowRight className={`w-5 h-5 ${stat.iconColor} opacity-0 group-hover:opacity-100 transition-opacity`} />
+              </div>
+              <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Quick Actions
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {quickActions.map((action, index) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={index}
+                onClick={() => navigate(action.path)}
+                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 text-left hover:border-transparent hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
+                <div className="relative">
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
+                    {action.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {action.description}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Go to page
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
 
-export default AdminDashboard;
-
-
+export default Dashboard;

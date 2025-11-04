@@ -7,6 +7,7 @@ const CustomerDropdown = ({
   selectedCustomer, 
   onCustomerSelect, 
   onCustomerCreate,
+  onRequestCreateCustomer,
   placeholder = "Select customer...",
   disabled = false,
   className = ""
@@ -207,7 +208,15 @@ const CustomerDropdown = ({
             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
               <button
                 type="button"
-                onClick={() => setShowCreateForm(!showCreateForm)}
+                onClick={() => {
+                  if (typeof onRequestCreateCustomer === 'function') {
+                    onRequestCreateCustomer();
+                    setIsOpen(false);
+                    setShowCreateForm(false);
+                  } else {
+                    setShowCreateForm(!showCreateForm);
+                  }
+                }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
               >
                 <Plus className="w-4 h-4" />
