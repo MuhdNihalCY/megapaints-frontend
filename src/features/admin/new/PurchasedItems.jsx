@@ -1,151 +1,64 @@
 import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
-  Snackbar,
-  Button
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon
-} from '@mui/icons-material';
-import { Plus, Edit, Trash2, ShoppingCart } from 'lucide-react';
+import { Plus, Edit, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import PurchasedItemForm from '../components/PurchasedItemForm';
 
 const PurchasedItems = () => {
-  const { apiRequest } = useAuth();
+  const { getAdminServices } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [openDialog, setOpenDialog] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  
-  const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    category: '',
-    supplier: '',
-    quantity: '',
-    unit: '',
-    price: '',
-    date: ''
-  });
 
-  // Fetch purchased items
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        setLoading(true);
-        // This would be replaced with the actual API endpoint
-        // const data = await apiRequest('/api/v1/purchasedItem');
-        // For now, using mock data
-        const mockData = [
-          { id: 'PI001', name: 'White Paint', category: 'Paint', supplier: 'Supplier A', quantity: '100', unit: 'Ltr', price: '2500.00', date: '2023-01-15' },
-          { id: 'PI002', name: 'Blue Paint', category: 'Paint', supplier: 'Supplier B', quantity: '50', unit: 'Ltr', price: '1500.00', date: '2023-01-20' }
-        ];
-        setItems(mockData);
-        setError('');
-      } catch (err) {
-        setError('Failed to fetch purchased items');
-        console.error('Error fetching purchased items:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItems();
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = async () => {
+  const fetchItems = async () => {
     try {
-      if (editingItem) {
-        // Update existing item
-        // await apiRequest(`/api/v1/purchasedItem/${formData.id}`, {
-        //   method: 'PUT',
-        //   body: JSON.stringify(formData)
-        // });
-        setSnackbar({ open: true, message: 'Item updated successfully', severity: 'success' });
-      } else {
-        // Add new item
-        // await apiRequest('/api/v1/purchasedItem', {
-        //   method: 'POST',
-        //   body: JSON.stringify(formData)
-        // });
-        setSnackbar({ open: true, message: 'Item added successfully', severity: 'success' });
-      }
-      
-      // Reset form and close dialog
-      setFormData({
-        id: '',
-        name: '',
-        category: '',
-        supplier: '',
-        quantity: '',
-        unit: '',
-        price: '',
-        date: ''
-      });
-      setEditingItem(null);
-      setOpenDialog(false);
+      setLoading(true);
+      setError('');
+      // For now, using mock data - replace with actual API when available
+      const mockData = [
+        { id: 'PI001', name: 'White Paint', category: 'Paint', supplier: 'Supplier A', quantity: '100', unit: 'Ltr', price: '2500.00', date: '2023-01-15' },
+        { id: 'PI002', name: 'Blue Paint', category: 'Paint', supplier: 'Supplier B', quantity: '50', unit: 'Ltr', price: '1500.00', date: '2023-01-20' }
+      ];
+      setItems(mockData);
     } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to save item', severity: 'error' });
-      console.error('Error saving item:', err);
+      console.error('Failed to fetch purchased items:', err);
+      setError(err.message || 'Failed to fetch purchased items');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEditItem = (item) => {
-    setFormData({ ...item });
-    setEditingItem(item);
-    setOpenDialog(true);
-  };
-
-  const handleDeleteItem = async (id) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this item?');
-    if (!confirmDelete) return;
-
-    try {
-      // await apiRequest(`/api/v1/purchasedItem/${id}`, {
-      //   method: 'DELETE'
-      // });
-      setItems(items.filter(i => i.id !== id));
-      setSnackbar({ open: true, message: 'Item deleted successfully', severity: 'success' });
-    } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to delete item', severity: 'error' });
-      console.error('Error deleting item:', err);
-    }
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
+  const handleAdd = () => {
     setEditingItem(null);
-    setFormData({
-      id: '',
-      name: '',
-      category: '',
-      supplier: '',
-      quantity: '',
-      unit: '',
-      price: '',
-      date: ''
-    });
+    setShowForm(true);
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (itemId) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+
+    try {
+      // For now, using mock delete - replace with actual API when available
+      setItems(items.filter(i => i.id !== itemId));
+    } catch (err) {
+      console.error('Failed to delete item:', err);
+      alert('Failed to delete item');
+    }
+  };
+
+  const handleFormSuccess = () => {
+    fetchItems();
   };
 
   return (
@@ -153,7 +66,7 @@ const PurchasedItems = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Purchased Items</h1>
         <button
-          onClick={() => setOpenDialog(true)}
+          onClick={handleAdd}
           className="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 w-full sm:w-auto"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -205,7 +118,14 @@ const PurchasedItems = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {items.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan="9" className="px-3 sm:px-6 py-12 text-center">
+                        <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
+                        <p className="text-gray-500 dark:text-gray-400">Loading purchased items...</p>
+                      </td>
+                    </tr>
+                  ) : items.length === 0 ? (
                     <tr>
                       <td colSpan="9" className="px-3 sm:px-6 py-12 text-center">
                         <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -245,7 +165,7 @@ const PurchasedItems = () => {
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-1 sm:space-x-2">
                             <button
-                              onClick={() => handleEditItem(item)}
+                              onClick={() => handleEdit(item)}
                               className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                               title="Edit"
                             >
@@ -253,7 +173,7 @@ const PurchasedItems = () => {
                               <span className="hidden sm:inline">Edit</span>
                             </button>
                             <button
-                              onClick={() => handleDeleteItem(item.id)}
+                              onClick={() => handleDelete(item.id)}
                               className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-red-300 dark:border-red-600 rounded-lg bg-white dark:bg-gray-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                               title="Delete"
                             >
@@ -272,93 +192,16 @@ const PurchasedItems = () => {
         </div>
       </div>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingItem ? 'Edit Item' : 'Add New Item'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Name"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Category"
-            name="category"
-            value={formData.category}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Supplier"
-            name="supplier"
-            value={formData.supplier}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Quantity"
-            name="quantity"
-            value={formData.quantity}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Unit"
-            name="unit"
-            value={formData.unit}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Price"
-            name="price"
-            value={formData.price}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Date"
-            name="date"
-            type="date"
-            value={formData.date}
-            onChange={handleInputChange}
-            required
-            sx={{ mt: 2 }}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {editingItem ? 'Update' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbar.message}
-      />
+      {showForm && (
+        <PurchasedItemForm
+          item={editingItem}
+          onClose={() => {
+            setShowForm(false);
+            setEditingItem(null);
+          }}
+          onSuccess={handleFormSuccess}
+        />
+      )}
     </div>
   );
 };

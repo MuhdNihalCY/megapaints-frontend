@@ -484,6 +484,67 @@ class UserApiService {
     });
   }
 
+  // ==================== CUSTOMER MANAGEMENT ====================
+
+  /**
+   * Get Customers
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} Customers data
+   */
+  async getCustomers(params = {}) {
+    const queryString = this.buildQueryParams({
+      page: 1,
+      limit: 20,
+      ...params
+    });
+    return await this.apiRequest(`/customers?${queryString}`);
+  }
+
+  /**
+   * Get Customer by ID
+   * @param {string} customerId - Customer ID
+   * @returns {Promise<Object>} Customer data
+   */
+  async getCustomer(customerId) {
+    return await this.apiRequest(`/customers/${customerId}`);
+  }
+
+  /**
+   * Create Customer
+   * @param {Object} customerData - Customer data
+   * @returns {Promise<Object>} Created customer
+   */
+  async createCustomer(customerData) {
+    return await this.apiRequest('/customers', {
+      method: 'POST',
+      body: JSON.stringify(customerData)
+    });
+  }
+
+  /**
+   * Update Customer
+   * @param {string} customerId - Customer ID
+   * @param {Object} customerData - Customer data
+   * @returns {Promise<Object>} Updated customer
+   */
+  async updateCustomer(customerId, customerData) {
+    return await this.apiRequest(`/customers/${customerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(customerData)
+    });
+  }
+
+  /**
+   * Delete Customer
+   * @param {string} customerId - Customer ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteCustomer(customerId) {
+    return await this.apiRequest(`/customers/${customerId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // ==================== UTILITY METHODS ====================
 
   /**
