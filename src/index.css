@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-/* Basic dark mode setup */
+/* Dark mode configuration for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 .dark {
   color-scheme: dark;
 }

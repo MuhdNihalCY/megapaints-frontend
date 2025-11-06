@@ -192,9 +192,17 @@ export default function AdminLayout() {
             <div className="flex items-center space-x-3">
               {/* Theme Toggle */}
               <button
-                onClick={toggleTheme}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Theme toggle clicked, current isDark:', isDark);
+                  toggleTheme();
+                  console.log('Theme toggle called');
+                }}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                 title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                type="button"
+                aria-label="Toggle theme"
               >
                 {isDark ? (
                   <Sun className="w-5 h-5" />
