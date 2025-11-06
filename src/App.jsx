@@ -12,12 +12,14 @@ import UserManagement from './features/admin/UserManagement';
 import Branches from './features/admin/Branches';
 import Categories from './features/admin/Categories';
 import Products from './features/admin/Products';
+import Tinters from './features/admin/Tinters';
 import Additives from './features/admin/Additives';
 import Binders from './features/admin/Binders';
 import Auxiliaries from './features/admin/Auxiliaries';
 import Accessories from './features/admin/Accessories';
 import ThirdPartyProducts from './features/admin/ThirdPartyProducts';
 import SubCategories from './features/admin/new/SubCategories';
+import Groups from './features/admin/new/Groups';
 import Employees from './features/admin/new/Employees';
 import Customers from './features/admin/new/Customers';
 import PurchasedItems from './features/admin/new/PurchasedItems';
@@ -116,7 +118,9 @@ function App() {
                 <Route path="branches" element={<Branches />} />
                 <Route path="categories" element={<Categories />} />
                 <Route path="sub-categories" element={<SubCategories />} />
+                <Route path="groups" element={<Groups />} />
                 <Route path="products" element={<Products />} />
+                <Route path="tinters" element={<Tinters />} />
                 <Route path="additives" element={<Additives />} />
                 <Route path="binders" element={<Binders />} />
                 <Route path="auxiliaries" element={<Auxiliaries />} />

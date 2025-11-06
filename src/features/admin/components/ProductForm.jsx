@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const PRODUCT_TYPES = [
-  { value: 'paint', label: 'Paint' },
+  { value: 'tinters', label: 'Tinters' },
   { value: 'additive', label: 'Additive' },
   { value: 'binder', label: 'Binder' },
   { value: 'auxiliary', label: 'Auxiliary' },
@@ -37,6 +37,7 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
   const [success, setSuccess] = useState('');
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [validationErrors, setValidationErrors] = useState({});
 
   const [formData, setFormData] = useState({
@@ -44,13 +45,20 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
     code: '',
     description: '',
     category_id: '',
-    subcategory_id: '',
-    product_type: 'paint',
+    subcategory_ids: [],
+    product_type: 'tinters',
     base_price: '',
     unit: 'kg',
     weight: '',
     volume: '',
     color_code: '',
+    density: '',
+    abbreviation: '',
+    group_id: '',
+    coefficient: '',
+    standard_quantity: '',
+    voc: '',
+    solid_content: '',
     specifications: {},
     images: [],
     is_active: true,
@@ -58,23 +66,61 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
 
   useEffect(() => {
     fetchCategories();
+    fetchGroups();
     if (product) {
+      // Handle multiple sub-categories (new) or single subcategory (backward compatibility)
+      let subcategoryIds = [];
+      if (product.subcategories && Array.isArray(product.subcategories) && product.subcategories.length > 0) {
+        subcategoryIds = product.subcategories.map(sub => sub._id || sub);
+      } else if (product.subcategory?._id || product.subcategory_id) {
+        subcategoryIds = [product.subcategory._id || product.subcategory_id];
+      }
+
       setFormData({
         name: product.name || '',
         code: product.code || '',
         description: product.description || '',
         category_id: product.category?._id || product.category_id || '',
-        subcategory_id: product.subcategory?._id || product.subcategory_id || '',
-        product_type: product.product_type || 'paint',
+        subcategory_ids: subcategoryIds,
+        product_type: product.product_type || 'tinters',
         base_price: product.base_price || '',
         unit: product.unit || 'kg',
         weight: product.weight || '',
         volume: product.volume || '',
         color_code: product.color_code || '',
+        density: product.density || '',
+        abbreviation: product.abbreviation || '',
+        group_id: (product.product_type === 'tinters' && (product.group?._id || product.group_id)) || '',
+        coefficient: product.coefficient || '',
+        standard_quantity: product.standard_quantity || '',
+        voc: product.voc || '',
+        solid_content: product.solid_content || '',
         specifications: product.specifications || {},
         images: product.images || [],
         is_active: product.is_active !== undefined ? product.is_active : true,
       });
+    } else {
+      // Check for preselected values from sessionStorage (when navigating from SubCategories)
+      const preselectedCategoryId = sessionStorage.getItem('preselectedCategoryId');
+      const preselectedSubCategoryId = sessionStorage.getItem('preselectedSubCategoryId');
+      
+      if (preselectedCategoryId) {
+        setFormData(prev => ({
+          ...prev,
+          category_id: preselectedCategoryId,
+        }));
+        
+        if (preselectedSubCategoryId) {
+          setFormData(prev => ({
+            ...prev,
+            subcategory_ids: [preselectedSubCategoryId],
+          }));
+        }
+        
+        // Clear sessionStorage after using it
+        sessionStorage.removeItem('preselectedCategoryId');
+        sessionStorage.removeItem('preselectedSubCategoryId');
+      }
     }
   }, [product]);
 
@@ -85,6 +131,28 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
       setSubcategories([]);
     }
   }, [formData.category_id]);
+
+  // Clear group_id and refetch groups when product type changes
+  useEffect(() => {
+    if (formData.group_id) {
+      // Check if current group is still valid for the new product type
+      const currentGroup = groups.find(g => g._id === formData.group_id);
+      if (currentGroup) {
+        const isGroupAvailable = currentGroup.product_types && 
+          Array.isArray(currentGroup.product_types) && 
+          currentGroup.product_types.length > 0 &&
+          currentGroup.product_types.includes(formData.product_type);
+        if (!isGroupAvailable) {
+          setFormData(prev => ({
+            ...prev,
+            group_id: ''
+          }));
+        }
+      }
+    }
+    // Refetch groups when product type changes
+    fetchGroups();
+  }, [formData.product_type]);
 
   const fetchCategories = async () => {
     try {
@@ -115,6 +183,29 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
     } catch (err) {
       console.error('Failed to fetch subcategories:', err);
       setSubcategories([]);
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const adminServices = getAdminServices();
+      const response = await adminServices.productCatalog.getGroups({ limit: 100 });
+      if (response.status === 'success') {
+        // Filter to only show active groups that are available for the current product type
+        const activeGroups = (response.data.groups || []).filter(group => {
+          if (!group.is_active) return false;
+          // Check if group is available for current product type
+          if (!group.product_types || !Array.isArray(group.product_types) || group.product_types.length === 0) {
+            // Default to tinters if no product_types specified
+            return formData.product_type === 'tinters';
+          }
+          return group.product_types.includes(formData.product_type);
+        });
+        setGroups(activeGroups);
+      }
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+      setGroups([]);
     }
   };
 
@@ -174,6 +265,13 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
         ...prev,
         [name]: value === '' ? '' : parseFloat(value),
       }));
+    } else if (e.target.multiple) {
+      // Handle multi-select for sub-categories
+      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: selectedOptions,
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -221,8 +319,9 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
         submitData.description = formData.description.trim();
       }
 
-      if (formData.subcategory_id && formData.subcategory_id.trim()) {
-        submitData.subcategory_id = formData.subcategory_id.trim();
+      // Handle multiple sub-categories
+      if (formData.subcategory_ids && Array.isArray(formData.subcategory_ids) && formData.subcategory_ids.length > 0) {
+        submitData.subcategory_ids = formData.subcategory_ids.filter(id => id && id.trim());
       }
 
       if (formData.weight && formData.weight !== '' && !isNaN(parseFloat(formData.weight))) {
@@ -235,6 +334,42 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
 
       if (formData.color_code && formData.color_code.trim()) {
         submitData.color_code = formData.color_code.trim();
+      }
+
+      if (formData.density && formData.density !== '' && !isNaN(parseFloat(formData.density))) {
+        submitData.density = parseFloat(formData.density);
+      }
+
+      if (formData.abbreviation && formData.abbreviation.trim()) {
+        submitData.abbreviation = formData.abbreviation.trim();
+      }
+
+      // Only include group_id if a group is selected and it's available for this product type
+      if (formData.group_id && formData.group_id.trim()) {
+        // Verify the group is available for this product type
+        const selectedGroup = groups.find(g => g._id === formData.group_id);
+        if (selectedGroup && selectedGroup.product_types && selectedGroup.product_types.includes(formData.product_type)) {
+          submitData.group_id = formData.group_id.trim();
+        } else {
+          // Clear group_id if group is not available for this product type
+          submitData.group_id = null;
+        }
+      }
+
+      if (formData.coefficient && formData.coefficient !== '' && !isNaN(parseFloat(formData.coefficient))) {
+        submitData.coefficient = parseFloat(formData.coefficient);
+      }
+
+      if (formData.standard_quantity && formData.standard_quantity !== '' && !isNaN(parseFloat(formData.standard_quantity))) {
+        submitData.standard_quantity = parseFloat(formData.standard_quantity);
+      }
+
+      if (formData.voc && formData.voc !== '' && !isNaN(parseFloat(formData.voc))) {
+        submitData.voc = parseFloat(formData.voc);
+      }
+
+      if (formData.solid_content && formData.solid_content !== '' && !isNaN(parseFloat(formData.solid_content))) {
+        submitData.solid_content = parseFloat(formData.solid_content);
       }
 
       if (formData.specifications && Object.keys(formData.specifications).length > 0) {
@@ -416,7 +551,7 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
                     value={formData.category_id}
                     onChange={(e) => {
                       handleInputChange(e);
-                      setFormData(prev => ({ ...prev, subcategory_id: '' }));
+                      setFormData(prev => ({ ...prev, subcategory_ids: [] }));
                     }}
                     className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                       validationErrors.category_id ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
@@ -440,22 +575,33 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                     <Layers className="w-4 h-4 mr-2 text-gray-500" />
-                    Subcategory
+                    Sub-Categories (Select multiple)
                   </label>
                   <select
-                    name="subcategory_id"
-                    value={formData.subcategory_id}
+                    name="subcategory_ids"
+                    multiple
+                    value={formData.subcategory_ids}
                     onChange={handleInputChange}
                     disabled={!formData.category_id || subcategories.length === 0}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[100px]"
+                    size="4"
                   >
-                    <option value="">No subcategory</option>
                     {subcategories.map(subcategory => (
                       <option key={subcategory._id} value={subcategory._id}>
                         {subcategory.name}
                       </option>
                     ))}
                   </select>
+                  {formData.subcategory_ids.length > 0 && (
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {formData.subcategory_ids.length} sub-categor{formData.subcategory_ids.length === 1 ? 'y' : 'ies'} selected
+                    </p>
+                  )}
+                  {(!formData.category_id || subcategories.length === 0) && (
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {!formData.category_id ? 'Please select a category first' : 'No sub-categories available for this category'}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -642,6 +788,195 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
                     <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       {validationErrors.volume}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Droplet className="w-4 h-4 mr-2 text-gray-500" />
+                    Density (ml/1000g)
+                  </label>
+                  <input
+                    type="number"
+                    name="density"
+                    value={formData.density}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.001"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.density ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0.000"
+                  />
+                  {validationErrors.density && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.density}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Product Details */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Product Details</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Tag className="w-4 h-4 mr-2 text-gray-500" />
+                    Abbreviation
+                  </label>
+                  <input
+                    type="text"
+                    name="abbreviation"
+                    value={formData.abbreviation}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.abbreviation ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="e.g., PMI 050"
+                  />
+                  {validationErrors.abbreviation && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.abbreviation}
+                    </p>
+                  )}
+                </div>
+
+                {groups.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                      <Package className="w-4 h-4 mr-2 text-gray-500" />
+                      Group
+                    </label>
+                    <select
+                      name="group_id"
+                      value={formData.group_id}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                        validationErrors.group_id ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select a group (optional)</option>
+                      {groups.map((group) => (
+                        <option key={group._id} value={group._id}>
+                          {group.name} {group.code ? `(${group.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {validationErrors.group_id && (
+                      <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {validationErrors.group_id}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Hash className="w-4 h-4 mr-2 text-gray-500" />
+                    Coefficient
+                  </label>
+                  <input
+                    type="number"
+                    name="coefficient"
+                    value={formData.coefficient}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.001"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.coefficient ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0.000"
+                  />
+                  {validationErrors.coefficient && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.coefficient}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Package className="w-4 h-4 mr-2 text-gray-500" />
+                    Standard Quantity
+                  </label>
+                  <input
+                    type="number"
+                    name="standard_quantity"
+                    value={formData.standard_quantity}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.001"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.standard_quantity ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0.000"
+                  />
+                  {validationErrors.standard_quantity && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.standard_quantity}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Droplet className="w-4 h-4 mr-2 text-gray-500" />
+                    VOC (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="voc"
+                    value={formData.voc}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.voc ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0.00"
+                  />
+                  {validationErrors.voc && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.voc}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Droplet className="w-4 h-4 mr-2 text-gray-500" />
+                    Solid Content (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="solid_content"
+                    value={formData.solid_content}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
+                      validationErrors.solid_content ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
+                    }`}
+                    placeholder="0.00"
+                  />
+                  {validationErrors.solid_content && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.solid_content}
                     </p>
                   )}
                 </div>

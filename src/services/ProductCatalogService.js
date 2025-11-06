@@ -93,6 +93,65 @@ class ProductCatalogService {
     });
   }
 
+  // ==================== GROUPS ====================
+
+  /**
+   * Get all groups with pagination and filtering
+   * @param {Object} options - Query options
+   * @returns {Promise<Object>} Groups data
+   */
+  async getGroups(options = {}) {
+    const params = {
+      page: 1,
+      limit: 20,
+      search: '',
+      is_active: null,
+      ...options
+    };
+    return await this.adminApi.getGroups(params);
+  }
+
+  /**
+   * Create a new group
+   * @param {Object} groupData - Group data
+   * @returns {Promise<Object>} Created group
+   */
+  async createGroup(groupData) {
+    return await this.adminApi.createGroup(groupData);
+  }
+
+  /**
+   * Update a group
+   * @param {string} groupId - Group ID
+   * @param {Object} groupData - Group data
+   * @returns {Promise<Object>} Updated group
+   */
+  async updateGroup(groupId, groupData) {
+    return await this.adminApi.updateGroup(groupId, groupData);
+  }
+
+  /**
+   * Delete a group
+   * @param {string} groupId - Group ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteGroup(groupId) {
+    return await this.adminApi.deleteGroup(groupId);
+  }
+
+  /**
+   * Search groups by name, code, or description
+   * @param {string} searchTerm - Search term
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Search results
+   */
+  async searchGroups(searchTerm, options = {}) {
+    return await this.getGroups({
+      ...options,
+      search: searchTerm
+    });
+  }
+
   // ==================== PRODUCTS ====================
 
   /**

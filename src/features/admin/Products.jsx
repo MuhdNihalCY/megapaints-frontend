@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus,
   RefreshCw,
@@ -23,6 +24,8 @@ import {
 import ProductForm from './components/ProductForm';
 
 const Products = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,9 +34,11 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubCategory, setFilterSubCategory] = useState('');
   const [filterProductType, setFilterProductType] = useState('');
   const [filterActive, setFilterActive] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -42,20 +47,79 @@ const Products = () => {
   });
   const { getAdminServices } = useAuth();
 
+  // Handle navigation state from SubCategories page
+  useEffect(() => {
+    if (location.state) {
+      const { subCategoryId, categoryId, filterSubCategoryId } = location.state;
+      
+      if (categoryId) {
+        setFilterCategory(categoryId);
+      }
+      
+      if (filterSubCategoryId) {
+        setFilterSubCategory(filterSubCategoryId);
+      }
+      
+      if (subCategoryId) {
+        // Open form with pre-selected sub-category
+        setFilterCategory(categoryId);
+        setTimeout(() => {
+          setShowForm(true);
+          // Store sub-category ID to pre-select in form
+          sessionStorage.setItem('preselectedSubCategoryId', subCategoryId);
+          sessionStorage.setItem('preselectedCategoryId', categoryId);
+        }, 100);
+      }
+      
+      // Clear location state after using it
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   useEffect(() => {
     fetchCategories();
+    if (filterCategory) {
+      fetchSubCategories();
+    }
     fetchProducts();
-  }, [pagination.page, searchTerm, filterCategory, filterProductType, filterActive]);
+  }, [pagination.page, searchTerm, filterCategory, filterSubCategory, filterProductType, filterActive]);
+
+  useEffect(() => {
+    if (filterCategory) {
+      fetchSubCategories();
+    } else {
+      setSubCategories([]);
+    }
+  }, [filterCategory]);
 
   const fetchCategories = async () => {
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.getCategories({ limit: 100 });
+      // Fetch root categories (no parent)
+      const response = await adminServices.productCatalog.getRootCategories({ limit: 100 });
       if (response.status === 'success') {
         setCategories(response.data.categories || []);
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  const fetchSubCategories = async () => {
+    if (!filterCategory) {
+      setSubCategories([]);
+      return;
+    }
+    
+    try {
+      const adminServices = getAdminServices();
+      const response = await adminServices.productCatalog.getSubcategories(filterCategory, { limit: 100 });
+      if (response.status === 'success') {
+        setSubCategories(response.data.categories || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sub-categories:', err);
+      setSubCategories([]);
     }
   };
 
@@ -71,6 +135,7 @@ const Products = () => {
         limit: pagination.limit,
         ...(searchTerm && { search: searchTerm }),
         ...(filterCategory && { category_id: filterCategory }),
+        ...(filterSubCategory && { subcategory_id: filterSubCategory }),
         ...(filterProductType && { product_type: filterProductType }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
@@ -97,6 +162,9 @@ const Products = () => {
 
   const handleAddProduct = () => {
     setEditingProduct(null);
+    // Clear any preselected values
+    sessionStorage.removeItem('preselectedSubCategoryId');
+    sessionStorage.removeItem('preselectedCategoryId');
     setShowForm(true);
   };
 
@@ -141,6 +209,7 @@ const Products = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setFilterCategory('');
+    setFilterSubCategory('');
     setFilterProductType('');
     setFilterActive(null);
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -236,7 +305,7 @@ const Products = () => {
 
       {/* Search and Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -257,6 +326,7 @@ const Products = () => {
             value={filterCategory}
             onChange={(e) => {
               setFilterCategory(e.target.value);
+              setFilterSubCategory(''); // Clear sub-category when category changes
               setPagination(prev => ({ ...prev, page: 1 }));
             }}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -271,6 +341,24 @@ const Products = () => {
               ))}
           </select>
 
+          {/* Sub-Category Filter */}
+          <select
+            value={filterSubCategory}
+            onChange={(e) => {
+              setFilterSubCategory(e.target.value);
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            disabled={!filterCategory || subCategories.length === 0}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="">All Sub-Categories</option>
+            {subCategories.map(subCategory => (
+              <option key={subCategory._id} value={subCategory._id}>
+                {subCategory.name}
+              </option>
+            ))}
+          </select>
+
           {/* Product Type Filter */}
           <select
             value={filterProductType}
@@ -281,7 +369,7 @@ const Products = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Types</option>
-            <option value="paint">Paint</option>
+            <option value="tinters">Tinters</option>
             <option value="additive">Additive</option>
             <option value="binder">Binder</option>
             <option value="auxiliary">Auxiliary</option>
@@ -305,7 +393,7 @@ const Products = () => {
           </select>
 
           {/* Clear Filters */}
-          {(searchTerm || filterCategory || filterProductType || filterActive !== null) && (
+          {(searchTerm || filterCategory || filterSubCategory || filterProductType || filterActive !== null) && (
             <button
               onClick={clearFilters}
               className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"

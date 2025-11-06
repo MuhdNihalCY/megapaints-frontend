@@ -90,11 +90,13 @@ class AdminApiService {
         // Include validation details if available
         const errorMessage = data?.message || `HTTP ${response.status}: ${response.statusText}`;
         const errorDetails = data?.details || [];
-        const fullErrorMessage = errorDetails.length > 0 
-          ? `${errorMessage}: ${errorDetails.join(', ')}`
+        // Ensure errorDetails is an array
+        const detailsArray = Array.isArray(errorDetails) ? errorDetails : (errorDetails ? [errorDetails] : []);
+        const fullErrorMessage = detailsArray.length > 0 
+          ? `${errorMessage}: ${detailsArray.join(', ')}`
           : errorMessage;
         const error = new Error(fullErrorMessage);
-        error.details = errorDetails;
+        error.details = detailsArray;
         error.status = response.status;
         throw error;
       }
@@ -288,6 +290,56 @@ class AdminApiService {
    */
   async deleteCategory(categoryId) {
     return await this.apiRequest(`/admin/products/categories/${categoryId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Get Product Groups
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} Groups data
+   */
+  async getGroups(params = {}) {
+    const queryString = this.buildQueryParams({
+      page: 1,
+      limit: 20,
+      ...params
+    });
+    return await this.apiRequest(`/admin/products/groups?${queryString}`);
+  }
+
+  /**
+   * Create Product Group
+   * @param {Object} groupData - Group data
+   * @returns {Promise<Object>} Created group
+   */
+  async createGroup(groupData) {
+    return await this.apiRequest('/admin/products/groups', {
+      method: 'POST',
+      body: JSON.stringify(groupData)
+    });
+  }
+
+  /**
+   * Update Product Group
+   * @param {string} groupId - Group ID
+   * @param {Object} groupData - Group data
+   * @returns {Promise<Object>} Updated group
+   */
+  async updateGroup(groupId, groupData) {
+    return await this.apiRequest(`/admin/products/groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(groupData)
+    });
+  }
+
+  /**
+   * Delete Product Group
+   * @param {string} groupId - Group ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteGroup(groupId) {
+    return await this.apiRequest(`/admin/products/groups/${groupId}`, {
       method: 'DELETE'
     });
   }
