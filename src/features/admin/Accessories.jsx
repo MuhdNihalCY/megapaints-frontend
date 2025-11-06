@@ -15,7 +15,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
-import AccessoryForm from './components/AccessoryForm';
+import ProductForm from './components/ProductForm';
 
 const Accessories = () => {
   const [accessories, setAccessories] = useState([]);
@@ -48,14 +48,15 @@ const Accessories = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        product_type: 'accessory', // Filter by accessory product type
         ...(searchTerm && { search: searchTerm }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
 
-      const response = await adminServices.productCatalog.getAccessories(params);
+      const response = await adminServices.productCatalog.getProducts(params);
 
       if (response.status === 'success') {
-        setAccessories(response.data.accessories || []);
+        setAccessories(response.data.products || []);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination?.total || 0,
@@ -89,7 +90,7 @@ const Accessories = () => {
 
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteAccessory(accessory._id);
+      const response = await adminServices.productCatalog.deleteProduct(accessory._id);
 
       if (response.status === 'success') {
         setSuccess('Accessory deleted successfully');
@@ -406,8 +407,9 @@ const Accessories = () => {
 
       {/* Accessory Form Modal */}
       {showForm && (
-        <AccessoryForm
-          accessory={editingAccessory}
+        <ProductForm
+          product={editingAccessory}
+          defaultProductType="accessory"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

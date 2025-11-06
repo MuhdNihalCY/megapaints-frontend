@@ -15,7 +15,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
-import ThirdPartyProductForm from './components/ThirdPartyProductForm';
+import ProductForm from './components/ProductForm';
 
 const ThirdPartyProducts = () => {
   const [thirdPartyProducts, setThirdPartyProducts] = useState([]);
@@ -48,14 +48,15 @@ const ThirdPartyProducts = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        product_type: 'third_party', // Filter by third_party product type
         ...(searchTerm && { search: searchTerm }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
 
-      const response = await adminServices.productCatalog.getThirdPartyProducts(params);
+      const response = await adminServices.productCatalog.getProducts(params);
 
       if (response.status === 'success') {
-        setThirdPartyProducts(response.data.third_party_products || response.data.thirdPartyProducts || []);
+        setThirdPartyProducts(response.data.products || []);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination?.total || 0,
@@ -89,7 +90,7 @@ const ThirdPartyProducts = () => {
 
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteThirdPartyProduct(thirdPartyProduct._id);
+      const response = await adminServices.productCatalog.deleteProduct(thirdPartyProduct._id);
 
       if (response.status === 'success') {
         setSuccess('Third party product deleted successfully');
@@ -404,8 +405,9 @@ const ThirdPartyProducts = () => {
 
       {/* ThirdPartyProduct Form Modal */}
       {showForm && (
-        <ThirdPartyProductForm
-          thirdPartyProduct={editingThirdPartyProduct}
+        <ProductForm
+          product={editingThirdPartyProduct}
+          defaultProductType="third_party"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

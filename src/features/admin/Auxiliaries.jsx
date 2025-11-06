@@ -15,7 +15,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
-import AuxiliaryForm from './components/AuxiliaryForm';
+import ProductForm from './components/ProductForm';
 
 const Auxiliaries = () => {
   const [auxiliaries, setAuxiliaries] = useState([]);
@@ -48,14 +48,15 @@ const Auxiliaries = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        product_type: 'auxiliary', // Filter by auxiliary product type
         ...(searchTerm && { search: searchTerm }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
 
-      const response = await adminServices.productCatalog.getAuxiliaries(params);
+      const response = await adminServices.productCatalog.getProducts(params);
 
       if (response.status === 'success') {
-        setAuxiliaries(response.data.auxiliaries || []);
+        setAuxiliaries(response.data.products || []);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination?.total || 0,
@@ -89,7 +90,7 @@ const Auxiliaries = () => {
 
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteAuxiliary(auxiliary._id);
+      const response = await adminServices.productCatalog.deleteProduct(auxiliary._id);
 
       if (response.status === 'success') {
         setSuccess('Auxiliary deleted successfully');
@@ -404,8 +405,9 @@ const Auxiliaries = () => {
 
       {/* Auxiliary Form Modal */}
       {showForm && (
-        <AuxiliaryForm
-          auxiliary={editingAuxiliary}
+        <ProductForm
+          product={editingAuxiliary}
+          defaultProductType="auxiliary"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

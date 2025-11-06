@@ -9,6 +9,7 @@ import {
   Save,
   FileText,
   Hash,
+  Package,
 } from 'lucide-react';
 
 const GroupForm = ({ group = null, onClose, onSuccess }) => {

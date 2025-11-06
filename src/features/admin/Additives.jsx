@@ -15,7 +15,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
-import AdditiveForm from './components/AdditiveForm';
+import ProductForm from './components/ProductForm';
 
 const Additives = () => {
   const [additives, setAdditives] = useState([]);
@@ -48,14 +48,15 @@ const Additives = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        product_type: 'additive', // Filter by additive product type
         ...(searchTerm && { search: searchTerm }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
 
-      const response = await adminServices.productCatalog.getAdditives(params);
+      const response = await adminServices.productCatalog.getProducts(params);
 
       if (response.status === 'success') {
-        setAdditives(response.data.additives || []);
+        setAdditives(response.data.products || []);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination?.total || 0,
@@ -89,7 +90,7 @@ const Additives = () => {
 
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteAdditive(additive._id);
+      const response = await adminServices.productCatalog.deleteProduct(additive._id);
 
       if (response.status === 'success') {
         setSuccess('Additive deleted successfully');
@@ -404,8 +405,9 @@ const Additives = () => {
 
       {/* Additive Form Modal */}
       {showForm && (
-        <AdditiveForm
-          additive={editingAdditive}
+        <ProductForm
+          product={editingAdditive}
+          defaultProductType="additive"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

@@ -15,7 +15,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
-import BinderForm from './components/BinderForm';
+import ProductForm from './components/ProductForm';
 
 const Binders = () => {
   const [binders, setBinders] = useState([]);
@@ -48,14 +48,15 @@ const Binders = () => {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
+        product_type: 'binder', // Filter by binder product type
         ...(searchTerm && { search: searchTerm }),
         ...(filterActive !== null && { is_active: filterActive }),
       };
 
-      const response = await adminServices.productCatalog.getBinders(params);
+      const response = await adminServices.productCatalog.getProducts(params);
 
       if (response.status === 'success') {
-        setBinders(response.data.binders || []);
+        setBinders(response.data.products || []);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination?.total || 0,
@@ -89,7 +90,7 @@ const Binders = () => {
 
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteBinder(binder._id);
+      const response = await adminServices.productCatalog.deleteProduct(binder._id);
 
       if (response.status === 'success') {
         setSuccess('Binder deleted successfully');
@@ -404,8 +405,9 @@ const Binders = () => {
 
       {/* Binder Form Modal */}
       {showForm && (
-        <BinderForm
-          binder={editingBinder}
+        <ProductForm
+          product={editingBinder}
+          defaultProductType="binder"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

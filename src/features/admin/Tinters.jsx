@@ -426,6 +426,7 @@ const Tinters = () => {
       {showForm && (
         <ProductForm
           product={editingTinter}
+          defaultProductType="tinters"
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />

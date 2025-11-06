@@ -30,7 +30,7 @@ const PRODUCT_TYPES = [
 
 const UNITS = ['kg', 'g', 'L', 'mL', 'piece', 'set', 'box', 'unit'];
 
-const ProductForm = ({ product = null, onClose, onSuccess }) => {
+const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuccess }) => {
   const { getAdminServices } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +46,7 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
     description: '',
     category_id: '',
     subcategory_ids: [],
-    product_type: 'tinters',
+    product_type: defaultProductType || 'tinters',
     base_price: '',
     unit: 'kg',
     weight: '',
@@ -99,30 +99,37 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
         images: product.images || [],
         is_active: product.is_active !== undefined ? product.is_active : true,
       });
-    } else {
-      // Check for preselected values from sessionStorage (when navigating from SubCategories)
-      const preselectedCategoryId = sessionStorage.getItem('preselectedCategoryId');
-      const preselectedSubCategoryId = sessionStorage.getItem('preselectedSubCategoryId');
-      
-      if (preselectedCategoryId) {
+      } else {
+        // Check for preselected values from sessionStorage (when navigating from SubCategories)
+        const preselectedCategoryId = sessionStorage.getItem('preselectedCategoryId');
+        const preselectedSubCategoryId = sessionStorage.getItem('preselectedSubCategoryId');
+        
+        const initialProductType = defaultProductType || 'tinters';
+        
         setFormData(prev => ({
           ...prev,
-          category_id: preselectedCategoryId,
+          product_type: initialProductType,
         }));
         
-        if (preselectedSubCategoryId) {
+        if (preselectedCategoryId) {
           setFormData(prev => ({
             ...prev,
-            subcategory_ids: [preselectedSubCategoryId],
+            category_id: preselectedCategoryId,
           }));
+          
+          if (preselectedSubCategoryId) {
+            setFormData(prev => ({
+              ...prev,
+              subcategory_ids: [preselectedSubCategoryId],
+            }));
+          }
+          
+          // Clear sessionStorage after using it
+          sessionStorage.removeItem('preselectedCategoryId');
+          sessionStorage.removeItem('preselectedSubCategoryId');
         }
-        
-        // Clear sessionStorage after using it
-        sessionStorage.removeItem('preselectedCategoryId');
-        sessionStorage.removeItem('preselectedSubCategoryId');
       }
-    }
-  }, [product]);
+  }, [product, defaultProductType]);
 
   useEffect(() => {
     if (formData.category_id) {
