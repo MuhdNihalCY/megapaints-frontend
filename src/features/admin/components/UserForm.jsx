@@ -346,6 +346,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 )}
               </div>
             </div>
+            </div>
 
             {/* Password Section */}
             <div className="space-y-4">
@@ -399,6 +400,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   </p>
                 )}
               </div>
+            </div>
             </div>
 
             {/* Personal Information Section */}
@@ -486,6 +488,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 )}
               </div>
             </div>
+            </div>
 
             {/* Roles Section */}
             <div className="space-y-4">
@@ -519,6 +522,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
               {validationErrors.roles && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.roles}</p>
               )}
+              </div>
             </div>
 
             {/* Branches Section */}

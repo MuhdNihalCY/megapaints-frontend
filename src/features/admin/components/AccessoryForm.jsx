@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   X,
-  PuzzlePiece,
+  Box,
   Hash,
   FileText,
   DollarSign,
@@ -162,7 +162,7 @@ const AccessoryForm = ({ accessory = null, onClose, onSuccess }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-gray-800 dark:to-gray-800">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
-              <PuzzlePiece className="w-5 h-5 text-white" />
+              <Box className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -207,14 +207,14 @@ const AccessoryForm = ({ accessory = null, onClose, onSuccess }) => {
             {/* Basic Information */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <PuzzlePiece className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <Box className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                    <PuzzlePiece className="w-4 h-4 mr-2 text-gray-500" />
+                    <Box className="w-4 h-4 mr-2 text-gray-500" />
                     Name *
                   </label>
                   <input
@@ -276,7 +276,7 @@ const AccessoryForm = ({ accessory = null, onClose, onSuccess }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                    <PuzzlePiece className="w-4 h-4 mr-2 text-gray-500" />
+                    <Box className="w-4 h-4 mr-2 text-gray-500" />
                     Category
                   </label>
                   <input

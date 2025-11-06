@@ -17,6 +17,10 @@ import Binders from './features/admin/Binders';
 import Auxiliaries from './features/admin/Auxiliaries';
 import Accessories from './features/admin/Accessories';
 import ThirdPartyProducts from './features/admin/ThirdPartyProducts';
+import SubCategories from './features/admin/new/SubCategories';
+import Employees from './features/admin/new/Employees';
+import Customers from './features/admin/new/Customers';
+import PurchasedItems from './features/admin/new/PurchasedItems';
 import AdminLayout from './features/admin/components/AdminLayout';
 import UserProtectedRoute from './components/UserProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
@@ -111,12 +115,16 @@ function App() {
                 <Route path="users" element={<UserManagement />} />
                 <Route path="branches" element={<Branches />} />
                 <Route path="categories" element={<Categories />} />
+                <Route path="sub-categories" element={<SubCategories />} />
                 <Route path="products" element={<Products />} />
                 <Route path="additives" element={<Additives />} />
                 <Route path="binders" element={<Binders />} />
                 <Route path="auxiliaries" element={<Auxiliaries />} />
                 <Route path="accessories" element={<Accessories />} />
                 <Route path="third-party-products" element={<ThirdPartyProducts />} />
+                <Route path="employees" element={<Employees />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="purchased-items" element={<PurchasedItems />} />
               </Route>
               
               {/* Default redirect */}

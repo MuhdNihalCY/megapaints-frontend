@@ -3,7 +3,7 @@
  * Handles JWT-based authentication for both users and admins
  * Updated to work with the new API structure and separate admin/user services
  */
-import { getApiUrl, debugApiConfig } from '../config/api.js';
+import { getApiUrl, debugApiConfig, apiConfig, getEnvironment } from '../config/api.js';
 
 class AuthService {
   constructor() {
@@ -27,9 +27,39 @@ class AuthService {
    */
   async adminLogin(username, password) {
     try {
-      console.log('Attempting admin login');
+      // FORCE CACHE BUST: Add timestamp to prevent browser caching old code
+      console.log('🚀 [ADMIN LOGIN v2.0] Starting admin login - FORCED PORT 3000');
       
-      const response = await fetch(getApiUrl('/auth/admin/login'), {
+      // ABSOLUTE HARDCODED URL - NO VARIABLES, NO FUNCTIONS - DIRECTLY TO PORT 3000
+      // This bypasses ALL getApiUrl logic and browser cache issues
+      const finalUrl = 'http://localhost:3000/api/auth/admin/login';
+      
+      console.log('🔗 [ADMIN LOGIN] FINAL URL (HARDCODED):', finalUrl);
+      console.log('🔧 [ADMIN LOGIN] URL Type:', typeof finalUrl);
+      console.log('🔧 [ADMIN LOGIN] URL is absolute:', finalUrl.startsWith('http://'));
+      console.log('🔧 [ADMIN LOGIN] URL contains port 3000:', finalUrl.includes(':3000'));
+      console.log('🔧 [ADMIN LOGIN] URL does NOT contain 5173:', !finalUrl.includes(':5173'));
+      
+      // CRITICAL: Verify one more time before fetch
+      if (finalUrl.includes(':5173') || finalUrl.includes('5173')) {
+        console.error('❌ CRITICAL ERROR: URL STILL CONTAINS 5173!');
+        throw new Error('URL construction failed - contains port 5173');
+      }
+      
+      if (!finalUrl.startsWith('http://localhost:3000')) {
+        console.error('❌ CRITICAL ERROR: URL does not start with http://localhost:3000');
+        throw new Error('URL construction failed - wrong URL format');
+      }
+      
+      console.log('🎯 [ADMIN LOGIN] Making fetch request to:', finalUrl);
+      console.log('📋 [ADMIN LOGIN] Request details:', {
+        method: 'POST',
+        url: finalUrl,
+        headers: { 'Content-Type': 'application/json' },
+        body: { username, password: '***' }
+      });
+      
+      const response = await fetch(finalUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

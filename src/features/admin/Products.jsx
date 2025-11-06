@@ -50,7 +50,7 @@ const Products = () => {
   const fetchCategories = async () => {
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.getCategories({ limit: 200 });
+      const response = await adminServices.productCatalog.getCategories({ limit: 100 });
       if (response.status === 'success') {
         setCategories(response.data.categories || []);
       }
@@ -552,4 +552,5 @@ const Products = () => {
 };
 
 export default Products;
+
 

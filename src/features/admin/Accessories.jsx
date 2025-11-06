@@ -6,7 +6,7 @@ import {
   Search,
   Edit,
   Trash2,
-  PuzzlePiece,
+  Box,
   DollarSign,
   Package,
   CheckCircle,
@@ -235,7 +235,7 @@ const Accessories = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-700 dark:to-gray-800">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Accessory
@@ -258,7 +258,7 @@ const Accessories = () => {
               {accessories.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
-                    <PuzzlePiece className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <Box className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No accessories found</p>
                     <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
                       {searchTerm || filterActive !== null
@@ -274,7 +274,7 @@ const Accessories = () => {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-md">
-                            <PuzzlePiece className="w-5 h-5 text-white" />
+                            <Box className="w-5 h-5 text-white" />
                           </div>
                         </div>
                         <div className="ml-4">
@@ -396,7 +396,7 @@ const Accessories = () => {
           <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-                <PuzzlePiece className="w-4 h-4 mr-2" />
+                <Box className="w-4 h-4 mr-2" />
                 <span className="font-medium">{pagination.total}</span> total accessories
               </div>
             </div>

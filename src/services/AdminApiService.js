@@ -30,8 +30,21 @@ class AdminApiService {
   buildQueryParams(params) {
     const queryParams = new URLSearchParams();
     Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== '' && params[key] !== null) {
-        queryParams.append(key, params[key]);
+      const value = params[key];
+      // Skip undefined, null, and empty string values
+      if (value !== undefined && value !== '' && value !== null) {
+        // Convert boolean to string 'true' or 'false'
+        if (typeof value === 'boolean') {
+          queryParams.append(key, value.toString());
+        }
+        // Convert number to string
+        else if (typeof value === 'number') {
+          queryParams.append(key, value.toString());
+        }
+        // For strings, append as-is
+        else if (typeof value === 'string') {
+          queryParams.append(key, value);
+        }
       }
     });
     return queryParams.toString();

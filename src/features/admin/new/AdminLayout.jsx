@@ -39,8 +39,8 @@ import {
   Layers as LayersIcon,
   LocalShipping as LocalShippingIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme as useAppTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useTheme as useAppTheme } from '../../../contexts/ThemeContext';
 
 const drawerWidth = 260;
 const drawerWidthCollapsed = 80;

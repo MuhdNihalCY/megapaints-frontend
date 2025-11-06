@@ -89,7 +89,7 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
   const fetchCategories = async () => {
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.getCategories({ limit: 200 });
+      const response = await adminServices.productCatalog.getCategories({ limit: 100 });
       if (response.status === 'success') {
         // Get root categories (no parent)
         const rootCategories = response.data.categories.filter(
@@ -107,7 +107,7 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
       const adminServices = getAdminServices();
       const response = await adminServices.productCatalog.getSubcategories(
         formData.category_id,
-        { limit: 200 }
+        { limit: 100 }
       );
       if (response.status === 'success') {
         setSubcategories(response.data.categories || []);
@@ -686,4 +686,5 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
 };
 
 export default ProductForm;
+
 

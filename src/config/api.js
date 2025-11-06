@@ -25,7 +25,7 @@ const API_CONFIG = {
 };
 
 // Get current environment
-const getEnvironment = () => {
+export const getEnvironment = () => {
   if (import.meta.env.DEV) return 'development';
   if (import.meta.env.PROD) return 'production';
   return 'staging';
@@ -45,13 +45,57 @@ export const apiConfig = getApiConfig();
 
 // Helper function to get full URL
 export const getApiUrl = (endpoint) => {
+  // Get fresh config to avoid caching issues
+  const currentConfig = getApiConfig();
+  const env = getEnvironment();
+  
   // Remove leading slash from endpoint to avoid double slashes
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
   // Ensure baseURL doesn't end with slash and cleanEndpoint doesn't start with slash
-  const cleanBaseURL = apiConfig.baseURL.endsWith('/') ? apiConfig.baseURL.slice(0, -1) : apiConfig.baseURL;
+  let cleanBaseURL = currentConfig.baseURL.endsWith('/') ? currentConfig.baseURL.slice(0, -1) : currentConfig.baseURL;
   
-  return `${cleanBaseURL}/${cleanEndpoint}`;
+  // In development, ALWAYS use absolute URL to prevent requests going to frontend dev server
+  if (env === 'development') {
+    // Force absolute URL - if it's relative, prepend http://localhost:3000
+    if (!cleanBaseURL.startsWith('http://') && !cleanBaseURL.startsWith('https://')) {
+      // If it starts with /, it's relative - convert to absolute
+      if (cleanBaseURL.startsWith('/')) {
+        cleanBaseURL = `http://localhost:3000${cleanBaseURL}`;
+      } else {
+        // If it doesn't start with /, prepend http://localhost:3000/api
+        cleanBaseURL = `http://localhost:3000/api`;
+      }
+    }
+    // Ensure we're ALWAYS using port 3000, never 5173
+    cleanBaseURL = cleanBaseURL.replace(':5173', ':3000');
+    // Ensure we're using http://localhost:3000/api format
+    if (cleanBaseURL.includes('localhost') && !cleanBaseURL.includes('/api')) {
+      cleanBaseURL = cleanBaseURL.replace('localhost:3000', 'localhost:3000/api');
+    }
+  }
+  
+  const fullUrl = `${cleanBaseURL}/${cleanEndpoint}`;
+  
+  // Debug in development - ALWAYS log to help diagnose issues
+  if (env === 'development') {
+    console.log('🔗 getApiUrl DEBUG:', {
+      input: { endpoint, baseURL: currentConfig.baseURL },
+      processed: { cleanEndpoint, cleanBaseURL },
+      output: { fullUrl },
+      environment: env,
+      isAbsolute: fullUrl.startsWith('http://') || fullUrl.startsWith('https://')
+    });
+  }
+  
+  // Final safety check - if still relative, force absolute in development
+  if (env === 'development' && !fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+    const absoluteUrl = `http://localhost:3000/api/${cleanEndpoint}`;
+    console.warn('⚠️ getApiUrl returned relative URL, forcing absolute:', absoluteUrl);
+    return absoluteUrl;
+  }
+  
+  return fullUrl;
 };
 
 // Helper function to get base URL

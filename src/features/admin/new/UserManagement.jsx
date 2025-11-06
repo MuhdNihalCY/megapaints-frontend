@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import apiServiceFactory from '../../services/ApiServiceFactory.js';
+import { useAuth } from '../../../contexts/AuthContext';
+import apiServiceFactory from '../../../services/ApiServiceFactory.js';
 import UserForm from './components/UserForm.jsx';
-import { getApiUrl } from '../../config/api.js';
+import { getApiUrl } from '../../../config/api.js';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
