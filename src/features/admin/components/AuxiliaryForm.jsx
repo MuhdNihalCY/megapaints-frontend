@@ -118,19 +118,22 @@ const AuxiliaryForm = ({ auxiliary = null, onClose, onSuccess }) => {
       // Prepare data for API (backend expects base_price, maps to unit_price)
       const submitData = {
         name: formData.name.trim(),
-        code: formData.code.trim(),
-        description: formData.description.trim(),
+        code: formData.code.trim().toUpperCase(),
         base_price: parseFloat(formData.base_price),
-        unit: formData.unit,
-        is_active: formData.is_active,
+        unit: formData.unit.trim(),
+        is_active: Boolean(formData.is_active),
       };
 
-      // Only include optional fields if provided
-      if (formData.type) {
+      // Only include optional fields if they have values
+      if (formData.description && formData.description.trim()) {
+        submitData.description = formData.description.trim();
+      }
+
+      if (formData.type && formData.type.trim()) {
         submitData.type = formData.type.trim();
       }
 
-      if (formData.properties) {
+      if (formData.properties && formData.properties.trim()) {
         submitData.properties = formData.properties.trim();
       }
 
@@ -150,11 +153,19 @@ const AuxiliaryForm = ({ auxiliary = null, onClose, onSuccess }) => {
           onClose && onClose();
         }, 1500);
       } else {
-        setError(response.message || 'Operation failed');
+        const errorMsg = response.message || 'Operation failed';
+        const errorDetails = response.details || [];
+        setError(errorDetails.length > 0 
+          ? `${errorMsg}: ${errorDetails.join(', ')}`
+          : errorMsg);
       }
     } catch (err) {
       console.error('Auxiliary operation failed:', err);
-      setError(err.message || 'Operation failed');
+      const errorMsg = err.message || 'Operation failed';
+      const errorDetails = err.details || [];
+      setError(errorDetails.length > 0 
+        ? `${errorMsg}: ${errorDetails.join(', ')}`
+        : errorMsg);
     } finally {
       setLoading(false);
     }

@@ -205,40 +205,43 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
     try {
       const adminServices = getAdminServices();
 
-      // Prepare data for API
+      // Prepare data for API - only include fields with values
       const submitData = {
         name: formData.name.trim(),
-        code: formData.code.trim(),
-        description: formData.description.trim(),
+        code: formData.code.trim().toUpperCase(),
         category_id: formData.category_id,
         product_type: formData.product_type,
         base_price: parseFloat(formData.base_price),
-        unit: formData.unit,
-        is_active: formData.is_active,
+        unit: formData.unit.trim(),
+        is_active: Boolean(formData.is_active),
       };
 
-      // Only include optional fields if provided
-      if (formData.subcategory_id) {
-        submitData.subcategory_id = formData.subcategory_id;
+      // Only include optional fields if they have values
+      if (formData.description && formData.description.trim()) {
+        submitData.description = formData.description.trim();
       }
 
-      if (formData.weight) {
+      if (formData.subcategory_id && formData.subcategory_id.trim()) {
+        submitData.subcategory_id = formData.subcategory_id.trim();
+      }
+
+      if (formData.weight && formData.weight !== '' && !isNaN(parseFloat(formData.weight))) {
         submitData.weight = parseFloat(formData.weight);
       }
 
-      if (formData.volume) {
+      if (formData.volume && formData.volume !== '' && !isNaN(parseFloat(formData.volume))) {
         submitData.volume = parseFloat(formData.volume);
       }
 
-      if (formData.color_code) {
-        submitData.color_code = formData.color_code;
+      if (formData.color_code && formData.color_code.trim()) {
+        submitData.color_code = formData.color_code.trim();
       }
 
-      if (Object.keys(formData.specifications).length > 0) {
+      if (formData.specifications && Object.keys(formData.specifications).length > 0) {
         submitData.specifications = formData.specifications;
       }
 
-      if (formData.images.length > 0) {
+      if (formData.images && formData.images.length > 0) {
         submitData.images = formData.images;
       }
 
@@ -258,11 +261,19 @@ const ProductForm = ({ product = null, onClose, onSuccess }) => {
           onClose && onClose();
         }, 1500);
       } else {
-        setError(response.message || 'Operation failed');
+        const errorMsg = response.message || 'Operation failed';
+        const errorDetails = response.details || [];
+        setError(errorDetails.length > 0 
+          ? `${errorMsg}: ${errorDetails.join(', ')}`
+          : errorMsg);
       }
     } catch (err) {
       console.error('Product operation failed:', err);
-      setError(err.message || 'Operation failed');
+      const errorMsg = err.message || 'Operation failed';
+      const errorDetails = err.details || [];
+      setError(errorDetails.length > 0 
+        ? `${errorMsg}: ${errorDetails.join(', ')}`
+        : errorMsg);
     } finally {
       setLoading(false);
     }

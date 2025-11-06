@@ -116,15 +116,18 @@ const AccessoryForm = ({ accessory = null, onClose, onSuccess }) => {
       // Prepare data for API (backend expects base_price, maps to unit_price)
       const submitData = {
         name: formData.name.trim(),
-        code: formData.code.trim(),
-        description: formData.description.trim(),
+        code: formData.code.trim().toUpperCase(),
         base_price: parseFloat(formData.base_price),
-        unit: formData.unit,
-        is_active: formData.is_active,
+        unit: formData.unit.trim(),
+        is_active: Boolean(formData.is_active),
       };
 
-      // Only include optional fields if provided
-      if (formData.category) {
+      // Only include optional fields if they have values
+      if (formData.description && formData.description.trim()) {
+        submitData.description = formData.description.trim();
+      }
+
+      if (formData.category && formData.category.trim()) {
         submitData.category = formData.category.trim();
       }
 
@@ -145,11 +148,19 @@ const AccessoryForm = ({ accessory = null, onClose, onSuccess }) => {
           onClose && onClose();
         }, 1500);
       } else {
-        setError(response.message || 'Operation failed');
+        const errorMsg = response.message || 'Operation failed';
+        const errorDetails = response.details || [];
+        setError(errorDetails.length > 0 
+          ? `${errorMsg}: ${errorDetails.join(', ')}`
+          : errorMsg);
       }
     } catch (err) {
       console.error('Accessory operation failed:', err);
-      setError(err.message || 'Operation failed');
+      const errorMsg = err.message || 'Operation failed';
+      const errorDetails = err.details || [];
+      setError(errorDetails.length > 0 
+        ? `${errorMsg}: ${errorDetails.join(', ')}`
+        : errorMsg);
     } finally {
       setLoading(false);
     }

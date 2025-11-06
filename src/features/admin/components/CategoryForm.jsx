@@ -128,18 +128,30 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
     try {
       const adminServices = getAdminServices();
 
-      // Prepare data for API
+      // Prepare data for API - only include fields that have values
       const submitData = {
         name: formData.name.trim(),
-        description: formData.description.trim(),
-        image_url: formData.image_url.trim(),
-        sort_order: formData.sort_order || 0,
-        is_active: formData.is_active,
       };
 
-      // Only include parent_id if provided
-      if (formData.parent_id) {
-        submitData.parent_id = formData.parent_id;
+      // Only include optional fields if they have values
+      if (formData.description && formData.description.trim()) {
+        submitData.description = formData.description.trim();
+      }
+
+      if (formData.image_url && formData.image_url.trim()) {
+        submitData.image_url = formData.image_url.trim();
+      }
+
+      if (formData.parent_id && formData.parent_id.trim()) {
+        submitData.parent_id = formData.parent_id.trim();
+      }
+
+      if (formData.sort_order !== undefined && formData.sort_order !== null) {
+        submitData.sort_order = parseInt(formData.sort_order, 10);
+      }
+
+      if (formData.is_active !== undefined) {
+        submitData.is_active = Boolean(formData.is_active);
       }
 
       let response;
@@ -158,11 +170,19 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
           onClose && onClose();
         }, 1500);
       } else {
-        setError(response.message || 'Operation failed');
+        const errorMsg = response.message || 'Operation failed';
+        const errorDetails = response.details || [];
+        setError(errorDetails.length > 0 
+          ? `${errorMsg}: ${errorDetails.join(', ')}`
+          : errorMsg);
       }
     } catch (err) {
       console.error('Category operation failed:', err);
-      setError(err.message || 'Operation failed');
+      const errorMsg = err.message || 'Operation failed';
+      const errorDetails = err.details || [];
+      setError(errorDetails.length > 0 
+        ? `${errorMsg}: ${errorDetails.join(', ')}`
+        : errorMsg);
     } finally {
       setLoading(false);
     }

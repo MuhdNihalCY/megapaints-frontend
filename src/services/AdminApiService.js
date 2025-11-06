@@ -87,8 +87,16 @@ class AdminApiService {
       }
       
       if (!response.ok) {
+        // Include validation details if available
         const errorMessage = data?.message || `HTTP ${response.status}: ${response.statusText}`;
-        throw new Error(errorMessage);
+        const errorDetails = data?.details || [];
+        const fullErrorMessage = errorDetails.length > 0 
+          ? `${errorMessage}: ${errorDetails.join(', ')}`
+          : errorMessage;
+        const error = new Error(fullErrorMessage);
+        error.details = errorDetails;
+        error.status = response.status;
+        throw error;
       }
       
       return data;
