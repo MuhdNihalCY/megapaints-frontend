@@ -262,7 +262,27 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (type === 'checkbox') {
+    if (type === 'checkbox' && name === 'subcategory_checkbox') {
+      // Handle subcategory checkbox selection
+      const subcategoryId = value;
+      setFormData(prev => {
+        const currentIds = prev.subcategory_ids || [];
+        let newIds;
+        if (checked) {
+          // Add subcategory if not already in array
+          newIds = currentIds.includes(subcategoryId) 
+            ? currentIds 
+            : [...currentIds, subcategoryId];
+        } else {
+          // Remove subcategory from array
+          newIds = currentIds.filter(id => id !== subcategoryId);
+        }
+        return {
+          ...prev,
+          subcategory_ids: newIds,
+        };
+      });
+    } else if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
         [name]: checked,
@@ -272,13 +292,6 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         ...prev,
         [name]: value === '' ? '' : parseFloat(value),
       }));
-    } else if (e.target.multiple) {
-      // Handle multi-select for sub-categories
-      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-      setFormData(prev => ({
-        ...prev,
-        [name]: selectedOptions,
-      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -287,10 +300,11 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
     }
 
     // Clear validation error for this field
-    if (validationErrors[name]) {
+    if (validationErrors[name] || validationErrors.subcategory_ids) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
+        delete newErrors.subcategory_ids;
         return newErrors;
       });
     }
@@ -579,34 +593,115 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                    <Layers className="w-4 h-4 mr-2 text-gray-500" />
-                    Sub-Categories (Select multiple)
-                  </label>
-                  <select
-                    name="subcategory_ids"
-                    multiple
-                    value={formData.subcategory_ids}
-                    onChange={handleInputChange}
-                    disabled={!formData.category_id || subcategories.length === 0}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[100px]"
-                    size="4"
-                  >
-                    {subcategories.map(subcategory => (
-                      <option key={subcategory._id} value={subcategory._id}>
-                        {subcategory.name}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.subcategory_ids.length > 0 && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      {formData.subcategory_ids.length} sub-categor{formData.subcategory_ids.length === 1 ? 'y' : 'ies'} selected
-                    </p>
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                      <Layers className="w-4 h-4 mr-2 text-gray-500" />
+                      Sub-Categories (Select multiple)
+                    </label>
+                    {formData.category_id && subcategories.length > 0 && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allIds = subcategories.map(sub => sub._id);
+                            setFormData(prev => ({
+                              ...prev,
+                              subcategory_ids: allIds,
+                            }));
+                            if (validationErrors.subcategory_ids) {
+                              setValidationErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.subcategory_ids;
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="text-xs px-2 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              subcategory_ids: [],
+                            }));
+                            if (validationErrors.subcategory_ids) {
+                              setValidationErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors.subcategory_ids;
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="text-xs px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors"
+                        >
+                          Deselect All
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {!formData.category_id ? (
+                    <div className="p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                        Please select a category first to view sub-categories
+                      </p>
+                    </div>
+                  ) : subcategories.length === 0 ? (
+                    <div className="p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                        No sub-categories available for this category
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`p-4 border rounded-lg transition-colors ${
+                      validationErrors.subcategory_ids 
+                        ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                    }`}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[200px] overflow-y-auto">
+                        {subcategories.map(subcategory => {
+                          const isChecked = formData.subcategory_ids && formData.subcategory_ids.includes(subcategory._id);
+                          return (
+                            <label
+                              key={subcategory._id}
+                              className={`flex items-center p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                                isChecked
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                name="subcategory_checkbox"
+                                value={subcategory._id}
+                                checked={isChecked}
+                                onChange={handleInputChange}
+                                className="mr-2 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                              />
+                              <span className="text-sm font-medium truncate">{subcategory.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {formData.subcategory_ids && formData.subcategory_ids.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            <span className="font-semibold">{formData.subcategory_ids.length}</span> of <span className="font-semibold">{subcategories.length}</span> sub-categor{formData.subcategory_ids.length === 1 ? 'y' : 'ies'} selected
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  {(!formData.category_id || subcategories.length === 0) && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      {!formData.category_id ? 'Please select a category first' : 'No sub-categories available for this category'}
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Select one or more sub-categories for this product. You can select multiple sub-categories.
+                  </p>
+                  {validationErrors.subcategory_ids && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.subcategory_ids}
                     </p>
                   )}
                 </div>

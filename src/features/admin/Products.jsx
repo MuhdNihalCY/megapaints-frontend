@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -46,11 +46,22 @@ const Products = () => {
     pages: 0,
   });
   const { getAdminServices } = useAuth();
+  const processedStateRef = useRef(null);
 
   // Handle navigation state from SubCategories page
   useEffect(() => {
-    if (location.state) {
-      const { subCategoryId, categoryId, filterSubCategoryId } = location.state;
+    const state = location.state;
+    
+    // Check if we have state and haven't processed it yet
+    if (state && (state.subCategoryId || state.filterSubCategoryId || state.categoryId)) {
+      // Check if this is the same state we already processed
+      const stateKey = `${state.subCategoryId || ''}_${state.filterSubCategoryId || ''}_${state.categoryId || ''}`;
+      if (processedStateRef.current === stateKey) {
+        return; // Already processed this state
+      }
+      
+      processedStateRef.current = stateKey;
+      const { subCategoryId, categoryId, filterSubCategoryId } = state;
       
       if (categoryId) {
         setFilterCategory(categoryId);
@@ -72,9 +83,12 @@ const Products = () => {
       }
       
       // Clear location state after using it
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: null });
+    } else if (!state) {
+      // Reset ref when state is cleared
+      processedStateRef.current = null;
     }
-  }, [location.state, navigate]);
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     fetchCategories();

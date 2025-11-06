@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   X,
-  Users,
+  Grid3x3,
   AlertCircle,
   CheckCircle,
   Loader2,
@@ -63,6 +63,11 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
       errors.sort_order = 'Sort order must be a non-negative number';
     }
 
+    // Validate product types - at least one must be selected
+    if (!formData.product_types || !Array.isArray(formData.product_types) || formData.product_types.length === 0) {
+      errors.product_types = 'At least one product type must be selected';
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -70,7 +75,27 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (type === 'checkbox') {
+    if (type === 'checkbox' && name === 'product_type_checkbox') {
+      // Handle product type checkbox selection
+      const productTypeValue = value;
+      setFormData(prev => {
+        const currentTypes = prev.product_types || [];
+        let newTypes;
+        if (checked) {
+          // Add product type if not already in array
+          newTypes = currentTypes.includes(productTypeValue) 
+            ? currentTypes 
+            : [...currentTypes, productTypeValue];
+        } else {
+          // Remove product type from array
+          newTypes = currentTypes.filter(type => type !== productTypeValue);
+        }
+        return {
+          ...prev,
+          product_types: newTypes,
+        };
+      });
+    } else if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
         [name]: checked,
@@ -80,13 +105,6 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
         ...prev,
         [name]: value === '' ? 0 : parseInt(value, 10),
       }));
-    } else if (e.target.multiple) {
-      // Handle multi-select for product_types
-      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-      setFormData(prev => ({
-        ...prev,
-        [name]: selectedOptions,
-      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -95,10 +113,11 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
     }
 
     // Clear validation error for this field
-    if (validationErrors[name]) {
+    if (validationErrors[name] || validationErrors.product_types) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
+        delete newErrors.product_types;
         return newErrors;
       });
     }
@@ -130,6 +149,14 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
 
       if (formData.code && formData.code.trim()) {
         submitData.code = formData.code.trim();
+      }
+
+      // Always include product_types (required field)
+      if (formData.product_types && Array.isArray(formData.product_types) && formData.product_types.length > 0) {
+        submitData.product_types = formData.product_types;
+      } else {
+        // Default to tinters only if no product types selected (shouldn't happen due to validation)
+        submitData.product_types = ['tinters'];
       }
 
       if (formData.sort_order !== undefined && formData.sort_order !== null) {
@@ -181,7 +208,7 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
+              <Grid3x3 className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -226,13 +253,13 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
             {/* Basic Information */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Grid3x3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                    <Users className="w-4 h-4 mr-2 text-gray-500" />
+                    <Grid3x3 className="w-4 h-4 mr-2 text-gray-500" />
                     Group Name *
                   </label>
                   <input
@@ -328,23 +355,44 @@ const GroupForm = ({ group = null, onClose, onSuccess }) => {
                     <Package className="w-4 h-4 mr-2 text-gray-500" />
                     Available for Product Types *
                   </label>
-                  <select
-                    name="product_types"
-                    multiple
-                    value={formData.product_types}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors min-h-[100px] ${
-                      validationErrors.product_types ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
-                    }`}
-                  >
-                    {PRODUCT_TYPES.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className={`p-4 border rounded-lg transition-colors ${
+                    validationErrors.product_types 
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                  }`}>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {PRODUCT_TYPES.map(type => {
+                        const isChecked = formData.product_types && formData.product_types.includes(type.value);
+                        return (
+                          <label
+                            key={type.value}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isChecked
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="product_type_checkbox"
+                              value={type.value}
+                              checked={isChecked}
+                              onChange={handleInputChange}
+                              className="mr-2 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium">{type.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {formData.product_types && formData.product_types.length > 0 && (
+                      <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                        {formData.product_types.length} product type{formData.product_types.length !== 1 ? 's' : ''} selected
+                      </p>
+                    )}
+                  </div>
                   <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Hold Ctrl/Cmd to select multiple product types. This group will be available for the selected product types.
+                    Select one or more product types. This group will be available for the selected product types.
                   </p>
                   {validationErrors.product_types && (
                     <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Users, CheckCircle, XCircle, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X as XIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit, Trash2, Grid3x3, CheckCircle, XCircle, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X as XIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import GroupForm from '../components/GroupForm';
 
@@ -177,7 +177,7 @@ const Groups = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <Users className="w-8 h-8 mr-3 text-blue-600 dark:text-blue-400" />
+            <Grid3x3 className="w-8 h-8 mr-3 text-blue-600 dark:text-blue-400" />
             Product Groups
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -324,7 +324,7 @@ const Groups = () => {
               {filteredAndSortedGroups.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <Grid3x3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No groups found</p>
                     <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
                       {searchTerm || filterStatus ? 'Try adjusting your filters' : 'Get started by adding a new group'}

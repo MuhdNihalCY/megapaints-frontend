@@ -202,7 +202,9 @@ const SubCategories = () => {
       : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
   };
 
-  const handleAddProduct = (subCategory) => {
+  const handleAddProduct = (subCategory, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     // Navigate to products page with sub-category pre-selected
     navigate('/admin/products', { 
       state: { 
@@ -212,7 +214,9 @@ const SubCategories = () => {
     });
   };
 
-  const handleViewProducts = (subCategory) => {
+  const handleViewProducts = (subCategory, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     // Navigate to products page filtered by sub-category
     navigate('/admin/products', { 
       state: { 
@@ -455,14 +459,16 @@ const SubCategories = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end items-center space-x-2">
                         <button
-                          onClick={() => handleViewProducts(subCategory)}
+                          type="button"
+                          onClick={(e) => handleViewProducts(subCategory, e)}
                           className="inline-flex items-center px-2.5 py-1.5 border border-blue-300 dark:border-blue-600 rounded-lg bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                           title="View Products"
                         >
                           <Package className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleAddProduct(subCategory)}
+                          type="button"
+                          onClick={(e) => handleAddProduct(subCategory, e)}
                           className="inline-flex items-center px-2.5 py-1.5 border border-green-300 dark:border-green-600 rounded-lg bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
                           title="Add Product"
                         >

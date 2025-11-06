@@ -23,6 +23,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Grid3x3,
 } from 'lucide-react';
 
 const drawerWidth = 260;
@@ -32,7 +33,7 @@ const menuItems = [
   { text: 'Dashboard', icon: Home, path: '/admin/dashboard' },
   { text: 'Categories', icon: Folder, path: '/admin/categories' },
   { text: 'Sub-Categories', icon: Layers, path: '/admin/sub-categories' },
-  { text: 'Groups', icon: Users, path: '/admin/groups' },
+  { text: 'Groups', icon: Grid3x3, path: '/admin/groups' },
   { text: 'Products', icon: Package, path: '/admin/products' },
   { text: 'Tinters', icon: Palette, path: '/admin/tinters' },
   { text: 'Additives', icon: Beaker, path: '/admin/additives' },
