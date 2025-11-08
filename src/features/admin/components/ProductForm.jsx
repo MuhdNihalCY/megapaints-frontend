@@ -149,8 +149,10 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         subcategoryIds = [normalizeId(product.subcategory._id || product.subcategory_id)];
       }
 
-      // Convert category_id to string if it's an ObjectId
-      const categoryId = normalizeId(product.category?._id || product.category_id || '');
+      // Convert category_id to string if it's an ObjectId - only for tinters
+      const categoryId = (product.product_type === 'tinters') 
+        ? normalizeId(product.category?._id || product.category_id || '')
+        : '';
 
       // Convert group_id to string if it's an ObjectId
       const groupId = (product.product_type === 'tinters' && (product.group?._id || product.group_id)) 
@@ -162,7 +164,7 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         code: product.code || '',
         description: product.description || '',
         category_id: categoryId,
-        subcategory_ids: subcategoryIds,
+        subcategory_ids: (product.product_type === 'tinters') ? subcategoryIds : [],
         product_type: product.product_type || 'tinters',
         base_price: product.base_price || '',
         unit: product.unit || 'kg',
@@ -189,9 +191,12 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
       setFormData(prev => ({
         ...prev,
         product_type: initialProductType,
+        // Clear category and subcategories if not tinters
+        ...(initialProductType !== 'tinters' ? { category_id: '', subcategory_ids: [] } : {}),
       }));
       
-      if (preselectedCategoryId) {
+      // Only set preselected category/subcategory for tinters
+      if (initialProductType === 'tinters' && preselectedCategoryId) {
         setFormData(prev => ({
           ...prev,
           category_id: preselectedCategoryId,
@@ -212,8 +217,8 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
   }, [product, defaultProductType]);
 
   useEffect(() => {
-    // Only fetch subcategories if we have a valid category_id and categories are loaded
-    if (!formData.category_id || categories.length === 0) {
+    // Only fetch subcategories for tinters if we have a valid category_id and categories are loaded
+    if (formData.product_type !== 'tinters' || !formData.category_id || categories.length === 0) {
       setSubcategories([]);
       return;
     }
@@ -406,7 +411,8 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
       errors.code = 'Code is required';
     }
 
-    if (!formData.category_id) {
+    // Only require category for tinters
+    if (formData.product_type === 'tinters' && !formData.category_id) {
       errors.category_id = 'Category is required';
     }
 
@@ -472,6 +478,13 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         [name]: categoryIdStr,
         subcategory_ids: [], // Clear subcategories when category changes
       }));
+    } else if (name === 'product_type') {
+      // Clear category and subcategories when product type changes (unless it's tinters)
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        ...(value !== 'tinters' ? { category_id: '', subcategory_ids: [] } : {}),
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -513,8 +526,8 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         is_active: Boolean(formData.is_active),
       };
 
-      // Always include category_id if it exists (required for updates)
-      if (formData.category_id) {
+      // Only include category_id for tinters
+      if (formData.product_type === 'tinters' && formData.category_id) {
         // Handle both string and ObjectId types
         let categoryId;
         if (typeof formData.category_id === 'string') {
@@ -546,8 +559,8 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         submitData.description = formData.description.trim();
       }
 
-      // Handle multiple sub-categories
-      if (formData.subcategory_ids && Array.isArray(formData.subcategory_ids) && formData.subcategory_ids.length > 0) {
+      // Handle multiple sub-categories - only for tinters
+      if (formData.product_type === 'tinters' && formData.subcategory_ids && Array.isArray(formData.subcategory_ids) && formData.subcategory_ids.length > 0) {
         submitData.subcategory_ids = formData.subcategory_ids
           .map(id => {
             // Handle both string and ObjectId types
@@ -836,7 +849,8 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
               </div>
             </div>
 
-            {/* Category & Classification */}
+            {/* Category & Classification - Only for Tinters */}
+            {formData.product_type === 'tinters' && (
             <div className="space-y-4">
               <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
                 <Folder className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -1031,6 +1045,7 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
                   )}
               </div>
             </div>
+            )}
 
             {/* Pricing & Units */}
             <div className="space-y-4">
