@@ -118,35 +118,30 @@ const Dashboard = () => {
       description: 'View and manage product categories',
       icon: Folder,
       path: '/admin/categories',
-      color: 'from-purple-500 to-indigo-600',
     },
     {
       title: 'Manage Products',
       description: 'View and manage products',
       icon: Package,
       path: '/admin/products',
-      color: 'from-blue-500 to-cyan-600',
     },
     {
       title: 'Manage Users',
       description: 'View and manage user accounts',
       icon: Users,
       path: '/admin/users',
-      color: 'from-pink-500 to-rose-600',
     },
     {
       title: 'Manage Customers',
       description: 'View and manage customers',
       icon: ShoppingCart,
       path: '/admin/customers',
-      color: 'from-orange-500 to-amber-600',
     },
     {
       title: 'Manage Branches',
       description: 'View and manage branches',
       icon: Store,
       path: '/admin/branches',
-      color: 'from-emerald-500 to-teal-600',
     },
   ];
 
@@ -226,12 +221,12 @@ const Dashboard = () => {
                 onClick={() => navigate(action.path)}
                 className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left hover:border-transparent hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
+                <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity" />
                 <div className="relative">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-600 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
                     <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-all">
                     {action.title}
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">

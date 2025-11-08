@@ -146,14 +146,14 @@ const Accessories = () => {
         <div className="flex gap-2">
           <button
             onClick={handleAddAccessory}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white rounded-lg hover:from-yellow-600 hover:to-amber-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Accessory
           </button>
           <button
             onClick={fetchAccessories}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
@@ -310,7 +310,6 @@ const Accessories = () => {
                     </td>
                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                       <div className="flex items-center">
-                        <DollarSign className="w-4 h-4 mr-1 text-gray-400 flex-shrink-0" />
                         <span className="font-semibold">{accessory.unit_price?.toFixed(2) || '0.00'}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
                           / {accessory.unit || 'unit'}

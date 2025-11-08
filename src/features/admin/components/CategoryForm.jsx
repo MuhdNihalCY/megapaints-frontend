@@ -572,7 +572,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('brand', 'mipa')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.brand === 'mipa'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -583,7 +583,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('brand', 'rosner')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.brand === 'rosner'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -603,7 +603,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('unit', 'kg')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.unit === 'kg'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -614,7 +614,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('unit', 'liter')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.unit === 'liter'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -634,7 +634,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('level_of_shine', 'matt')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.level_of_shine === 'matt'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -645,7 +645,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       onClick={() => handleToggleChange('level_of_shine', 'gloss')}
                       className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
                         formData.level_of_shine === 'gloss'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -786,7 +786,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                         onClick={() => handleToggleChange('binder_2_equation_type', 'equation_1')}
                         className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
                           formData.binder_2_equation_type === 'equation_1'
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                            ? 'bg-blue-600 text-white shadow-md'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                       >
@@ -797,7 +797,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                         onClick={() => handleToggleChange('binder_2_equation_type', 'equation_2')}
                         className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
                           formData.binder_2_equation_type === 'equation_2'
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                            ? 'bg-blue-600 text-white shadow-md'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                       >
@@ -865,7 +865,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg"
               >
                 {loading ? (
                   <>

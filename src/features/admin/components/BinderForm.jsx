@@ -325,13 +325,11 @@ const BinderForm = ({ binder = null, onClose, onSuccess }) => {
             {/* Pricing */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                <DollarSign className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pricing</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                    <DollarSign className="w-4 h-4 mr-2 text-gray-500" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Base Price *
                   </label>
                   <input
