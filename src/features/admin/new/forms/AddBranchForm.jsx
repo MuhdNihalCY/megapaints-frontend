@@ -42,7 +42,6 @@ const AddBranchForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Form submission logic would go here
-    console.log('Form submitted:', formData);
     // Navigate back to branches list
     navigate('/admin/branches');
   };

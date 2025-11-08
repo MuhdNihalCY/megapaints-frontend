@@ -97,7 +97,6 @@ const CustomerFollowupModal = ({ isOpen, onClose, user, mode = 'manage' }) => {
 
     try {
       const response = await api.post('/customer-followups', newFollowup);
-      console.log('✅ Follow-up created:', response.data);
       
       // Reset form
       setNewFollowup({
@@ -133,7 +132,6 @@ const CustomerFollowupModal = ({ isOpen, onClose, user, mode = 'manage' }) => {
 
     try {
       const response = await api.put(`/customer-followups/${editingFollowup._id}`, editingFollowup);
-      console.log('✅ Follow-up updated:', response.data);
       
       setShowEditForm(false);
       setEditingFollowup(null);
@@ -149,7 +147,6 @@ const CustomerFollowupModal = ({ isOpen, onClose, user, mode = 'manage' }) => {
   const handleDeleteFollowup = async (followupId) => {
     try {
       await api.delete(`/customer-followups/${followupId}`);
-      console.log('✅ Follow-up deleted:', followupId);
       
       setDeleteConfirm(null);
       loadFollowups(); // Reload followups

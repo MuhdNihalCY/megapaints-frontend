@@ -31,7 +31,6 @@ const UserManagement = () => {
         timestamp: new Date().toISOString()
       };
       
-      console.log('🔍 Debug Info:', debugData);
       setDebugInfo(JSON.stringify(debugData, null, 2));
       
       if (!adminUser || !accessToken) {
@@ -39,14 +38,11 @@ const UserManagement = () => {
         return;
       }
       
-      console.log('🚀 Attempting to fetch users using new API service');
-      
       // Use the new API service factory
       const adminServices = apiServiceFactory.initializeAdminServices();
       const response = await adminServices.businessManagement.getUsers();
       
       if (response.status === 'success') {
-        console.log('✅ Successfully fetched users:', response.data.users?.length || 0);
         setUsers(response.data.users || []);
       } else {
         setError('Failed to fetch users');
@@ -72,11 +68,9 @@ const UserManagement = () => {
 
   const tryAlternativeRoute = async () => {
     try {
-      console.log('🔄 Trying alternative route: /admin/business/users');
       const response = await apiRequest('/admin/business/users');
       
       if (response.status === 'success') {
-        console.log('✅ Alternative route worked! Users:', response.data.users?.length || 0);
         setUsers(response.data.users || []);
         setError('✅ Users loaded via alternative route (/admin/business/users)');
       } else {
@@ -96,7 +90,6 @@ const UserManagement = () => {
         return;
       }
 
-      console.log('🧪 Testing direct API call to /api/admin/users');
       const response = await fetch(getApiUrl('/admin/users'), {
         method: 'GET',
         headers: {
@@ -106,14 +99,7 @@ const UserManagement = () => {
         credentials: 'include'
       });
 
-      console.log('📊 Direct API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       const data = await response.text();
-      console.log('📄 Response Data:', data);
 
       if (response.ok) {
         const jsonData = JSON.parse(data);
@@ -303,7 +289,6 @@ const UserManagement = () => {
                               onClick={() => {
                                 if (window.confirm(`Are you sure you want to ${user.is_active ? 'deactivate' : 'activate'} this user?`)) {
                                   // TODO: Implement user activation/deactivation
-                                  console.log('Toggle user status:', user._id);
                                 }
                               }}
                               className={`inline-flex items-center px-2 sm:px-3 py-1.5 border rounded-lg transition-colors ${

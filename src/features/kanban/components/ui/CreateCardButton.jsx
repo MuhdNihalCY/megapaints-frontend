@@ -40,14 +40,12 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
     setError(null);
 
     try {
-      console.log('🚀 Reserving identifier for board:', boardId);
       
       // Step 1: Reserve primary identifier
       const reservationResponse = await kanbanService.reserveIdentifier(boardId);
       const reservedIdentifier = reservationResponse.identifier;
       const reservationId = reservationResponse.reservation_id;
       
-      console.log('✅ Identifier reserved:', reservedIdentifier);
       
       // Step 2: Create card with reserved identifier
       const defaultCard = createEmptyCard({
@@ -93,7 +91,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
         title: cardData.title // This should be the complete title (identifier + customer)
       };
 
-      console.log('🚀 Creating card with title:', cardToCreate.title);
       
       // Call the parent's onCreateCard function
       const createdCard = await onCreateCard(cardToCreate);
@@ -102,7 +99,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       if (reservation && reservation.id && createdCard) {
         try {
           await kanbanService.useReservation(reservation.id, createdCard.id);
-          console.log('✅ Reservation used for card:', createdCard.id);
         } catch (err) {
           console.warn('⚠️ Failed to mark reservation as used:', err);
           // Don't fail the card creation if reservation marking fails
@@ -126,7 +122,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
     if (reservation && reservation.id) {
       try {
         await kanbanService.releaseReservation(reservation.id);
-        console.log('✅ Reservation released:', reservation.id);
       } catch (err) {
         console.warn('⚠️ Failed to release reservation:', err);
       }

@@ -77,17 +77,6 @@ export const getApiUrl = (endpoint) => {
   
   const fullUrl = `${cleanBaseURL}/${cleanEndpoint}`;
   
-  // Debug in development - ALWAYS log to help diagnose issues
-  if (env === 'development') {
-    console.log('🔗 getApiUrl DEBUG:', {
-      input: { endpoint, baseURL: currentConfig.baseURL },
-      processed: { cleanEndpoint, cleanBaseURL },
-      output: { fullUrl },
-      environment: env,
-      isAbsolute: fullUrl.startsWith('http://') || fullUrl.startsWith('https://')
-    });
-  }
-  
   // Final safety check - if still relative, force absolute in development
   if (env === 'development' && !fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
     const absoluteUrl = `http://localhost:3000/api/${cleanEndpoint}`;
@@ -103,15 +92,7 @@ export const getBaseUrl = () => apiConfig.baseURL;
 
 // Export for debugging
 export const debugApiConfig = () => {
-  console.log('🔧 API Configuration:', {
-    environment: getEnvironment(),
-    config: apiConfig,
-    viteEnv: {
-      DEV: import.meta.env.DEV,
-      PROD: import.meta.env.PROD,
-      MODE: import.meta.env.MODE
-    }
-  });
+  // Debug function - no longer logs to console
 };
 
 // Debug URL construction
@@ -119,15 +100,6 @@ export const debugUrlConstruction = (endpoint) => {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   const cleanBaseURL = apiConfig.baseURL.endsWith('/') ? apiConfig.baseURL.slice(0, -1) : apiConfig.baseURL;
   const finalUrl = `${cleanBaseURL}/${cleanEndpoint}`;
-  
-  console.log('🔗 URL Construction Debug:', {
-    originalEndpoint: endpoint,
-    cleanEndpoint,
-    baseURL: apiConfig.baseURL,
-    cleanBaseURL,
-    finalUrl,
-    environment: getEnvironment()
-  });
   
   return finalUrl;
 };
@@ -137,7 +109,6 @@ export const switchToDirectConnection = () => {
   if (getEnvironment() === 'development') {
     API_CONFIG.development.baseURL = 'http://localhost:3000/api';
     API_CONFIG.development.useProxy = false;
-    console.log('🔄 Switched to direct connection: http://localhost:3000/api');
   }
 };
 
@@ -145,7 +116,6 @@ export const switchToProxyMode = () => {
   if (getEnvironment() === 'development') {
     API_CONFIG.development.baseURL = '/api';
     API_CONFIG.development.useProxy = true;
-    console.log('🔄 Switched to proxy mode: /api (proxied by Vite)');
   }
 };
 

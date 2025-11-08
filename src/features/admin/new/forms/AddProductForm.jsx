@@ -60,7 +60,6 @@ const AddProductForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Form submission logic would go here
-    console.log('Form submitted:', formData);
     // Navigate back to products list
     navigate('/admin/products');
   };

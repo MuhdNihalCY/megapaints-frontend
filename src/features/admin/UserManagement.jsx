@@ -59,15 +59,12 @@ const UserManagement = () => {
         timestamp: new Date().toISOString()
       };
       
-      console.log('🔍 Debug Info:', debugData);
       setDebugInfo(JSON.stringify(debugData, null, 2));
       
       if (!adminUser || !accessToken) {
         setError('❌ Not logged in as admin. Please login at /admin/login first.');
         return;
       }
-      
-      console.log('🚀 Attempting to fetch users using API service');
       
       // Use the API service factory
       const adminServices = getAdminServices();
@@ -82,7 +79,6 @@ const UserManagement = () => {
       const response = await adminServices.businessManagement.getUsers(params);
       
       if (response.status === 'success') {
-        console.log('✅ Successfully fetched users:', response.data.users?.length || 0);
         setUsers(response.data.users || []);
         setPagination(prev => ({
           ...prev,
@@ -112,11 +108,9 @@ const UserManagement = () => {
 
   const tryAlternativeRoute = async () => {
     try {
-      console.log('🔄 Trying alternative route: /admin/business/users');
       const response = await apiRequest('/admin/business/users');
       
       if (response.status === 'success') {
-        console.log('✅ Alternative route worked! Users:', response.data.users?.length || 0);
         setUsers(response.data.users || []);
         setSuccess('✅ Users loaded via alternative route (/admin/business/users)');
       } else {
@@ -136,7 +130,6 @@ const UserManagement = () => {
         return;
       }
 
-      console.log('🧪 Testing direct API call to /api/admin/users');
       const response = await fetch(getApiUrl('/admin/users'), {
         method: 'GET',
         headers: {
@@ -146,14 +139,7 @@ const UserManagement = () => {
         credentials: 'include'
       });
 
-      console.log('📊 Direct API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       const data = await response.text();
-      console.log('📄 Response Data:', data);
 
       if (response.ok) {
         const jsonData = JSON.parse(data);

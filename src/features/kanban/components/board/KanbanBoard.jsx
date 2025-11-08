@@ -220,8 +220,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         return;
       }
 
-      console.log('Kanban Board: Moving card', { cardId, fromColumn, toColumn, toSubcolumn, position });
-      
       const moveData = {
         toColumnId: toColumn,
         toSubColumnId: toSubcolumn,
@@ -243,7 +241,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     activeColumns.forEach(column => {
       const element = columnRefs.current.get(column.id);
       if (element) {
-        console.log('Setting up drop target for column:', column.title);
         const cleanup = setupDropTarget(element, column, handleCardMove);
         if (cleanup) {
           cleanupFunctions.push(cleanup);
@@ -259,7 +256,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   // Handle drag end with proper move logic
   const handleDragEnd = useCallback((source, destination) => {
     if (!source || !destination) {
-      console.log('Kanban Board: No valid drop target');
       return;
     }
 
@@ -268,7 +264,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     const toColumn = destination.data.columnId;
 
     if (cardId && fromColumn && toColumn && fromColumn !== toColumn) {
-      console.log('Kanban Board: Moving card from', fromColumn, 'to', toColumn);
       handleCardMove(cardId, fromColumn, toColumn);
     }
   }, [handleCardMove]);
@@ -277,7 +272,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   const handleCardReorder = async (cardId, fromColumn, toColumn, newIndex) => {
     setIsReordering(true);
     try {
-      console.log('Kanban Board: Reordering card', { cardId, fromColumn, toColumn, newIndex });
       // Note: reorderCards function needs to be implemented in the context
       // await reorderCards(cardId, fromColumn, toColumn, newIndex);
     } catch (error) {
@@ -430,11 +424,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
               // Calculate width based on subcolumn count - each subcolumn is w-80 (320px) + gap (32px)
               const columnWidth = hasSubcolumns ? `w-[${320 * subcolumnCount + 32 * Math.max(0, subcolumnCount - 1)}px]` : 'w-80';
               
-              // Debug logging
-              if (hasSubcolumns) {
-                console.log(`Column ${column.title}: ${subcolumnCount} subcolumns, width: ${columnWidth}`);
-              }
-              
               return (
                 <motion.div
                   key={column.id}
@@ -554,8 +543,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         onClose={handleCloseModal}
         onUpdate={handleSaveCard}
         onDelete={handleDeleteCard}
-        onMove={(card) => console.log('Move card:', card)}
-        onCopy={(card) => console.log('Copy card:', card)}
+        onMove={(card) => {}}
+        onCopy={(card) => {}}
       />
     </div>
     </>

@@ -27,18 +27,9 @@ class AuthService {
    */
   async adminLogin(username, password) {
     try {
-      // FORCE CACHE BUST: Add timestamp to prevent browser caching old code
-      console.log('🚀 [ADMIN LOGIN v2.0] Starting admin login - FORCED PORT 3000');
-      
       // ABSOLUTE HARDCODED URL - NO VARIABLES, NO FUNCTIONS - DIRECTLY TO PORT 3000
       // This bypasses ALL getApiUrl logic and browser cache issues
       const finalUrl = 'http://localhost:3000/api/auth/admin/login';
-      
-      console.log('🔗 [ADMIN LOGIN] FINAL URL (HARDCODED):', finalUrl);
-      console.log('🔧 [ADMIN LOGIN] URL Type:', typeof finalUrl);
-      console.log('🔧 [ADMIN LOGIN] URL is absolute:', finalUrl.startsWith('http://'));
-      console.log('🔧 [ADMIN LOGIN] URL contains port 3000:', finalUrl.includes(':3000'));
-      console.log('🔧 [ADMIN LOGIN] URL does NOT contain 5173:', !finalUrl.includes(':5173'));
       
       // CRITICAL: Verify one more time before fetch
       if (finalUrl.includes(':5173') || finalUrl.includes('5173')) {
@@ -51,14 +42,6 @@ class AuthService {
         throw new Error('URL construction failed - wrong URL format');
       }
       
-      console.log('🎯 [ADMIN LOGIN] Making fetch request to:', finalUrl);
-      console.log('📋 [ADMIN LOGIN] Request details:', {
-        method: 'POST',
-        url: finalUrl,
-        headers: { 'Content-Type': 'application/json' },
-        body: { username, password: '***' }
-      });
-      
       const response = await fetch(finalUrl, {
         method: 'POST',
         headers: {
@@ -69,8 +52,6 @@ class AuthService {
         mode: 'cors', // Explicitly set CORS mode
         body: JSON.stringify({ username, password })
       });
-
-      console.log('Admin login response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -147,8 +128,6 @@ class AuthService {
    */
   async userRegister(userData) {
     try {
-      console.log('Attempting user registration');
-      
       const response = await fetch(getApiUrl('/auth/user/register'), {
         method: 'POST',
         headers: {
@@ -159,8 +138,6 @@ class AuthService {
         mode: 'cors',
         body: JSON.stringify(userData)
       });
-
-      console.log('Registration response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -231,8 +208,6 @@ class AuthService {
    */
   async userLogin(username, password) {
     try {
-      console.log('Attempting user login');
-      
       const response = await fetch(getApiUrl('/auth/user/login'), {
         method: 'POST',
         headers: {
@@ -243,8 +218,6 @@ class AuthService {
         mode: 'cors', // Explicitly set CORS mode
         body: JSON.stringify({ username, password })
       });
-
-      console.log('User login response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();

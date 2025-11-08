@@ -88,7 +88,6 @@ const CustomerManagementModal = ({ isOpen, onClose, user, mode = 'manage' }) => 
 
     try {
       const response = await api.post('/customers', newCustomer);
-      console.log('✅ Customer created:', response.data);
       
       // Reset form
       setNewCustomer({
@@ -127,7 +126,6 @@ const CustomerManagementModal = ({ isOpen, onClose, user, mode = 'manage' }) => 
 
     try {
       const response = await api.put(`/customers/${editingCustomer._id}`, editingCustomer);
-      console.log('✅ Customer updated:', response.data);
       
       setShowEditForm(false);
       setEditingCustomer(null);
@@ -143,7 +141,6 @@ const CustomerManagementModal = ({ isOpen, onClose, user, mode = 'manage' }) => 
   const handleDeleteCustomer = async (customerId) => {
     try {
       await api.delete(`/customers/${customerId}`);
-      console.log('✅ Customer deleted:', customerId);
       
       setDeleteConfirm(null);
       loadCustomers(); // Reload customers

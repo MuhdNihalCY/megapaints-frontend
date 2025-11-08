@@ -53,7 +53,6 @@ const AddThirdPartyProductForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Form submission logic would go here
-    console.log('Form submitted:', formData);
     // Navigate back to 3rd party products list
     navigate('/admin/third-party-products');
   };

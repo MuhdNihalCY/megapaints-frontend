@@ -51,7 +51,6 @@ const AddEmployeeForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Form submission logic would go here
-    console.log('Form submitted:', formData);
     // Navigate back to employees list
     navigate('/admin/employees');
   };

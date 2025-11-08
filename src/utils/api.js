@@ -36,7 +36,6 @@ function rejectPendingRequests(error) {
 
 async function tryRefreshSession() {
   try {
-    console.info('[API] Attempting silent refresh...');
     
     // Import AuthService dynamically to avoid circular dependency
     const { default: authService } = await import('./authService');
@@ -51,7 +50,6 @@ async function tryRefreshSession() {
     // Try to refresh using AuthService
     const result = await authService.refreshAccessToken(userType);
     if (result.success) {
-      console.info('[API] Silent refresh succeeded via AuthService');
       return true;
     }
     
@@ -165,7 +163,6 @@ api.interceptors.request.use(
     const shouldSkipToken = isLoginEndpoint || isRefreshEndpoint || config._noIntercept;
     
     if (shouldSkipToken) {
-      console.debug('[API] Skipping token for:', config.url);
       return config;
     }
     
@@ -174,7 +171,6 @@ api.interceptors.request.use(
       const token = getAuthToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.debug('[API] Refreshed Authorization header for:', config.url);
       } else {
         // Remove stale Authorization header when no token exists
         delete config.headers.Authorization;
@@ -229,7 +225,6 @@ api.interceptors.response.use(
     // Queue the request while a refresh is in progress
     if (isRefreshing) {
       try {
-        console.debug('[API] Queueing request while refresh in progress:', originalRequest?.method?.toUpperCase?.(), originalRequest?.url);
       } catch {}
       return new Promise((resolve, reject) => {
         enqueuePendingRequest((refreshError) => {
@@ -246,7 +241,7 @@ api.interceptors.response.use(
           }
           // Retry original request after refresh
           api.request(originalRequest)
-            .then((res) => { try { console.debug('[API] Retried request succeeded:', originalRequest?.url); } catch {}; resolve(res); })
+            .then((res) => { try { } catch {}; resolve(res); })
             .catch((err) => { try { console.warn('[API] Retried request failed:', originalRequest?.url); } catch {}; reject(err); });
         });
       });
@@ -270,7 +265,7 @@ api.interceptors.response.use(
               delete originalRequest.headers.Authorization;
             }
             api.request(originalRequest)
-              .then((res) => { try { console.debug('[API] Retried after refresh succeeded:', originalRequest?.url); } catch {}; resolve(res); })
+              .then((res) => { try { } catch {}; resolve(res); })
               .catch((err) => { try { console.warn('[API] Retried after refresh failed:', originalRequest?.url); } catch {}; reject(err); });
           } else {
             const refreshError = new Error('Token refresh failed');

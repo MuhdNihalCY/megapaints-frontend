@@ -62,27 +62,14 @@ export const ThemeProvider = ({ children }) => {
   }, [isDark]);
 
   const toggleTheme = useCallback(() => {
-    console.log('toggleTheme called, current isDark:', isDark);
     setIsDark((prev) => {
       const next = !prev;
-      console.log('Toggling from', prev ? 'dark' : 'light', 'to', next ? 'dark' : 'light');
       // Immediately apply to DOM before React re-render
       if (typeof document !== 'undefined') {
         applyThemeToDom(next);
         if (typeof window !== 'undefined') {
           localStorage.setItem('theme', next ? 'dark' : 'light');
         }
-        console.log('Theme applied to DOM');
-        console.log('HTML element:', document.documentElement);
-        console.log('Root classes:', document.documentElement.classList.toString());
-        console.log('Has dark class:', document.documentElement.classList.contains('dark'));
-        console.log('Body classes:', document.body.classList.toString());
-        
-        // Verify the dark class was applied
-        setTimeout(() => {
-          console.log('After toggle - Root has dark class:', document.documentElement.classList.contains('dark'));
-          console.log('After toggle - All root classes:', document.documentElement.classList.toString());
-        }, 100);
       }
       return next;
     });

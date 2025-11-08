@@ -199,9 +199,7 @@ export default function AdminLayout() {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Theme toggle clicked, current isDark:', isDark);
                   toggleTheme();
-                  console.log('Theme toggle called');
                 }}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                 title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}

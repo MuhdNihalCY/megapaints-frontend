@@ -17,13 +17,6 @@ class KanbanService {
    * Handle API response and extract data
    */
   handleResponse(response, endpoint = 'unknown') {
-    console.log(`🔍 [API Response] ${endpoint}:`, {
-      status: response.status,
-      statusText: response.statusText,
-      data: response.data,
-      headers: response.headers
-    });
-
     // Check if response is HTML (indicates API endpoint doesn't exist)
     if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
       console.warn(`⚠️ [API Warning] ${endpoint}: API endpoint returned HTML instead of JSON - endpoint may not exist`);
@@ -32,7 +25,6 @@ class KanbanService {
     
     if (response.data?.success !== false) {
       const result = response.data?.data || response.data;
-      console.log(`✅ [API Success] ${endpoint}:`, result);
       return result;
     }
     
@@ -68,7 +60,6 @@ class KanbanService {
    */
   async getBoards(params = {}) {
     const endpoint = 'GET /api/kanban/boards';
-    console.log(`🚀 [API Call] ${endpoint}:`, { params });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/boards`, { params });
@@ -84,7 +75,6 @@ class KanbanService {
    */
   async getBoard(boardId) {
     const endpoint = `GET /api/kanban/boards/${boardId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/boards/${boardId}`);
@@ -100,7 +90,6 @@ class KanbanService {
    */
   async createBoard(boardData) {
     const endpoint = 'POST /api/kanban/boards';
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardData });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/boards`, boardData);
@@ -116,7 +105,6 @@ class KanbanService {
    */
   async updateBoard(boardId, boardData) {
     const endpoint = `PUT /api/kanban/boards/${boardId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId, boardData });
     
     try {
       const response = await api.put(`${this.baseURL}/kanban/boards/${boardId}`, boardData);
@@ -132,7 +120,6 @@ class KanbanService {
    */
   async deleteBoard(boardId) {
     const endpoint = `DELETE /api/kanban/boards/${boardId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/boards/${boardId}`);
@@ -148,7 +135,6 @@ class KanbanService {
    */
   async getBoardsByBranch(branchId) {
     const endpoint = `GET /api/kanban/boards/v2/board/branch`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchId });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/boards/v2/board/branch?branch_id=${branchId}`);
@@ -166,7 +152,6 @@ class KanbanService {
    */
   async getTasks(params = {}) {
     const endpoint = 'GET /api/kanban/tasks';
-    console.log(`🚀 [API Call] ${endpoint}:`, { params });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/tasks`, { params });
@@ -182,7 +167,6 @@ class KanbanService {
    */
   async getTask(taskId) {
     const endpoint = `GET /api/kanban/tasks/${taskId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/tasks/${taskId}`);
@@ -198,7 +182,6 @@ class KanbanService {
    */
   async createTask(taskData) {
     const endpoint = 'POST /api/kanban/tasks';
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskData });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks`, taskData);
@@ -214,7 +197,6 @@ class KanbanService {
    */
   async updateTask(taskId, taskData) {
     const endpoint = `PUT /api/kanban/tasks/${taskId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, taskData });
     
     try {
       const response = await api.put(`${this.baseURL}/kanban/tasks/${taskId}`, taskData);
@@ -230,7 +212,6 @@ class KanbanService {
    */
   async deleteTask(taskId) {
     const endpoint = `DELETE /api/kanban/tasks/${taskId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}`);
@@ -246,7 +227,6 @@ class KanbanService {
    */
   async moveTask(taskId, moveData) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/move`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, moveData });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/move`, moveData);
@@ -262,7 +242,6 @@ class KanbanService {
    */
   async archiveTask(taskId) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/archive`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/archive`);
@@ -278,7 +257,6 @@ class KanbanService {
    */
   async assignTask(taskId, userId) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/assign`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, userId });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/assign`, { user_id: userId });
@@ -294,7 +272,6 @@ class KanbanService {
    */
   async unassignTask(taskId, userId) {
     const endpoint = `DELETE /api/kanban/tasks/${taskId}/assign/${userId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, userId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/assign/${userId}`);
@@ -310,7 +287,6 @@ class KanbanService {
    */
   async watchTask(taskId) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/watch`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/watch`);
@@ -326,7 +302,6 @@ class KanbanService {
    */
   async unwatchTask(taskId) {
     const endpoint = `DELETE /api/kanban/tasks/${taskId}/watch`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/watch`);
@@ -649,7 +624,6 @@ class KanbanService {
    */
   async getComments(taskId, params = {}) {
     const endpoint = `GET /api/kanban/tasks/${taskId}/comments`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, params });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/tasks/${taskId}/comments`, { params });
@@ -665,7 +639,6 @@ class KanbanService {
    */
   async addComment(taskId, commentData) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/comments`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentData });
     
     try {
       if (!taskId) {
@@ -684,7 +657,6 @@ class KanbanService {
    */
   async updateComment(taskId, commentId, updates) {
     const endpoint = `PUT /api/kanban/tasks/${taskId}/comments/${commentId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId, updates });
     
     try {
       if (!taskId || !commentId) {
@@ -703,7 +675,6 @@ class KanbanService {
    */
   async deleteComment(taskId, commentId) {
     const endpoint = `DELETE /api/kanban/tasks/${taskId}/comments/${commentId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId });
     
     try {
       if (!taskId || !commentId) {
@@ -722,7 +693,6 @@ class KanbanService {
    */
   async addReaction(taskId, commentId, emoji) {
     const endpoint = `POST /api/kanban/tasks/${taskId}/comments/${commentId}/reactions`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId, emoji });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}/reactions`, { emoji });
@@ -738,7 +708,6 @@ class KanbanService {
    */
   async removeReaction(taskId, commentId) {
     const endpoint = `DELETE /api/kanban/tasks/${taskId}/comments/${commentId}/reactions`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, commentId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/tasks/${taskId}/comments/${commentId}/reactions`);
@@ -877,7 +846,6 @@ class KanbanService {
    */
   async getUsers() {
     const endpoint = 'GET /api/kanban/users';
-    console.log(`🚀 [API Call] ${endpoint}:`);
     
     try {
       // Use Kanban-specific users endpoint
@@ -887,7 +855,6 @@ class KanbanService {
       
       // Ensure we always return an array
       const users = Array.isArray(result) ? result : [];
-      console.log(`📊 [API Result] ${endpoint}: Found ${users.length} users`);
       return users;
     } catch (error) {
       console.warn(`⚠️ [API Warning] ${endpoint}: Kanban users endpoint not available:`, error.message);
@@ -910,7 +877,6 @@ class KanbanService {
    */
   async getUserById(userId) {
     const endpoint = `GET /api/kanban/users/${userId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/users/${userId}`);
@@ -925,7 +891,7 @@ class KanbanService {
    */
   async createUser(userData) {
     const endpoint = 'POST /api/kanban/users';
-    console.log(`🚀 [API Call] ${endpoint}:`, { userData });
+    // API Call userData });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/users`, userData);
@@ -940,7 +906,7 @@ class KanbanService {
    */
   async updateUser(userId, userData) {
     const endpoint = `PUT /api/kanban/users/${userId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId, userData });
+    // API Call userId, userData });
     
     try {
       const response = await api.put(`${this.baseURL}/kanban/users/${userId}`, userData);
@@ -955,7 +921,7 @@ class KanbanService {
    */
   async deleteUser(userId) {
     const endpoint = `DELETE /api/kanban/users/${userId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    // API Call userId });
     
     try {
       const response = await api.delete(`${this.baseURL}/kanban/users/${userId}`);
@@ -970,7 +936,7 @@ class KanbanService {
    */
   async getUserActivity(userId) {
     const endpoint = `GET /api/kanban/users/${userId}/activity`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    // API Call userId });
     
     try {
       const response = await api.get(`${this.baseURL}/kanban/users/${userId}/activity`);
@@ -985,7 +951,7 @@ class KanbanService {
    */
   async inviteUserToWorkspace(userId, workspaceData) {
     const endpoint = `POST /api/kanban/users/${userId}/invite-to-workspace`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId, workspaceData });
+    // API Call userId, workspaceData });
     
     try {
       const response = await api.post(`${this.baseURL}/kanban/users/${userId}/invite-to-workspace`, workspaceData);
@@ -1120,7 +1086,7 @@ class KanbanService {
    */
   async getNotifications(userId, params = {}) {
     const endpoint = `GET /api/notification/user/${userId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId, params });
+    // API Call userId, params });
     
     try {
       const response = await api.get(`${this.baseURL}/notification/user/${userId}`, { params });
@@ -1137,7 +1103,7 @@ class KanbanService {
    */
   async markNotificationAsRead(notificationId) {
     const endpoint = `PUT /api/notification/${notificationId}/read`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    // API Call notificationId });
     
     try {
       const response = await api.put(`${this.baseURL}/notification/${notificationId}/read`);
@@ -1153,7 +1119,7 @@ class KanbanService {
    */
   async markNotificationAsClicked(notificationId) {
     const endpoint = `PUT /api/notification/${notificationId}/clicked`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    // API Call notificationId });
     
     try {
       const response = await api.put(`${this.baseURL}/notification/${notificationId}/clicked`);
@@ -1169,7 +1135,7 @@ class KanbanService {
    */
   async markAllNotificationsAsRead(userId) {
     const endpoint = `PUT /api/notification/user/${userId}/read-all`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    // API Call userId });
     
     try {
       const response = await api.put(`${this.baseURL}/notification/user/${userId}/read-all`);
@@ -1185,7 +1151,7 @@ class KanbanService {
    */
   async deleteNotification(notificationId) {
     const endpoint = `DELETE /api/notification/${notificationId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { notificationId });
+    // API Call notificationId });
     
     try {
       const response = await api.delete(`${this.baseURL}/notification/${notificationId}`);
@@ -1201,7 +1167,7 @@ class KanbanService {
    */
   async clearAllNotifications(userId) {
     const endpoint = `DELETE /api/notification/user/${userId}/clear-all`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { userId });
+    // API Call userId });
     
     try {
       const response = await api.delete(`${this.baseURL}/notification/user/${userId}/clear-all`);
@@ -1217,7 +1183,7 @@ class KanbanService {
    */
   async createMentionNotification(notificationData) {
     const endpoint = 'POST /api/notification/mention';
-    console.log(`🚀 [API Call] ${endpoint}:`, { notificationData });
+    // API Call notificationData });
     
     try {
       const response = await api.post(`${this.baseURL}/notification/mention`, notificationData);
@@ -1386,7 +1352,7 @@ class KanbanService {
   // ==================== PRIMARY IDENTIFIER SYSTEM ====================
   async reserveIdentifier(boardId, format = 'DD-MM-YY-###') {
     const endpoint = 'POST /api/kanban/cards/reserve-identifier';
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId, format });
+    // API Call boardId, format });
     try {
       const response = await api.post(`${this.baseURL}/kanban/cards/reserve-identifier`, {
         board_id: boardId,
@@ -1408,7 +1374,7 @@ class KanbanService {
 
   async useReservation(reservationId, taskId) {
     const endpoint = 'POST /api/kanban/cards/use-reservation';
-    console.log(`🚀 [API Call] ${endpoint}:`, { reservationId, taskId });
+    // API Call reservationId, taskId });
     try {
       const response = await api.post(`${this.baseURL}/kanban/cards/use-reservation`, {
         reservation_id: reservationId,
@@ -1430,7 +1396,7 @@ class KanbanService {
 
   async releaseReservation(reservationId) {
     const endpoint = 'DELETE /api/kanban/cards/release-reservation';
-    console.log(`🚀 [API Call] ${endpoint}:`, { reservationId });
+    // API Call reservationId });
     try {
       const response = await api.delete(`${this.baseURL}/kanban/cards/release-reservation`, {
         data: { reservation_id: reservationId }
@@ -1450,7 +1416,7 @@ class KanbanService {
 
   async getActiveReservations(boardId) {
     const endpoint = `GET /api/kanban/cards/reservations/board/${boardId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    // API Call boardId });
     try {
       const response = await api.get(`${this.baseURL}/kanban/cards/reservations/board/${boardId}`);
       return this.handleResponse(response, endpoint);
@@ -1468,7 +1434,7 @@ class KanbanService {
 
   async getTaskByIdentifier(identifier) {
     const endpoint = `GET /api/kanban/cards/identifier/${identifier}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { identifier });
+    // API Call identifier });
     try {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifier/${identifier}`);
       return this.handleResponse(response, endpoint);
@@ -1486,7 +1452,7 @@ class KanbanService {
 
   async getBoardIdentifiers(boardId) {
     const endpoint = `GET /api/kanban/cards/identifiers/board/${boardId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { boardId });
+    // API Call boardId });
     try {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifiers/board/${boardId}`);
       return this.handleResponse(response, endpoint);
@@ -1504,7 +1470,7 @@ class KanbanService {
 
   async updateTaskIdentifier(taskId, identifier) {
     const endpoint = `PUT /api/kanban/cards/${taskId}/identifier`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { taskId, identifier });
+    // API Call taskId, identifier });
     try {
       const response = await api.put(`${this.baseURL}/kanban/cards/${taskId}/identifier`, {
         identifier: identifier
@@ -1526,7 +1492,7 @@ class KanbanService {
   // ==================== CUSTOMER MANAGEMENT ====================
   async getCustomers(params = {}) {
     const endpoint = 'GET /api/kanban/customers';
-    console.log(`🚀 [API Call] ${endpoint}:`, { params });
+    // API Call params });
     try {
       const response = await api.get(`${this.baseURL}/kanban/customers`, { params });
       return this.handleResponse(response, endpoint);
@@ -1538,7 +1504,7 @@ class KanbanService {
 
   async getCustomerById(customerId) {
     const endpoint = `GET /api/kanban/customers/${customerId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { customerId });
+    // API Call customerId });
     try {
       const response = await api.get(`${this.baseURL}/kanban/customers/${customerId}`);
       return this.handleResponse(response, endpoint);
@@ -1550,7 +1516,7 @@ class KanbanService {
 
   async createCustomer(customerData) {
     const endpoint = 'POST /api/kanban/customers';
-    console.log(`🚀 [API Call] ${endpoint}:`, { customerData });
+    // API Call customerData });
     try {
       const response = await api.post(`${this.baseURL}/kanban/customers`, customerData);
       return this.handleResponse(response, endpoint);
@@ -1562,7 +1528,7 @@ class KanbanService {
 
   async updateCustomer(customerId, updates) {
     const endpoint = `PUT /api/kanban/customers/${customerId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { customerId, updates });
+    // API Call customerId, updates });
     try {
       const response = await api.put(`${this.baseURL}/kanban/customers/${customerId}`, updates);
       return this.handleResponse(response, endpoint);
@@ -1574,7 +1540,7 @@ class KanbanService {
 
   async deleteCustomer(customerId) {
     const endpoint = `DELETE /api/kanban/customers/${customerId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { customerId });
+    // API Call customerId });
     try {
       const response = await api.delete(`${this.baseURL}/kanban/customers/${customerId}`);
       return this.handleResponse(response, endpoint);
@@ -1586,7 +1552,7 @@ class KanbanService {
 
   async searchCustomers(query, params = {}) {
     const endpoint = 'GET /api/kanban/customers/search';
-    console.log(`🚀 [API Call] ${endpoint}:`, { query, params });
+    // API Call query, params });
     try {
       const searchParams = { q: query, ...params };
       const response = await api.get(`${this.baseURL}/kanban/customers/search`, { params: searchParams });

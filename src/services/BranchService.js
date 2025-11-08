@@ -14,7 +14,6 @@ class BranchService {
    * Handle API response
    */
   handleResponse(response, endpoint) {
-    console.log(`✅ [API Success] ${endpoint}:`, response.data);
     return response.data;
   }
 
@@ -40,7 +39,7 @@ class BranchService {
    */
   async getBranches(params = {}) {
     const endpoint = 'GET /api/branches';
-    console.log(`🚀 [API Call] ${endpoint}:`, { params });
+    // API Call params });
     try {
       const response = await api.get(`${this.baseURL}/branches`, { params });
       return this.handleResponse(response, endpoint);
@@ -55,7 +54,7 @@ class BranchService {
    */
   async getBranchById(branchId) {
     const endpoint = `GET /api/branches/${branchId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchId });
+    // API Call branchId });
     try {
       const response = await api.get(`${this.baseURL}/branches/${branchId}`);
       return this.handleResponse(response, endpoint);
@@ -70,7 +69,7 @@ class BranchService {
    */
   async createBranch(branchData) {
     const endpoint = 'POST /api/branches';
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchData });
+    // API Call branchData });
     try {
       const response = await api.post(`${this.baseURL}/branches`, branchData);
       return this.handleResponse(response, endpoint);
@@ -85,7 +84,7 @@ class BranchService {
    */
   async updateBranch(branchId, updates) {
     const endpoint = `PUT /api/branches/${branchId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchId, updates });
+    // API Call branchId, updates });
     try {
       const response = await api.put(`${this.baseURL}/branches/${branchId}`, updates);
       return this.handleResponse(response, endpoint);
@@ -100,7 +99,7 @@ class BranchService {
    */
   async deleteBranch(branchId) {
     const endpoint = `DELETE /api/branches/${branchId}`;
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchId });
+    // API Call branchId });
     try {
       const response = await api.delete(`${this.baseURL}/branches/${branchId}`);
       return this.handleResponse(response, endpoint);
@@ -115,7 +114,7 @@ class BranchService {
    */
   async searchBranches(query, params = {}) {
     const endpoint = 'GET /api/branches/search';
-    console.log(`🚀 [API Call] ${endpoint}:`, { query, params });
+    // API Call query, params });
     try {
       const searchParams = { q: query, ...params };
       const response = await api.get(`${this.baseURL}/branches/search`, { params: searchParams });
@@ -131,7 +130,6 @@ class BranchService {
    */
   async getCurrentBranch() {
     const endpoint = 'GET /api/branches/current';
-    console.log(`🚀 [API Call] ${endpoint}`);
     try {
       const response = await api.get(`${this.baseURL}/branches/current`);
       return this.handleResponse(response, endpoint);
@@ -146,7 +144,7 @@ class BranchService {
    */
   async switchBranch(branchId) {
     const endpoint = 'POST /api/branches/switch';
-    console.log(`🚀 [API Call] ${endpoint}:`, { branchId });
+    // API Call branchId });
     try {
       const response = await api.post(`${this.baseURL}/branches/switch`, { branch_id: branchId });
       return this.handleResponse(response, endpoint);

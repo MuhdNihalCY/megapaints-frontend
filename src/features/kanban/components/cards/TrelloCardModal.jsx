@@ -122,9 +122,9 @@ const TrelloCardModal = ({
     }
   }, [card, isNewCard]);
   
-  // Debug: Monitor activeSection changes
+  // Monitor activeSection changes
   useEffect(() => {
-    console.log('🔍 activeSection changed to:', activeSection);
+    // activeSection changed
   }, [activeSection]);
   
   // Handle ESC key to close
@@ -165,12 +165,9 @@ const TrelloCardModal = ({
     // Update title components
     const newComponents = getCardTitleComponents(completeTitle);
     setTitleComponents(newComponents);
-    
-    console.log('✅ Customer selected:', customer.name, 'Title:', completeTitle);
   };
 
   const handleCustomerCreate = (newCustomer) => {
-    console.log('✅ New customer created:', newCustomer.name);
     // The CustomerDropdown will automatically select the new customer
   };
 
@@ -808,10 +805,7 @@ const TrelloCardModal = ({
                 <div className="space-y-1">
                   <button
                     onClick={() => {
-                      console.log('🔵 Members button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('members');
-                      console.log('Set activeSection to: members');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -820,10 +814,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('🏷️ Labels button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('labels');
-                      console.log('Set activeSection to: labels');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -832,10 +823,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('✅ Checklist button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('checklist');
-                      console.log('Set activeSection to: checklist');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -844,10 +832,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('📅 Dates button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('dates');
-                      console.log('Set activeSection to: dates');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -856,10 +841,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('📎 Attachment button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('attachment');
-                      console.log('Set activeSection to: attachment');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -868,10 +850,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('🖼️ Cover button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('cover');
-                      console.log('Set activeSection to: cover');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -880,10 +859,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('⚙️ Custom Fields button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('custom-fields');
-                      console.log('Set activeSection to: custom-fields');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
@@ -899,9 +875,6 @@ const TrelloCardModal = ({
                 <div className="space-y-1">
                   <button
                     onClick={() => {
-                      console.log('🚀 Move button clicked');
-                      console.log('onMove function exists:', !!onMove);
-                      console.log('formData:', formData);
                       if (onMove) {
                         onMove(formData);
                       } else {
@@ -915,9 +888,6 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('📋 Copy button clicked');
-                      console.log('onCopy function exists:', !!onCopy);
-                      console.log('formData:', formData);
                       if (onCopy) {
                         onCopy(formData);
                       } else {
@@ -931,11 +901,6 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('👁️ Watch/Unwatch button clicked');
-                      console.log('isWatching:', isWatching);
-                      console.log('formData.watchers:', formData.watchers);
-                      console.log('formData.subscriptions:', formData.subscriptions);
-                      console.log('currentUser:', currentUser);
                       handleWatch();
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
@@ -945,9 +910,6 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('📦 Archive/Unarchive button clicked');
-                      console.log('formData.closed:', formData.closed);
-                      console.log('formData:', formData);
                       handleArchive();
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
@@ -957,10 +919,7 @@ const TrelloCardModal = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log('🔗 Share button clicked');
-                      console.log('Current activeSection:', activeSection);
                       setActiveSection('share');
-                      console.log('Set activeSection to: share');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                   >
