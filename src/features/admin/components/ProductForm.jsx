@@ -526,24 +526,6 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         is_active: Boolean(formData.is_active),
       };
 
-      // Only include category_id for tinters
-      if (formData.product_type === 'tinters' && formData.category_id) {
-        // Handle both string and ObjectId types
-        let categoryId;
-        if (typeof formData.category_id === 'string') {
-          categoryId = formData.category_id.trim();
-        } else if (formData.category_id && typeof formData.category_id === 'object' && formData.category_id.toString) {
-          // Handle ObjectId or similar objects
-          categoryId = formData.category_id.toString();
-        } else {
-          categoryId = String(formData.category_id);
-        }
-        // Only include if it's a valid non-empty string
-        if (categoryId && categoryId.length > 0) {
-          submitData.category_id = categoryId;
-        }
-      }
-
       // Only include product_type if it has a value
       if (formData.product_type) {
         const productType = typeof formData.product_type === 'string'
@@ -554,26 +536,58 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
         }
       }
 
+      // Only include category_id and subcategory_ids for tinters
+      if (formData.product_type === 'tinters') {
+        // Category is required for tinters
+        if (formData.category_id) {
+          // Handle both string and ObjectId types
+          let categoryId;
+          if (typeof formData.category_id === 'string') {
+            categoryId = formData.category_id.trim();
+          } else if (formData.category_id && typeof formData.category_id === 'object' && formData.category_id.toString) {
+            // Handle ObjectId or similar objects
+            categoryId = formData.category_id.toString();
+          } else {
+            categoryId = String(formData.category_id);
+          }
+          // Only include if it's a valid non-empty string
+          if (categoryId && categoryId.length > 0) {
+            submitData.category_id = categoryId;
+          }
+        }
+
+        // Handle multiple sub-categories - only for tinters
+        if (formData.subcategory_ids && Array.isArray(formData.subcategory_ids) && formData.subcategory_ids.length > 0) {
+          submitData.subcategory_ids = formData.subcategory_ids
+            .map(id => {
+              // Handle both string and ObjectId types
+              if (typeof id === 'string') {
+                return id.trim();
+              } else if (id && typeof id === 'object' && id.toString) {
+                // Handle ObjectId or similar objects
+                return id.toString();
+              } else {
+                return String(id);
+              }
+            })
+            .filter(id => id && id.length > 0);
+        }
+      } else {
+        // For non-tinters, explicitly ensure category_id and subcategory_ids are NOT included
+        // This prevents any accidental inclusion
+        if (formData.category_id) {
+          // Clear category_id for non-tinters
+          delete submitData.category_id;
+        }
+        if (formData.subcategory_ids && formData.subcategory_ids.length > 0) {
+          // Clear subcategory_ids for non-tinters
+          delete submitData.subcategory_ids;
+        }
+      }
+
       // Only include optional fields if they have values
       if (formData.description && formData.description.trim()) {
         submitData.description = formData.description.trim();
-      }
-
-      // Handle multiple sub-categories - only for tinters
-      if (formData.product_type === 'tinters' && formData.subcategory_ids && Array.isArray(formData.subcategory_ids) && formData.subcategory_ids.length > 0) {
-        submitData.subcategory_ids = formData.subcategory_ids
-          .map(id => {
-            // Handle both string and ObjectId types
-            if (typeof id === 'string') {
-              return id.trim();
-            } else if (id && typeof id === 'object' && id.toString) {
-              // Handle ObjectId or similar objects
-              return id.toString();
-            } else {
-              return String(id);
-            }
-          })
-          .filter(id => id && id.length > 0);
       }
 
 

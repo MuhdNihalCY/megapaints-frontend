@@ -11,14 +11,18 @@ import {
   FileText,
   Hash,
   Layers,
+  Package,
+  Calculator,
+  MessageSquare,
 } from 'lucide-react';
 
-const CategoryForm = ({ category = null, parentCategory = null, onClose, onSuccess }) => {
+const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMode = false, onClose, onSuccess }) => {
   const { getAdminServices } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [categories, setCategories] = useState([]);
+  const [binders, setBinders] = useState([]);
   const [validationErrors, setValidationErrors] = useState({});
 
   const [formData, setFormData] = useState({
@@ -28,10 +32,42 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
     image_url: '',
     sort_order: 0,
     is_active: true,
+    // Subcategory-specific fields
+    suffix: '',
+    brand: '',
+    unit: '',
+    level_of_shine: '',
+    binder_1_id: '',
+    binder_2_id: '',
+    binder_1_equation_values: {
+      valueA: '',
+      valueB: '',
+      valueC: '',
+      valueD: '',
+    },
+    binder_2_equation_type: '',
+    binder_2_equation_values: {
+      valueA: '',
+    },
+    remarks: '',
   });
 
   useEffect(() => {
     fetchCategories();
+    // Fetch binders if this is a subcategory (parentCategory exists, category has parent_id, or isSubcategoryMode)
+    if (parentCategory || (category && category.parent_id) || isSubcategoryMode) {
+      fetchBinders();
+    }
+  }, [category, parentCategory, isSubcategoryMode]);
+
+  // Fetch binders when parent_id is set in formData
+  useEffect(() => {
+    if (formData.parent_id) {
+      fetchBinders();
+    }
+  }, [formData.parent_id]);
+
+  useEffect(() => {
     if (category) {
       setFormData({
         name: category.name || '',
@@ -40,6 +76,24 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
         image_url: category.image_url || '',
         sort_order: category.sort_order || 0,
         is_active: category.is_active !== undefined ? category.is_active : true,
+        // Subcategory-specific fields
+        suffix: category.suffix || '',
+        brand: category.brand || '',
+        unit: category.unit || '',
+        level_of_shine: category.level_of_shine || '',
+        binder_1_id: category.binder_1_id?._id || category.binder_1_id || '',
+        binder_2_id: category.binder_2_id?._id || category.binder_2_id || '',
+        binder_1_equation_values: {
+          valueA: category.binder_1_equation_values?.valueA || '',
+          valueB: category.binder_1_equation_values?.valueB || '',
+          valueC: category.binder_1_equation_values?.valueC || '',
+          valueD: category.binder_1_equation_values?.valueD || '',
+        },
+        binder_2_equation_type: category.binder_2_equation_type || '',
+        binder_2_equation_values: {
+          valueA: category.binder_2_equation_values?.valueA || '',
+        },
+        remarks: category.remarks || '',
       });
     } else if (parentCategory) {
       setFormData(prev => ({
@@ -62,6 +116,22 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  const fetchBinders = async () => {
+    try {
+      const adminServices = getAdminServices();
+      const response = await adminServices.productCatalog.getProducts({
+        product_type: 'binder',
+        limit: 100,
+        is_active: true
+      });
+      if (response.status === 'success') {
+        setBinders(response.data.products || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch binders:', err);
     }
   };
 
@@ -93,10 +163,22 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
         [name]: checked,
       }));
     } else if (type === 'number') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value === '' ? 0 : parseInt(value, 10),
-      }));
+      // Handle nested equation values
+      if (name.startsWith('binder_1_equation_values.') || name.startsWith('binder_2_equation_values.')) {
+        const [parent, field] = name.split('.');
+        setFormData(prev => ({
+          ...prev,
+          [parent]: {
+            ...prev[parent],
+            [field]: value === '' ? '' : parseFloat(value),
+          },
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value === '' ? 0 : parseInt(value, 10),
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -112,6 +194,13 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
         return newErrors;
       });
     }
+  };
+
+  const handleToggleChange = (fieldName, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: prev[fieldName] === value ? '' : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -152,6 +241,53 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
 
       if (formData.is_active !== undefined) {
         submitData.is_active = Boolean(formData.is_active);
+      }
+
+      // Only include subcategory-specific fields if parent_id exists
+      if (formData.parent_id) {
+        if (formData.suffix !== undefined && formData.suffix !== '') {
+          submitData.suffix = formData.suffix.trim();
+        }
+        if (formData.brand !== undefined && formData.brand !== '') {
+          submitData.brand = formData.brand;
+        }
+        if (formData.unit !== undefined && formData.unit !== '') {
+          submitData.unit = formData.unit;
+        }
+        if (formData.level_of_shine !== undefined && formData.level_of_shine !== '') {
+          submitData.level_of_shine = formData.level_of_shine;
+        }
+        if (formData.binder_1_id !== undefined && formData.binder_1_id !== '') {
+          submitData.binder_1_id = formData.binder_1_id.trim();
+        }
+        if (formData.binder_2_id !== undefined && formData.binder_2_id !== '') {
+          submitData.binder_2_id = formData.binder_2_id.trim();
+        }
+        if (formData.binder_1_equation_values) {
+          const eq1 = formData.binder_1_equation_values;
+          if (eq1.valueA !== '' || eq1.valueB !== '' || eq1.valueC !== '' || eq1.valueD !== '') {
+            submitData.binder_1_equation_values = {
+              valueA: eq1.valueA !== '' ? parseFloat(eq1.valueA) : null,
+              valueB: eq1.valueB !== '' ? parseFloat(eq1.valueB) : null,
+              valueC: eq1.valueC !== '' ? parseFloat(eq1.valueC) : null,
+              valueD: eq1.valueD !== '' ? parseFloat(eq1.valueD) : null,
+            };
+          }
+        }
+        if (formData.binder_2_equation_type !== undefined && formData.binder_2_equation_type !== '') {
+          submitData.binder_2_equation_type = formData.binder_2_equation_type;
+        }
+        if (formData.binder_2_equation_values) {
+          const eq2 = formData.binder_2_equation_values;
+          if (eq2.valueA !== '') {
+            submitData.binder_2_equation_values = {
+              valueA: parseFloat(eq2.valueA),
+            };
+          }
+        }
+        if (formData.remarks !== undefined && formData.remarks !== '') {
+          submitData.remarks = formData.remarks.trim();
+        }
       }
 
       let response;
@@ -399,6 +535,323 @@ const CategoryForm = ({ category = null, parentCategory = null, onClose, onSucce
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active Category</span>
               </label>
             </div>
+
+            {/* Subcategory Configuration - Only show when parentCategory exists, category has parent_id, formData has parent_id, or isSubcategoryMode */}
+            {(parentCategory || (category && category.parent_id) || (formData.parent_id && formData.parent_id !== '') || isSubcategoryMode) && (
+              <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                  <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Subcategory Configuration</h3>
+                </div>
+
+                {/* Suffix */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Hash className="w-4 h-4 mr-2 text-gray-500" />
+                    Suffix
+                  </label>
+                  <input
+                    type="text"
+                    name="suffix"
+                    value={formData.suffix}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                    placeholder="A"
+                    maxLength={50}
+                  />
+                </div>
+
+                {/* Brand Toggle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Brand
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('brand', 'mipa')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.brand === 'mipa'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Mipa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('brand', 'rosner')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.brand === 'rosner'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Rosner
+                    </button>
+                  </div>
+                </div>
+
+                {/* Unit Toggle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Unit
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('unit', 'kg')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.unit === 'kg'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Kilo Gram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('unit', 'liter')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.unit === 'liter'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Liter
+                    </button>
+                  </div>
+                </div>
+
+                {/* Level of Shine Toggle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Level of Shine
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('level_of_shine', 'matt')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.level_of_shine === 'matt'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Matt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChange('level_of_shine', 'gloss')}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                        formData.level_of_shine === 'gloss'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Gloss
+                    </button>
+                  </div>
+                </div>
+
+                {/* Binder 1 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Package className="w-4 h-4 mr-2 text-gray-500" />
+                    Binder 1
+                  </label>
+                  <select
+                    name="binder_1_id"
+                    value={formData.binder_1_id}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                  >
+                    <option value="">Select Binder 1</option>
+                    {binders.map(binder => (
+                      <option key={binder._id} value={binder._id}>
+                        {binder.name} {binder.code ? `(${binder.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Binder 1 Equation Values - Show when binder_1_id is selected */}
+                {formData.binder_1_id && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Calculator className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Binder 1 Equation</span>
+                    </div>
+                    <div className="mb-3 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600">
+                      <code className="text-xs text-gray-600 dark:text-gray-400">
+                        (( Total tinter X valueA X {formData.level_of_shine || 'Gloss or Matt'} ) - (valueB X valueC X Total tinter ) ) /valueD
+                      </code>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          valueA
+                        </label>
+                        <input
+                          type="number"
+                          name="binder_1_equation_values.valueA"
+                          value={formData.binder_1_equation_values.valueA}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          valueB
+                        </label>
+                        <input
+                          type="number"
+                          name="binder_1_equation_values.valueB"
+                          value={formData.binder_1_equation_values.valueB}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          valueC
+                        </label>
+                        <input
+                          type="number"
+                          name="binder_1_equation_values.valueC"
+                          value={formData.binder_1_equation_values.valueC}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          valueD
+                        </label>
+                        <input
+                          type="number"
+                          name="binder_1_equation_values.valueD"
+                          value={formData.binder_1_equation_values.valueD}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Binder 2 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <Package className="w-4 h-4 mr-2 text-gray-500" />
+                    Binder 2
+                  </label>
+                  <select
+                    name="binder_2_id"
+                    value={formData.binder_2_id}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                  >
+                    <option value="">Select Binder 2</option>
+                    {binders.map(binder => (
+                      <option key={binder._id} value={binder._id}>
+                        {binder.name} {binder.code ? `(${binder.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Binder 2 Equation Type and Values - Show when binder_2_id is selected */}
+                {formData.binder_2_id && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Calculator className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Binder 2 Equation Type</span>
+                    </div>
+                    <div className="flex gap-2 mb-4">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChange('binder_2_equation_type', 'equation_1')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
+                          formData.binder_2_equation_type === 'equation_1'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        Equation 1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChange('binder_2_equation_type', 'equation_2')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
+                          formData.binder_2_equation_type === 'equation_2'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        Equation 2
+                      </button>
+                    </div>
+                    {formData.binder_2_equation_type && (
+                      <>
+                        <div className="mb-3 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600">
+                          <code className="text-xs text-gray-600 dark:text-gray-400">
+                            {formData.binder_2_equation_type === 'equation_1' 
+                              ? '( Total tinter X valueA ) - Value of Binder 1'
+                              : 'Total tinter X valueA'
+                            }
+                          </code>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            valueA
+                          </label>
+                          <input
+                            type="number"
+                            name="binder_2_equation_values.valueA"
+                            value={formData.binder_2_equation_values.valueA}
+                            onChange={handleInputChange}
+                            step="0.01"
+                            min="0"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Remarks */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <MessageSquare className="w-4 h-4 mr-2 text-gray-500" />
+                    Remarks
+                  </label>
+                  <textarea
+                    name="remarks"
+                    value={formData.remarks}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors"
+                    placeholder="Enter any remarks or notes..."
+                    maxLength={2000}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Form Actions */}
             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">

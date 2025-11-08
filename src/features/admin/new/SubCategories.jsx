@@ -503,6 +503,7 @@ const SubCategories = () => {
         <CategoryForm
           category={editingCategory}
           parentCategory={parentCategory}
+          isSubcategoryMode={true}
           onClose={handleFormClose}
           onSuccess={handleFormSuccess}
         />
