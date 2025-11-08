@@ -283,7 +283,7 @@ const Auxiliaries = () => {
                             {auxiliary.name}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Code: {auxiliary.code}
+                            ID: {auxiliary._id?.toString().slice(-8) || auxiliary.id}
                           </div>
                           {auxiliary.description && (
                             <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs">

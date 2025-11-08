@@ -162,13 +162,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
           Dashboard Overview
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Welcome to your MegaPaints Admin Dashboard
         </p>
       </div>
@@ -181,24 +181,24 @@ const Dashboard = () => {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div
               key={index}
               onClick={() => navigate(stat.path)}
-              className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+              className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-4 sm:p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-6 h-6 text-white" />
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                  <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
                     {stats.loading ? '...' : stat.value.toLocaleString()}
                   </div>
-                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                     {stat.title}
                   </div>
                 </div>
@@ -211,30 +211,30 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
             Quick Actions
           </h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {quickActions.map((action, index) => {
             const Icon = action.icon;
             return (
               <button
                 key={index}
                 onClick={() => navigate(action.path)}
-                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 text-left hover:border-transparent hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left hover:border-transparent hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
                 <div className="relative">
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-6 h-6 text-white" />
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
                     {action.title}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     {action.description}
                   </p>
                   <div className="mt-4 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">

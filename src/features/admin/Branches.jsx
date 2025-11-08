@@ -200,7 +200,7 @@ const Branches = () => {
 
       {/* Search and Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -246,34 +246,36 @@ const Branches = () => {
 
       {/* Branches Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Branch
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Address
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Manager
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {branches.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                  <tr>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Branch
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
+                      Address
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Contact
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Manager
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                      Status
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {branches.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-3 sm:px-6 py-12 text-center">
                     <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No branches found</p>
                     <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
@@ -286,28 +288,28 @@ const Branches = () => {
               ) : (
                 branches.map((branch) => (
                   <tr key={branch._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
                             <Building2 className="w-5 h-5 text-white" />
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <div className="ml-3 sm:ml-4 min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                             {branch.name}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                             Code: {branch.code}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-start text-sm text-gray-900 dark:text-white">
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-900 dark:text-white hidden md:table-cell">
+                      <div className="flex items-start">
                         <MapPin className="w-4 h-4 mr-2 mt-0.5 text-gray-400 flex-shrink-0" />
-                        <div>
-                          <div>{getFullAddress(branch)}</div>
+                        <div className="min-w-0">
+                          <div className="truncate">{getFullAddress(branch)}</div>
                           {branch.address?.country && (
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               {branch.address.country}
@@ -316,18 +318,18 @@ const Branches = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                       <div className="space-y-1">
                         {branch.phone && (
-                          <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                          <div className="flex items-center">
                             <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                            {branch.phone}
+                            <span className="truncate block max-w-[150px]">{branch.phone}</span>
                           </div>
                         )}
                         {branch.email && (
-                          <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                          <div className="flex items-center">
                             <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                            {branch.email}
+                            <span className="truncate block max-w-[200px]">{branch.email}</span>
                           </div>
                         )}
                         {!branch.phone && !branch.email && (
@@ -335,19 +337,19 @@ const Branches = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                       {branch.manager?._id ? (
-                        <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                        <div className="flex items-center">
                           <User className="w-4 h-4 mr-2 text-gray-400" />
-                          <div>
-                            <div className="font-medium">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">
                               {branch.manager.name || 
                                (branch.manager._id?.first_name && branch.manager._id?.last_name
                                  ? `${branch.manager._id.first_name} ${branch.manager._id.last_name}`
                                  : branch.manager._id?.username || '-')}
                             </div>
                             {branch.manager._id?.email && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                 {branch.manager._id.email}
                               </div>
                             )}
@@ -357,7 +359,7 @@ const Branches = () => {
                         <span className="text-sm text-gray-400">No manager assigned</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                         branch.is_active 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -376,18 +378,18 @@ const Branches = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                         <button
                           onClick={() => handleEditBranch(branch)}
-                          className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Edit branch"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteBranch(branch)}
-                          className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Delete branch"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -397,8 +399,10 @@ const Branches = () => {
                   </tr>
                 ))
               )}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Pagination */}

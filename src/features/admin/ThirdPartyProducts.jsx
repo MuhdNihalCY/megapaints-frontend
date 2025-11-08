@@ -283,7 +283,7 @@ const ThirdPartyProducts = () => {
                             {thirdPartyProduct.name}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Code: {thirdPartyProduct.code}
+                            ID: {thirdPartyProduct._id?.toString().slice(-8) || thirdPartyProduct.id}
                           </div>
                           {thirdPartyProduct.description && (
                             <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs">

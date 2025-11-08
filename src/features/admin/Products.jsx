@@ -319,7 +319,7 @@ const Products = () => {
 
       {/* Search and Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -421,37 +421,39 @@ const Products = () => {
 
       {/* Products Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Inventory
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                  <tr>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Product
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
+                      Category
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Price
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Inventory
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                      Status
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-3 sm:px-6 py-12 text-center">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No products found</p>
                     <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
@@ -470,49 +472,47 @@ const Products = () => {
 
                   return (
                     <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
                             <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${typeColor} flex items-center justify-center shadow-md`}>
                               <Package className="w-5 h-5 text-white" />
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                          <div className="ml-3 sm:ml-4 min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                               {product.name}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              Code: {product.code}
+                            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                              ID: {product._id?.toString().slice(-8) || product.id}
                             </div>
                             {product.description && (
-                              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs">
+                              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs hidden sm:block">
                                 {product.description}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          <div className="flex items-center">
-                            <Folder className="w-4 h-4 mr-2 text-gray-400" />
-                            {product.category?.name || '-'}
-                          </div>
-                          {product.subcategory?.name && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
-                              <Tag className="w-3 h-3 mr-1" />
-                              {product.subcategory.name}
-                            </div>
-                          )}
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden md:table-cell">
+                        <div className="flex items-center">
+                          <Folder className="w-4 h-4 mr-2 text-gray-400" />
+                          <span className="truncate block max-w-[150px]">{product.category?.name || '-'}</span>
                         </div>
+                        {product.subcategory?.name && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                            <Tag className="w-3 h-3 mr-1" />
+                            <span className="truncate">{product.subcategory.name}</span>
+                          </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r ${typeColor} text-white`}>
                           {getProductTypeLabel(product.product_type)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
+                        <div className="flex items-center">
                           <DollarSign className="w-4 h-4 mr-1 text-gray-400" />
                           <span className="font-semibold">{product.base_price?.toFixed(2) || '0.00'}</span>
                           <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
@@ -520,9 +520,9 @@ const Products = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                         <div className="space-y-1">
-                          <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                          <div className="flex items-center">
                             <Package2 className="w-4 h-4 mr-2 text-gray-400" />
                             <span className="font-medium">
                               {inventory.total_stock || 0}
@@ -549,7 +549,7 @@ const Products = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                           product.is_active 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -568,18 +568,18 @@ const Products = () => {
                           )}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                           <button
                             onClick={() => handleEditProduct(product)}
-                            className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                             title="Edit product"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteProduct(product)}
-                            className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                             title="Delete product"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -590,8 +590,10 @@ const Products = () => {
                   );
                 })
               )}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Pagination */}

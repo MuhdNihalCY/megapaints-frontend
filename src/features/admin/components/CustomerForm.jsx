@@ -52,7 +52,7 @@ const CustomerForm = ({ customer = null, onClose, onSuccess }) => {
   const fetchBranches = async () => {
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.business.getBranches({ limit: 100 });
+      const response = await adminServices.businessManagement.getBranches({ limit: 100 });
       if (response.status === 'success') {
         setBranches(response.data.branches || []);
       }
@@ -113,7 +113,7 @@ const CustomerForm = ({ customer = null, onClose, onSuccess }) => {
       
       if (customer) {
         // Update customer
-        const response = await userServices.updateCustomer(customer._id || customer.id, formData);
+        const response = await userServices.user.updateCustomer(customer._id || customer.id, formData);
         if (response.status === 'success') {
           setSuccess('Customer updated successfully');
         } else {
@@ -121,7 +121,7 @@ const CustomerForm = ({ customer = null, onClose, onSuccess }) => {
         }
       } else {
         // Create customer
-        const response = await userServices.createCustomer(formData);
+        const response = await userServices.user.createCustomer(formData);
         if (response.status === 'success') {
           setSuccess('Customer created successfully');
         } else {
