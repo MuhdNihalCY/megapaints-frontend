@@ -189,7 +189,7 @@ const Categories = () => {
     return (
       <div key={category._id}>
         <div
-          className={`flex items-center px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700 ${
+          className={`flex items-center px-3 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700 ${
             level > 0 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''
           }`}
         >
@@ -220,75 +220,77 @@ const Categories = () => {
             </div>
 
             {/* Category Info */}
-            <div className="flex-1">
-              <div className="flex items-center space-x-3">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {category.name}
                     </span>
                     {category.parent_id && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         (Subcategory)
                       </span>
                     )}
                   </div>
                   {category.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                       {category.description}
                     </p>
                   )}
                 </div>
 
-                {/* Status Badge */}
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  category.is_active 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
-                  {category.is_active ? (
-                    <>
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Active
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-3 h-3 mr-1" />
-                      Inactive
-                    </>
-                  )}
-                </span>
-
-                {/* Sort Order */}
-                {category.sort_order !== undefined && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Order: {category.sort_order}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {/* Status Badge */}
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                    category.is_active 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {category.is_active ? (
+                      <>
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Active
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Inactive
+                      </>
+                    )}
                   </span>
-                )}
 
-                {/* Actions */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleAddCategory(category)}
-                    className="p-2 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                    title="Add subcategory"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEditCategory(category)}
-                    className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                    title="Edit category"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCategory(category)}
-                    className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title="Delete category"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Sort Order */}
+                  {category.sort_order !== undefined && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap hidden sm:inline">
+                      Order: {category.sort_order}
+                    </span>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <button
+                      onClick={() => handleAddCategory(category)}
+                      className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Add subcategory"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleEditCategory(category)}
+                      className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Edit category"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(category)}
+                      className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Delete category"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -309,52 +311,54 @@ const Categories = () => {
     return categories.map(category => (
       <div
         key={category._id}
-        className="flex items-center px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700"
+        className="flex items-center px-3 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700"
       >
         <div className="flex-shrink-0 mr-3">
           <Folder className="w-5 h-5 text-blue-500" />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center space-x-3">
-            <div className="flex-1">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {category.name}
                 </span>
                 {category.parent_id && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     Parent: {category.parent_id.name || category.parent_id._id}
                   </span>
                 )}
               </div>
               {category.description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                   {category.description}
                 </p>
               )}
             </div>
 
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-              category.is_active 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-            }`}>
-              {category.is_active ? 'Active' : 'Inactive'}
-            </span>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                category.is_active 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {category.is_active ? 'Active' : 'Inactive'}
+              </span>
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleEditCategory(category)}
-                className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteCategory(category)}
-                className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <button
+                  onClick={() => handleEditCategory(category)}
+                  className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeleteCategory(category)}
+                  className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -485,15 +489,15 @@ const Categories = () => {
       {/* Categories Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Table Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 px-6 py-3 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 px-3 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div className="flex items-center space-x-2">
               <Layers className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                 {viewMode === 'hierarchical' ? 'Hierarchical Categories' : 'All Categories'}
               </h3>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               {pagination.total} {pagination.total === 1 ? 'category' : 'categories'}
             </div>
           </div>
@@ -502,7 +506,7 @@ const Categories = () => {
         {/* Categories List */}
         <div>
           {categories.length === 0 ? (
-            <div className="px-6 py-12 text-center">
+            <div className="px-3 sm:px-6 py-12 text-center">
               <Folder className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No categories found</p>
               <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
@@ -524,9 +528,9 @@ const Categories = () => {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-3 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Showing <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
                 <span className="font-medium">
                   {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -537,17 +541,17 @@ const Categories = () => {
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                   disabled={pagination.page === 1}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
-                <span className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                <span className="px-3 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   Page {pagination.page} of {pagination.pages}
                 </span>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                   disabled={pagination.page === pagination.pages}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Next
                 </button>

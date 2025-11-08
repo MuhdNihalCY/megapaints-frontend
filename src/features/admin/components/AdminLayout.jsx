@@ -89,7 +89,7 @@ export default function AdminLayout() {
   const CurrentPageIcon = currentPageInfo.icon;
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 min-w-fit">
       {/* Sidebar */}
       <aside
         className={`fixed left-0 top-0 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out z-30 flex flex-col ${

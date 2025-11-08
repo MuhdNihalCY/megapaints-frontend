@@ -598,9 +598,9 @@ const Products = () => {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-3 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Showing <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
                 <span className="font-medium">
                   {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -611,17 +611,17 @@ const Products = () => {
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                   disabled={pagination.page === 1}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
-                <span className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                <span className="px-3 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   Page {pagination.page} of {pagination.pages}
                 </span>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                   disabled={pagination.page === pagination.pages}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Next
                 </button>
@@ -632,7 +632,7 @@ const Products = () => {
 
         {/* Total Products Counter */}
         {pagination.total > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-3 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                 <Package className="w-4 h-4 mr-2" />

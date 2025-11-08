@@ -235,34 +235,36 @@ const Tinters = () => {
 
       {/* Tinters Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Tinter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Group
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {tinters.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                  <tr>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Tinter
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
+                      Category
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Group
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                      Price
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                      Status
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {tinters.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-3 sm:px-6 py-12 text-center">
                     <Palette className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No tinters found</p>
                     <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
@@ -275,45 +277,46 @@ const Tinters = () => {
               ) : (
                 tinters.map((tinter) => (
                   <tr key={tinter._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-md">
                             <Palette className="w-5 h-5 text-white" />
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <div className="ml-3 sm:ml-4 min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                             {tinter.name}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                             ID: {tinter._id?.toString().slice(-8) || tinter.id}
                           </div>
                           {tinter.description && (
-                            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs">
+                            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs hidden sm:block">
                               {tinter.description}
                             </div>
                           )}
+                          <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden mt-1">
+                            {tinter.category?.name || '-'}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {tinter.category?.name || '-'}
-                      </div>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden md:table-cell">
+                      <div className="truncate block max-w-[150px]">{tinter.category?.name || '-'}</div>
                       {tinter.subcategories && tinter.subcategories.length > 0 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {tinter.subcategories.length} sub-categor{tinter.subcategories.length === 1 ? 'y' : 'ies'}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                       {tinter.group ? (
-                        <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                          <Users className="w-4 h-4 mr-1 text-gray-400" />
-                          <span>{tinter.group.name}</span>
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 mr-1 text-gray-400 flex-shrink-0" />
+                          <span className="truncate block max-w-[150px]">{tinter.group.name}</span>
                           {tinter.group.code && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
                               ({tinter.group.code})
                             </span>
                           )}
@@ -322,16 +325,16 @@ const Tinters = () => {
                         <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <DollarSign className="w-4 h-4 mr-1 text-gray-400" />
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
+                      <div className="flex items-center">
+                        <DollarSign className="w-4 h-4 mr-1 text-gray-400 flex-shrink-0" />
                         <span className="font-semibold">{tinter.base_price?.toFixed(2) || '0.00'}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
                           / {tinter.unit || 'unit'}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                         tinter.is_active 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -350,18 +353,18 @@ const Tinters = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                         <button
                           onClick={() => handleEditTinter(tinter)}
-                          className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Edit tinter"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteTinter(tinter)}
-                          className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Delete tinter"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -371,15 +374,17 @@ const Tinters = () => {
                   </tr>
                 ))
               )}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-3 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Showing <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
                 <span className="font-medium">
                   {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -390,17 +395,17 @@ const Tinters = () => {
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                   disabled={pagination.page === 1}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
-                <span className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                <span className="px-3 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   Page {pagination.page} of {pagination.pages}
                 </span>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                   disabled={pagination.page === pagination.pages}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Next
                 </button>
@@ -411,7 +416,7 @@ const Tinters = () => {
 
         {/* Total Tinters Counter */}
         {pagination.total > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-3 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                 <Palette className="w-4 h-4 mr-2" />
