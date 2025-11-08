@@ -203,6 +203,21 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
     }));
   };
 
+  const handleRadioChange = (fieldName, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+    // Clear validation error for this field
+    if (validationErrors[fieldName]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -561,97 +576,145 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                   />
                 </div>
 
-                {/* Brand Toggle */}
+                {/* Brand Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Brand
                   </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('brand', 'mipa')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.brand === 'mipa'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Mipa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('brand', 'rosner')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.brand === 'rosner'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Rosner
-                    </button>
+                  <div className={`p-4 border rounded-lg transition-colors ${
+                    validationErrors.brand 
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                  }`}>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'mipa', label: 'Mipa' },
+                        { value: 'rosner', label: 'Rosner' }
+                      ].map(option => {
+                        const isSelected = formData.brand === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="brand"
+                              value={option.value}
+                              checked={isSelected}
+                              onChange={() => handleRadioChange('brand', option.value)}
+                              className="mr-2 w-4 h-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium">{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
+                  {validationErrors.brand && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.brand}
+                    </p>
+                  )}
                 </div>
 
-                {/* Unit Toggle */}
+                {/* Unit Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Unit
                   </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('unit', 'kg')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.unit === 'kg'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Kilo Gram
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('unit', 'liter')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.unit === 'liter'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Liter
-                    </button>
+                  <div className={`p-4 border rounded-lg transition-colors ${
+                    validationErrors.unit 
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                  }`}>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'kg', label: 'Kilo Gram' },
+                        { value: 'liter', label: 'Liter' }
+                      ].map(option => {
+                        const isSelected = formData.unit === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="unit"
+                              value={option.value}
+                              checked={isSelected}
+                              onChange={() => handleRadioChange('unit', option.value)}
+                              className="mr-2 w-4 h-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium">{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
+                  {validationErrors.unit && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.unit}
+                    </p>
+                  )}
                 </div>
 
-                {/* Level of Shine Toggle */}
+                {/* Level of Shine Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Level of Shine
                   </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('level_of_shine', 'matt')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.level_of_shine === 'matt'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Matt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChange('level_of_shine', 'gloss')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                        formData.level_of_shine === 'gloss'
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Gloss
-                    </button>
+                  <div className={`p-4 border rounded-lg transition-colors ${
+                    validationErrors.level_of_shine 
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                  }`}>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'matt', label: 'Matt' },
+                        { value: 'gloss', label: 'Gloss' }
+                      ].map(option => {
+                        const isSelected = formData.level_of_shine === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="level_of_shine"
+                              value={option.value}
+                              checked={isSelected}
+                              onChange={() => handleRadioChange('level_of_shine', option.value)}
+                              className="mr-2 w-4 h-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium">{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
+                  {validationErrors.level_of_shine && (
+                    <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.level_of_shine}
+                    </p>
+                  )}
                 </div>
 
                 {/* Binder 1 Selection */}
@@ -780,29 +843,33 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
                       <Calculator className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                       <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Binder 2 Equation Type</span>
                     </div>
-                    <div className="flex gap-2 mb-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChange('binder_2_equation_type', 'equation_1')}
-                        className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
-                          formData.binder_2_equation_type === 'equation_1'
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        Equation 1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChange('binder_2_equation_type', 'equation_2')}
-                        className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all text-sm ${
-                          formData.binder_2_equation_type === 'equation_2'
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        Equation 2
-                      </button>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      {[
+                        { value: 'equation_1', label: 'Equation 1' },
+                        { value: 'equation_2', label: 'Equation 2' }
+                      ].map(option => {
+                        const isSelected = formData.binder_2_equation_type === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="binder_2_equation_type"
+                              value={option.value}
+                              checked={isSelected}
+                              onChange={() => handleRadioChange('binder_2_equation_type', option.value)}
+                              className="mr-2 w-4 h-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="text-sm font-medium">{option.label}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                     {formData.binder_2_equation_type && (
                       <>
@@ -865,7 +932,7 @@ const CategoryForm = ({ category = null, parentCategory = null, isSubcategoryMod
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center font-medium"
               >
                 {loading ? (
                   <>

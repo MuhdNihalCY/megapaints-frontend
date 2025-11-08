@@ -146,7 +146,7 @@ const Auxiliaries = () => {
         <div className="flex gap-2">
           <button
             onClick={handleAddAuxiliary}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Auxiliary

@@ -183,11 +183,11 @@ const Dashboard = () => {
             <div
               key={index}
               onClick={() => navigate(stat.path)}
-              className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-4 sm:p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+              className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-4 sm:p-6 cursor-pointer transition-colors hover:border-blue-300 dark:hover:border-blue-600 group`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3 sm:mb-4 transition-colors`}>
                     <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
@@ -199,7 +199,6 @@ const Dashboard = () => {
                 </div>
                 <ArrowRight className={`w-5 h-5 ${stat.iconColor} opacity-0 group-hover:opacity-100 transition-opacity`} />
               </div>
-              <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
             </div>
           );
         })}
@@ -219,14 +218,13 @@ const Dashboard = () => {
               <button
                 key={index}
                 onClick={() => navigate(action.path)}
-                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left hover:border-transparent hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left transition-colors hover:border-blue-300 dark:hover:border-blue-600"
               >
-                <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity" />
                 <div className="relative">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-600 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-600 flex items-center justify-center mb-3 sm:mb-4 transition-colors">
                     <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-all">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 transition-colors">
                     {action.title}
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
