@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiServiceFactory from '../../services/ApiServiceFactory.js';
 import UserForm from './components/UserForm.jsx';
-import { getApiUrl } from '../../config/api.js';
 import {
   Plus,
   RefreshCw,
@@ -16,7 +15,6 @@ import {
   CheckCircle,
   XCircle,
   Activity,
-  TestTube,
   ArrowRight,
 } from 'lucide-react';
 
@@ -25,7 +23,6 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [debugInfo, setDebugInfo] = useState('');
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,20 +46,11 @@ const UserManagement = () => {
       setError('');
       setSuccess('');
       
-      // Debug authentication status
       const adminUser = localStorage.getItem('adminUser');
       const accessToken = localStorage.getItem('accessToken');
-      const debugData = {
-        adminUser: adminUser ? 'Logged in' : 'Not logged in',
-        accessToken: accessToken ? 'Present' : 'Missing',
-        tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'None',
-        timestamp: new Date().toISOString()
-      };
-      
-      setDebugInfo(JSON.stringify(debugData, null, 2));
       
       if (!adminUser || !accessToken) {
-        setError('❌ Not logged in as admin. Please login at /admin/login first.');
+        setError('Not logged in as admin. Please login at /admin/login first.');
         return;
       }
       
@@ -89,70 +77,13 @@ const UserManagement = () => {
         setError('Failed to fetch users');
       }
     } catch (err) {
-      console.error('❌ Detailed error fetching users:', err);
-      
-      if (err.message && err.message.includes('Route not found')) {
-        setError('❌ Route not found: GET /api/admin/users. Trying alternative route...');
-        tryAlternativeRoute();
-      } else if (err.message && err.message.includes('401')) {
-        setError('❌ Authentication failed (401). Please login again as admin.');
-      } else if (err.message && err.message.includes('403')) {
-        setError('❌ Access denied (403). Admin permissions required.');
-      } else {
-        setError(`❌ Unable to fetch users: ${err.message}. Check console for details.`);
-      }
+      console.error('Failed to fetch users:', err);
+      setError(err.message || 'Failed to fetch users');
     } finally {
       setLoading(false);
     }
   };
 
-  const tryAlternativeRoute = async () => {
-    try {
-      const response = await apiRequest('/admin/business/users');
-      
-      if (response.status === 'success') {
-        setUsers(response.data.users || []);
-        setSuccess('✅ Users loaded via alternative route (/admin/business/users)');
-      } else {
-        setError('❌ Both routes failed. Check backend implementation.');
-      }
-    } catch (err) {
-      console.error('❌ Alternative route also failed:', err);
-      setError('❌ Both /admin/users and /admin/business/users routes failed. Check backend logs.');
-    }
-  };
-
-  const testDirectAPI = async () => {
-    try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        setError('❌ No access token found. Please login first.');
-        return;
-      }
-
-      const response = await fetch(getApiUrl('/admin/users'), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      const data = await response.text();
-
-      if (response.ok) {
-        const jsonData = JSON.parse(data);
-        setUsers(jsonData.data?.users || []);
-        setSuccess('✅ Direct API call successful!');
-      } else {
-        setError(`❌ Direct API failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (err) {
-      console.error('❌ Direct API test failed:', err);
-      setError(`❌ Direct API test failed: ${err.message}`);
-    }
-  };
 
   const handleAddUser = () => {
     setEditingUser(null);
@@ -187,7 +118,7 @@ const UserManagement = () => {
       });
 
       if (response.status === 'success') {
-        setSuccess(`✅ User ${user.is_active ? 'deactivated' : 'activated'} successfully`);
+        setSuccess(`User ${user.is_active ? 'deactivated' : 'activated'} successfully`);
         fetchUsers();
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -264,41 +195,6 @@ const UserManagement = () => {
           </button>
         </div>
       </div>
-
-      {/* Debug Information Panel (Development Only) */}
-      {debugInfo && process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-              <TestTube className="w-4 h-4 mr-2" />
-              Debug Information
-            </h3>
-            <button
-              onClick={() => setDebugInfo('')}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-auto max-h-32 bg-gray-100 dark:bg-gray-900 p-2 rounded">
-            {debugInfo}
-          </pre>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={testDirectAPI}
-              className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/30 transition-colors"
-            >
-              Test Direct API
-            </button>
-            <button
-              onClick={tryAlternativeRoute}
-              className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors"
-            >
-              Try Alternative Route
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Success/Error Messages */}
       {success && (

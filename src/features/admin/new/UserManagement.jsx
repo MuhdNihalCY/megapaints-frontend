@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import apiServiceFactory from '../../../services/ApiServiceFactory.js';
 import UserForm from './components/UserForm.jsx';
-import { getApiUrl } from '../../../config/api.js';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [debugInfo, setDebugInfo] = useState('');
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const { apiRequest } = useAuth();
@@ -21,20 +19,11 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // Debug authentication status
       const adminUser = localStorage.getItem('adminUser');
       const accessToken = localStorage.getItem('accessToken');
-      const debugData = {
-        adminUser: adminUser ? 'Logged in' : 'Not logged in',
-        accessToken: accessToken ? 'Present' : 'Missing',
-        tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'None',
-        timestamp: new Date().toISOString()
-      };
-      
-      setDebugInfo(JSON.stringify(debugData, null, 2));
       
       if (!adminUser || !accessToken) {
-        setError('❌ Not logged in as admin. Please login at /admin/login first.');
+        setError('Not logged in as admin. Please login at /admin/login first.');
         return;
       }
       
@@ -48,71 +37,13 @@ const UserManagement = () => {
         setError('Failed to fetch users');
       }
     } catch (err) {
-      console.error('❌ Detailed error fetching users:', err);
-      
-      if (err.message && err.message.includes('Route not found')) {
-        setError('❌ Route not found: GET /api/admin/users. Trying alternative route...');
-        // Try alternative route
-        tryAlternativeRoute();
-      } else if (err.message && err.message.includes('401')) {
-        setError('❌ Authentication failed (401). Please login again as admin.');
-      } else if (err.message && err.message.includes('403')) {
-        setError('❌ Access denied (403). Admin permissions required.');
-      } else {
-        setError(`❌ Unable to fetch users: ${err.message}. Check console for details.`);
-      }
+      console.error('Failed to fetch users:', err);
+      setError(err.message || 'Failed to fetch users');
     } finally {
       setLoading(false);
     }
   };
 
-  const tryAlternativeRoute = async () => {
-    try {
-      const response = await apiRequest('/admin/business/users');
-      
-      if (response.status === 'success') {
-        setUsers(response.data.users || []);
-        setError('✅ Users loaded via alternative route (/admin/business/users)');
-      } else {
-        setError('❌ Both routes failed. Check backend implementation.');
-      }
-    } catch (err) {
-      console.error('❌ Alternative route also failed:', err);
-      setError('❌ Both /admin/users and /admin/business/users routes failed. Check backend logs.');
-    }
-  };
-
-  const testDirectAPI = async () => {
-    try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        setError('❌ No access token found. Please login first.');
-        return;
-      }
-
-      const response = await fetch(getApiUrl('/admin/users'), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      const data = await response.text();
-
-      if (response.ok) {
-        const jsonData = JSON.parse(data);
-        setUsers(jsonData.data?.users || []);
-        setError('✅ Direct API call successful!');
-      } else {
-        setError(`❌ Direct API failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (err) {
-      console.error('❌ Direct API test failed:', err);
-      setError(`❌ Direct API test failed: ${err.message}`);
-    }
-  };
 
   const handleAddUser = () => {
     setEditingUser(null);
@@ -165,19 +96,10 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Debug Information Panel */}
-      {debugInfo && (
-        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔍 Debug Information</h3>
-          <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-auto max-h-32">
-            {debugInfo}
-          </pre>
-        </div>
-      )}
 
       {error && (
         <div className={`px-4 py-3 rounded-lg mb-6 ${
-          error.includes('✅') 
+          false 
             ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
             : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
         }`}>
