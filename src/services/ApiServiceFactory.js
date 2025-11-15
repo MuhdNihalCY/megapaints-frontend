@@ -9,6 +9,7 @@ import ProductCatalogService from './ProductCatalogService.js';
 import BusinessManagementService from './BusinessManagementService.js';
 import KanbanBoardService from './KanbanBoardService.js';
 import LabelManagementService from './LabelManagementService.js';
+import InventoryService from './InventoryService.js';
 import { getApiUrl } from '../config/api.js';
 
 class ApiServiceFactory {
@@ -19,6 +20,7 @@ class ApiServiceFactory {
     this.businessManagement = null;
     this.kanbanBoard = null;
     this.labelManagement = null;
+    this.inventoryManagement = null;
     this.currentUserType = null;
   }
 
@@ -33,6 +35,7 @@ class ApiServiceFactory {
       this.businessManagement = new BusinessManagementService(this.adminApi);
       this.kanbanBoard = new KanbanBoardService(this.adminApi);
       this.labelManagement = new LabelManagementService(this.adminApi);
+      this.inventoryManagement = new InventoryService(this.adminApi);
     }
     this.currentUserType = 'admin';
     
@@ -41,7 +44,8 @@ class ApiServiceFactory {
       productCatalog: this.productCatalog,
       businessManagement: this.businessManagement,
       kanbanBoard: this.kanbanBoard,
-      labelManagement: this.labelManagement
+      labelManagement: this.labelManagement,
+      inventoryManagement: this.inventoryManagement
     };
   }
 
@@ -97,6 +101,7 @@ class ApiServiceFactory {
       services.businessManagement = this.businessManagement;
       services.kanbanBoard = this.kanbanBoard;
       services.labelManagement = this.labelManagement;
+      services.inventoryManagement = this.inventoryManagement;
     }
     
     if (this.isUserServicesAvailable()) {
@@ -123,6 +128,7 @@ class ApiServiceFactory {
     this.businessManagement = null;
     this.kanbanBoard = null;
     this.labelManagement = null;
+    this.inventoryManagement = null;
     this.currentUserType = null;
   }
 

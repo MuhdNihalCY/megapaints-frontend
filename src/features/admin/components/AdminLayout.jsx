@@ -24,6 +24,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid3x3,
+  Warehouse,
+  BarChart3,
+  RefreshCw,
 } from 'lucide-react';
 
 const drawerWidth = 260;
@@ -42,6 +45,10 @@ const menuItems = [
   { text: 'Accessories', icon: Box, path: '/admin/accessories' },
   { text: '3P Products', icon: Truck, path: '/admin/third-party-products' },
   { text: 'Branches', icon: Store, path: '/admin/branches' },
+  { text: 'Inventory', icon: Warehouse, path: '/admin/inventory' },
+  { text: 'Inventory Summary', icon: BarChart3, path: '/admin/inventory/summary' },
+  { text: 'Inventory Analytics', icon: BarChart3, path: '/admin/inventory/analytics' },
+  { text: 'Sync Management', icon: RefreshCw, path: '/admin/inventory/sync' },
   { text: 'Users', icon: Users, path: '/admin/users' },
   { text: 'Employees', icon: Users, path: '/admin/employees' },
   { text: 'Customers', icon: Users, path: '/admin/customers' },

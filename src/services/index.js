@@ -10,6 +10,7 @@ import ProductCatalogService from './ProductCatalogService.js';
 import BusinessManagementService from './BusinessManagementService.js';
 import KanbanBoardService from './KanbanBoardService.js';
 import LabelManagementService from './LabelManagementService.js';
+import InventoryService from './InventoryService.js';
 import ApiServiceFactory from './ApiServiceFactory.js';
 
 // Export individual services
@@ -20,6 +21,7 @@ export {
   BusinessManagementService,
   KanbanBoardService,
   LabelManagementService,
+  InventoryService,
   ApiServiceFactory
 };
 

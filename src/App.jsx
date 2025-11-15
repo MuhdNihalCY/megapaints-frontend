@@ -23,6 +23,10 @@ import Groups from './features/admin/new/Groups';
 import Employees from './features/admin/new/Employees';
 import Customers from './features/admin/new/Customers';
 import PurchasedItems from './features/admin/new/PurchasedItems';
+import Inventory from './features/admin/inventory/Inventory';
+import InventorySummary from './features/admin/inventory/InventorySummary';
+import Analytics from './features/admin/inventory/Analytics';
+import SyncManagement from './features/admin/inventory/SyncManagement';
 import AdminLayout from './features/admin/components/AdminLayout';
 import UserProtectedRoute from './components/UserProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
@@ -129,6 +133,10 @@ function App() {
                 <Route path="employees" element={<Employees />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="purchased-items" element={<PurchasedItems />} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="inventory/summary" element={<InventorySummary />} />
+                <Route path="inventory/analytics" element={<Analytics />} />
+                <Route path="inventory/sync" element={<SyncManagement />} />
               </Route>
               
               {/* Default redirect */}
