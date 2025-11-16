@@ -293,13 +293,13 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
                     disabled={!!inventory}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    <option value="">All Product Types</option>
-                    <option value="product">Tinters</option>
-                    <option value="additive">Additive</option>
-                    <option value="binder">Binder</option>
-                    <option value="auxiliary">Auxiliary</option>
-                    <option value="accessory">Accessory</option>
-                    <option value="third_party">Third Party</option>
+                    <option key="all" value="">All Product Types</option>
+                    <option key="tinters" value="tinters">Tinters</option>
+                    <option key="additive" value="additive">Additive</option>
+                    <option key="binder" value="binder">Binder</option>
+                    <option key="auxiliary" value="auxiliary">Auxiliary</option>
+                    <option key="accessory" value="accessory">Accessory</option>
+                    <option key="third_party" value="third_party">Third Party</option>
                   </select>
                 </div>
               </div>

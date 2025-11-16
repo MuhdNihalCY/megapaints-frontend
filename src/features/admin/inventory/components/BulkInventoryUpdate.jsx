@@ -209,9 +209,9 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                             required
                           >
-                            <option value="">Select Branch</option>
-                            {branches.map(branch => (
-                              <option key={branch._id} value={branch._id}>
+                            <option key="select-branch" value="">Select Branch</option>
+                            {branches.map((branch, idx) => (
+                              <option key={branch._id || branch.id || `branch-${idx}`} value={branch._id || branch.id || ''}>
                                 {branch.name} ({branch.code})
                               </option>
                             ))}
@@ -223,13 +223,13 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
                             onChange={(e) => handleUpdateChange(index, 'product_type', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                           >
-                            <option value="">All Types</option>
-                            <option value="product">Tinters</option>
-                            <option value="additive">Additive</option>
-                            <option value="binder">Binder</option>
-                            <option value="auxiliary">Auxiliary</option>
-                            <option value="accessory">Accessory</option>
-                            <option value="third_party">Third Party</option>
+                            <option key="all" value="">All Types</option>
+                            <option key="tinters" value="tinters">Tinters</option>
+                            <option key="additive" value="additive">Additive</option>
+                            <option key="binder" value="binder">Binder</option>
+                            <option key="auxiliary" value="auxiliary">Auxiliary</option>
+                            <option key="accessory" value="accessory">Accessory</option>
+                            <option key="third_party" value="third_party">Third Party</option>
                           </select>
                         </td>
                         <td className="px-4 py-3">
@@ -242,7 +242,7 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
                             }`}
                             required
                           >
-                            <option value="">
+                            <option key="select-product" value="">
                               {filteredProducts.length === 0 
                                 ? update.product_type 
                                   ? 'No products found' 
@@ -262,9 +262,9 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
                             onChange={(e) => handleUpdateChange(index, 'operation', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                           >
-                            <option value="add">Add</option>
-                            <option value="deduct">Deduct</option>
-                            <option value="update">Update</option>
+                            <option key="add" value="add">Add</option>
+                            <option key="deduct" value="deduct">Deduct</option>
+                            <option key="update" value="update">Update</option>
                           </select>
                         </td>
                         <td className="px-4 py-3">

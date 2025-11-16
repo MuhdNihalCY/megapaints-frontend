@@ -344,8 +344,8 @@ const Inventory = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Branches</option>
-            {branches.map(branch => (
-              <option key={branch._id} value={branch._id}>
+            {branches.map((branch, index) => (
+              <option key={branch._id || branch.id || `branch-${index}`} value={branch._id || branch.id || ''}>
                 {branch.name}
               </option>
             ))}
@@ -365,13 +365,13 @@ const Inventory = () => {
             }}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">All Product Types</option>
-            <option value="tinters">Tinters</option>
-            <option value="additive">Additive</option>
-            <option value="binder">Binder</option>
-            <option value="auxiliary">Auxiliary</option>
-            <option value="accessory">Accessory</option>
-            <option value="third_party">Third Party</option>
+            <option key="all" value="">All Product Types</option>
+            <option key="tinters" value="tinters">Tinters</option>
+            <option key="additive" value="additive">Additive</option>
+            <option key="binder" value="binder">Binder</option>
+            <option key="auxiliary" value="auxiliary">Auxiliary</option>
+            <option key="accessory" value="accessory">Accessory</option>
+            <option key="third_party" value="third_party">Third Party</option>
           </select>
 
           {(searchTerm || selectedBranch || selectedProductType) && (
