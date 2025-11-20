@@ -38,20 +38,13 @@ const Inventory = () => {
   const [branches, setBranches] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: 50, // Increased from 20 to 50 for better default visibility
     total: 0,
     pages: 0,
   });
   const { getAdminServices } = useAuth();
 
   useEffect(() => {
-    console.log('[Inventory] useEffect triggered:', {
-      paginationPage: pagination.page,
-      searchTerm,
-      selectedBranch,
-      selectedProductType,
-      willFetchInventory: true
-    });
     fetchInventory();
     fetchBranches();
   }, [pagination.page, searchTerm, selectedBranch, selectedProductType]);
@@ -83,75 +76,38 @@ const Inventory = () => {
         ...(selectedProductType && { product_type: selectedProductType }),
       };
 
-      // Debug: Log request parameters
-      console.log('[Inventory] Fetching inventory with params:', {
-        page: params.page,
-        limit: params.limit,
-        searchTerm: params.search || '(none)',
-        selectedBranch: params.branch_id || '(none)',
-        selectedProductType: params.product_type || '(none)',
-        fullParams: params
-      });
-
       const response = await adminServices.inventoryManagement.getInventory(params);
-
-      // Debug: Log response
-      console.log('[Inventory] API Response:', {
-        status: response.status,
-        inventoriesCount: response.data?.inventories?.length || 0,
-        total: response.data?.pagination?.total || 0,
-        pages: response.data?.pagination?.pages || 0,
-        inventories: response.data?.inventories?.map(inv => ({
-          productId: inv.product?._id || inv.product?._id?._id,
-          productName: inv.product?.name || inv.product?._id?.name,
-          productCode: inv.product?.code || inv.product?._id?.code,
-          productType: inv.product?.product_type || inv.product?._id?.product_type,
-          branchName: inv.branch?.name || inv.branch?._id?.name,
-        })) || []
-      });
 
       if (response.status === 'success') {
         const inventories = response.data.inventories || [];
-        
-        // Debug: Log filtered results
-        if (selectedProductType) {
-          console.log(`[Inventory] Filtered by product_type="${selectedProductType}":`, {
-            totalInventories: inventories.length,
-            productTypesFound: inventories.map(inv => {
-              const product = inv.product?._id || inv.product;
-              return {
-                name: product?.name,
-                code: product?.code,
-                product_type: product?.product_type,
-                matches: product?.product_type === selectedProductType
-              };
-            })
-          });
-        }
+        const paginationData = response.data.pagination || {};
         
         setInventories(inventories);
-        setPagination(prev => ({
-          ...prev,
-          total: response.data.pagination?.total || 0,
-          pages: response.data.pagination?.pages || 0,
-        }));
+        setPagination({
+          ...pagination,
+          total: paginationData.total || 0,
+          pages: paginationData.pages || 0,
+        });
+
+        console.log('Inventory loaded', {
+          filters: {
+            branch: selectedBranch || 'all',
+            type: selectedProductType || 'all',
+            search: searchTerm || 'none',
+          },
+          pagination: {
+            page: pagination.page,
+            total: paginationData.total || 0,
+            returned: inventories.length,
+            pages: paginationData.pages || 0,
+          },
+        });
       } else {
-        console.error('[Inventory] API returned error status:', response);
+        console.error('Inventory fetch failed:', response);
         setError('Failed to fetch inventory');
       }
     } catch (err) {
-      console.error('[Inventory] Failed to fetch inventory:', {
-        error: err,
-        message: err.message,
-        stack: err.stack,
-        params: {
-          page: pagination.page,
-          limit: pagination.limit,
-          searchTerm,
-          selectedBranch,
-          selectedProductType
-        }
-      });
+      console.error('Inventory fetch error:', err.message);
       setError(err.message || 'Failed to fetch inventory');
     } finally {
       setLoading(false);

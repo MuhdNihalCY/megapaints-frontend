@@ -29,35 +29,21 @@ class InventoryService {
       const queryString = params.toString();
       const endpoint = `/admin/inventory${queryString ? `?${queryString}` : ''}`;
 
-      // Debug: Log API request
-      console.log('[InventoryService] Making API request:', {
-        endpoint,
-        queryString,
-        options,
-        fullUrl: endpoint
-      });
-
       const response = await this.adminApi.apiRequest(endpoint, {
         method: 'GET'
       });
 
-      // Debug: Log API response
-      console.log('[InventoryService] API response received:', {
-        status: response?.status,
-        hasData: !!response?.data,
-        inventoriesCount: response?.data?.inventories?.length || 0,
-        pagination: response?.data?.pagination,
-        productTypeFilter: options.product_type || '(none)'
-      });
+      // Validate response structure
+      if (!response || !response.data) {
+        console.warn('InventoryService: Response missing data field');
+      }
+      if (response?.data && !Array.isArray(response.data.inventories)) {
+        console.warn('InventoryService: Inventories is not an array');
+      }
 
       return response;
     } catch (error) {
-      console.error('[InventoryService] Get inventory error:', {
-        error,
-        message: error.message,
-        options,
-        stack: error.stack
-      });
+      console.error('InventoryService error:', error.message);
       throw error;
     }
   }
