@@ -341,8 +341,8 @@ const Products = () => {
                   onChange={handleCategoryChange}
                   label="Select Category"
                 >
-                  {categories.map((category) => (
-                    <MenuItem key={category._id || category.Category_Id} value={category._id || category.Category_Id}>
+                  {categories.map((category, index) => (
+                    <MenuItem key={category._id || category.Category_Id || `category-${index}`} value={category._id || category.Category_Id}>
                       {category.name || category.Category}
                     </MenuItem>
                   ))}
@@ -358,8 +358,8 @@ const Products = () => {
                   name="SubCategory"
                   label="Select Sub Category"
                 >
-                  {filteredSubCategories.map((subCategory) => (
-                    <MenuItem key={subCategory._id || subCategory.SubCategory_Id} value={subCategory._id || subCategory.SubCategory_Id}>
+                  {filteredSubCategories.map((subCategory, index) => (
+                    <MenuItem key={subCategory._id || subCategory.SubCategory_Id || `subcategory-${index}`} value={subCategory._id || subCategory.SubCategory_Id}>
                       {subCategory.name || subCategory.SubCategory}
                     </MenuItem>
                   ))}

@@ -43,15 +43,19 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (inventory && products.length > 0) {
-      const branchId = inventory.branch?._id || inventory.branch?._id?._id;
-      const productId = inventory.product?._id || inventory.product?._id?._id;
-      const product = products.find(p => (p._id || p._id?._id) === productId);
+      // Extract branch and product IDs - they are directly on the objects
+      const branchId = inventory.branch?._id;
+      const productId = inventory.product?._id;
+      const product = products.find(p => {
+        const pId = p._id;
+        return pId && String(pId) === String(productId);
+      });
       if (product) {
-        setSelectedProductType(product.item_type || 'product');
+        setSelectedProductType(product.item_type || product.product_type || 'product');
       }
       setFormData({
-        branch_id: branchId || '',
-        product_id: productId || '',
+        branch_id: branchId ? String(branchId) : '',
+        product_id: productId ? String(productId) : '',
         stock_info: inventory.stock_info || {
           current_stock: 0,
           minimum_stock: 0,

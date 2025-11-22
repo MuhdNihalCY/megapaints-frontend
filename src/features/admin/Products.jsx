@@ -348,8 +348,8 @@ const Products = () => {
             <option value="">All Categories</option>
             {categories
               .filter(cat => !cat.parent_id || !cat.parent_id._id)
-              .map(category => (
-                <option key={category._id} value={category._id}>
+              .map((category, index) => (
+                <option key={category._id || `category-${index}`} value={category._id}>
                   {category.name}
                 </option>
               ))}
@@ -366,8 +366,8 @@ const Products = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">All Sub-Categories</option>
-            {subCategories.map(subCategory => (
-              <option key={subCategory._id} value={subCategory._id}>
+            {subCategories.map((subCategory, index) => (
+              <option key={subCategory._id || `subcategory-${index}`} value={subCategory._id}>
                 {subCategory.name}
               </option>
             ))}

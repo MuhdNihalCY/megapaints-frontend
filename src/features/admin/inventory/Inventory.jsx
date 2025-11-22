@@ -54,7 +54,15 @@ const Inventory = () => {
       const adminServices = getAdminServices();
       const response = await adminServices.businessManagement.getBranches({ limit: 100 });
       if (response.status === 'success') {
-        setBranches(response.data.branches || []);
+        const branchesData = response.data.branches || [];
+        // Debug: Log branch structure
+        console.log('Branches fetched:', branchesData.length);
+        if (branchesData.length > 0) {
+          console.log('Sample branch:', branchesData[0]);
+          console.log('Branch _id:', branchesData[0]._id);
+          console.log('Branch id:', branchesData[0].id);
+        }
+        setBranches(branchesData);
       }
     } catch (err) {
       console.error('Failed to fetch branches:', err);
@@ -125,16 +133,26 @@ const Inventory = () => {
   };
 
   const handleDeleteInventory = async (inventory) => {
-    if (!window.confirm(`Are you sure you want to delete inventory for "${inventory.product?.name || inventory.product?._id?.name}"?`)) {
+    const productName = inventory.product?.name || 'this product';
+    if (!window.confirm(`Are you sure you want to delete inventory for "${productName}"?`)) {
       return;
     }
 
     try {
       const adminServices = getAdminServices();
-      const branchId = inventory.branch?._id || inventory.branch?._id?._id;
-      const productId = inventory.product?._id || inventory.product?._id?._id;
+      // Extract branch and product IDs - they are directly on the objects
+      const branchId = inventory.branch?._id;
+      const productId = inventory.product?._id;
       
-      const response = await adminServices.inventoryManagement.deleteInventory(branchId, productId);
+      if (!branchId || !productId) {
+        setError('Missing branch or product ID');
+        return;
+      }
+      
+      const response = await adminServices.inventoryManagement.deleteInventory(
+        String(branchId), 
+        String(productId)
+      );
 
       if (response.status === 'success') {
         setSuccess('Inventory deleted successfully');
@@ -300,11 +318,34 @@ const Inventory = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Branches</option>
-            {branches.map((branch, index) => (
-              <option key={branch._id || branch.id || `branch-${index}`} value={branch._id || branch.id || ''}>
-                {branch.name}
-              </option>
-            ))}
+            {branches.map((branch, index) => {
+              // Ensure branch ID is extracted as string
+              // Handle both _id (MongoDB) and id (transformed) formats
+              let branchId = null;
+              
+              if (branch._id) {
+                // If _id exists, use it (could be ObjectId or string)
+                branchId = typeof branch._id === 'object' && branch._id.toString 
+                  ? branch._id.toString() 
+                  : String(branch._id);
+              } else if (branch.id) {
+                // Fallback to id if _id doesn't exist
+                branchId = typeof branch.id === 'object' && branch.id.toString 
+                  ? branch.id.toString() 
+                  : String(branch.id);
+              }
+              
+              // Debug: Log if branch ID is missing
+              if (!branchId) {
+                console.warn('Branch missing ID:', branch);
+              }
+              
+              return (
+                <option key={branchId || `branch-${index}`} value={branchId || ''}>
+                  {branch.name} {branch.code ? `(${branch.code})` : ''}
+                </option>
+              );
+            })}
           </select>
 
           <select
@@ -380,41 +421,42 @@ const Inventory = () => {
                 </tr>
               ) : (
                 inventories.map((inventory, index) => {
-                  const product = inventory.product?._id || inventory.product;
-                  const branch = inventory.branch?._id || inventory.branch;
+                  // Get product and branch objects directly (they contain name, code, _id, etc.)
+                  const product = inventory.product;
+                  const branch = inventory.branch;
                   const stockInfo = inventory.stock_info || {};
                   const alerts = inventory.alerts || {};
 
-                  // Helper function to extract ID as string
-                  const extractId = (idObj) => {
-                    if (!idObj) return '';
+                  // Helper function to extract ID as string from an object
+                  const extractId = (obj) => {
+                    if (!obj) return '';
                     // If it's already a string, return it
-                    if (typeof idObj === 'string') return idObj;
+                    if (typeof obj === 'string') return obj;
                     // If it's an object with _id property
-                    if (idObj._id) {
-                      if (typeof idObj._id === 'string') return idObj._id;
-                      if (idObj._id.toString && typeof idObj._id.toString === 'function') {
-                        const str = idObj._id.toString();
+                    if (obj._id) {
+                      if (typeof obj._id === 'string') return obj._id;
+                      if (obj._id.toString && typeof obj._id.toString === 'function') {
+                        const str = obj._id.toString();
                         return str !== '[object Object]' ? str : '';
                       }
                     }
                     // Try toString method
-                    if (idObj.toString && typeof idObj.toString === 'function') {
-                      const str = idObj.toString();
+                    if (obj.toString && typeof obj.toString === 'function') {
+                      const str = obj.toString();
                       return str !== '[object Object]' ? str : '';
                     }
                     // Last resort: try to get valueOf or string conversion
                     try {
-                      const str = String(idObj);
+                      const str = String(obj);
                       return str !== '[object Object]' ? str : '';
                     } catch {
                       return '';
                     }
                   };
 
-                  // Extract IDs
-                  const branchId = extractId(inventory.branch?._id || inventory.branch);
-                  const productId = extractId(inventory.product?._id || inventory.product);
+                  // Extract IDs from product and branch objects
+                  const branchId = extractId(branch);
+                  const productId = extractId(product);
 
                   // Generate unique key - use index as fallback to ensure uniqueness
                   const uniqueKey = (branchId && productId) 

@@ -128,20 +128,9 @@ const StockUpdateTable = () => {
         // Create a map of product IDs to inventory records
         const inventoryMap = new Map();
         inventories.forEach(inv => {
-          // Handle different possible structures for product ID
-          let productId = null;
-          if (inv.product) {
-            // Check if product._id is an object (populated) or string
-            if (inv.product._id) {
-              productId = typeof inv.product._id === 'object' 
-                ? (inv.product._id._id || inv.product._id.toString()) 
-                : inv.product._id;
-            } else if (inv.product.product_id) {
-              productId = inv.product.product_id;
-            }
-          }
-          
-          if (productId) {
+          // Extract product ID - backend returns product._id as string or ObjectId
+          if (inv.product && inv.product._id) {
+            const productId = inv.product._id;
             const productIdStr = String(productId);
             inventoryMap.set(productIdStr, inv);
           }
@@ -314,7 +303,12 @@ const StockUpdateTable = () => {
   };
 
   const handleUpdateStock = async (item) => {
-    const productId = item.product?._id || item.product?._id?._id;
+    // Extract product ID - product._id is already the ID (string or ObjectId)
+    const productId = item.product?._id;
+    if (!productId) {
+      setError('Product ID is missing');
+      return;
+    }
     const productIdStr = String(productId);
     const update = stockUpdates[productIdStr];
     
@@ -349,8 +343,9 @@ const StockUpdateTable = () => {
         const updatedInventory = response.data.inventory;
         if (updatedInventory) {
           setInventories(prev => prev.map(prevItem => {
-            const prevProductId = prevItem.product?._id || prevItem.product?._id?._id;
-            const prevProductIdStr = String(prevProductId);
+            // Extract product ID correctly
+            const prevProductId = prevItem.product?._id;
+            const prevProductIdStr = prevProductId ? String(prevProductId) : '';
             
             if (prevProductIdStr === productIdStr) {
               // Update the inventory for this product

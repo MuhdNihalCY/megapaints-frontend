@@ -249,8 +249,8 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
                                   : 'Select type first'
                                 : 'Select Product'}
                             </option>
-                            {filteredProducts.map(product => (
-                              <option key={product._id} value={product._id}>
+                            {filteredProducts.map((product, index) => (
+                              <option key={product._id || `product-${index}`} value={product._id}>
                                 {product.name} {product.code ? `(${product.code})` : ''}
                               </option>
                             ))}
