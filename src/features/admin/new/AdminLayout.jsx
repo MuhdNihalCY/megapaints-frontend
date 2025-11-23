@@ -131,7 +131,6 @@ const menuItems = [
   { text: '3P Products', icon: <LocalShippingIcon />, path: '/admin/third-party-products' },
   { text: 'Branches', icon: <StoreIcon />, path: '/admin/branches' },
   { text: 'Users', icon: <PeopleIcon />, path: '/admin/users' },
-  { text: 'Employees', icon: <PeopleIcon />, path: '/admin/employees' },
   { text: 'Customers', icon: <PeopleIcon />, path: '/admin/customers' },
   { text: 'Orders', icon: <ShoppingCartIcon />, path: '/admin/orders' },
 ];

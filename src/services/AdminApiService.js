@@ -16,10 +16,18 @@ class AdminApiService {
    * @returns {Object} Headers object
    */
   getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.accessToken}`
+    // Refresh token from localStorage in case it was updated
+    this.accessToken = localStorage.getItem('adminAccessToken') || localStorage.getItem('accessToken');
+    
+    const headers = {
+      'Content-Type': 'application/json'
     };
+    
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    
+    return headers;
   }
 
   /**

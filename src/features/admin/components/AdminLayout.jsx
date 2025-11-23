@@ -47,7 +47,6 @@ const menuItems = [
   { text: 'Inventory', icon: Warehouse, path: '/admin/inventory' },
   { text: 'Inventory Summary', icon: BarChart3, path: '/admin/inventory/summary' },
   { text: 'Users', icon: Users, path: '/admin/users' },
-  { text: 'Employees', icon: Users, path: '/admin/employees' },
   { text: 'Customers', icon: Users, path: '/admin/customers' },
   { text: 'Orders', icon: ShoppingCart, path: '/admin/orders' },
 ];

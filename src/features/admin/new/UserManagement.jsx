@@ -18,27 +18,38 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      
-      const adminUser = localStorage.getItem('adminUser');
-      const accessToken = localStorage.getItem('accessToken');
-      
-      if (!adminUser || !accessToken) {
-        setError('Not logged in as admin. Please login at /admin/login first.');
-        return;
-      }
+      setError('');
       
       // Use the new API service factory
       const adminServices = apiServiceFactory.initializeAdminServices();
+      if (!adminServices || !adminServices.businessManagement) {
+        setError('Admin services not available. Please log in as admin.');
+        setLoading(false);
+        return;
+      }
+      
       const response = await adminServices.businessManagement.getUsers();
       
-      if (response.status === 'success') {
-        setUsers(response.data.users || []);
+      if (response && response.status === 'success') {
+        setUsers(response.data?.users || []);
       } else {
-        setError('Failed to fetch users');
+        setError(response?.message || 'Failed to fetch users. Please check your connection and try again.');
       }
     } catch (err) {
       console.error('Failed to fetch users:', err);
-      setError(err.message || 'Failed to fetch users');
+      let errorMessage = 'Failed to fetch users';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (err.status === 403) {
+        errorMessage = 'You do not have permission to view users.';
+      } else if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your connection and ensure the backend server is running.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
