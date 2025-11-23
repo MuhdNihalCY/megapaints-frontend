@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   Plus,
@@ -18,6 +18,9 @@ import {
   TrendingDown,
   Download,
   Upload,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import InventoryForm from './components/InventoryForm';
 import BulkInventoryUpdate from './components/BulkInventoryUpdate';
@@ -33,6 +36,8 @@ const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedProductType, setSelectedProductType] = useState('');
+  const [sortField, setSortField] = useState('product');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [branches, setBranches] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -183,6 +188,86 @@ const Inventory = () => {
     setSelectedProductType('');
     setPagination(prev => ({ ...prev, page: 1 }));
   };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedInventories = useMemo(() => {
+    let filtered = [...inventories];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(inv => 
+        (inv.product?.name && inv.product.name.toLowerCase().includes(searchLower)) ||
+        (inv.product?.code && inv.product.code.toLowerCase().includes(searchLower)) ||
+        (inv.branch?.name && inv.branch.name.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply branch filter
+    if (selectedBranch) {
+      filtered = filtered.filter(inv => {
+        const branchId = inv.branch?._id || inv.branch_id;
+        return branchId === selectedBranch || branchId?.toString() === selectedBranch;
+      });
+    }
+    
+    // Apply product type filter
+    if (selectedProductType) {
+      filtered = filtered.filter(inv => inv.product?.product_type === selectedProductType);
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'product':
+          aValue = (a.product?.name || '').toLowerCase();
+          bValue = (b.product?.name || '').toLowerCase();
+          break;
+        case 'branch':
+          aValue = (a.branch?.name || '').toLowerCase();
+          bValue = (b.branch?.name || '').toLowerCase();
+          break;
+        case 'quantity':
+          aValue = a.quantity || 0;
+          bValue = b.quantity || 0;
+          break;
+        case 'status':
+          const aLow = (a.quantity || 0) < (a.min_stock_level || 0);
+          const bLow = (b.quantity || 0) < (b.min_stock_level || 0);
+          aValue = aLow ? 1 : 0;
+          bValue = bLow ? 1 : 0;
+          break;
+        default:
+          aValue = (a.product?.name || '').toLowerCase();
+          bValue = (b.product?.name || '').toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [inventories, sortField, sortDirection, searchTerm, selectedBranch, selectedProductType]);
 
   if (loading && inventories.length === 0) {
     return (
@@ -384,17 +469,41 @@ const Inventory = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Product
+                <th 
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('product')}
+                >
+                  <div className="flex items-center">
+                    Product
+                    {getSortIcon('product')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Branch
+                <th 
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('branch')}
+                >
+                  <div className="flex items-center">
+                    Branch
+                    {getSortIcon('branch')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Stock
+                <th 
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('quantity')}
+                >
+                  <div className="flex items-center">
+                    Stock
+                    {getSortIcon('quantity')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Status
+                <th 
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center">
+                    Status
+                    {getSortIcon('status')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Actions
@@ -402,7 +511,7 @@ const Inventory = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {inventories.length === 0 ? (
+              {filteredAndSortedInventories.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -415,7 +524,7 @@ const Inventory = () => {
                   </td>
                 </tr>
               ) : (
-                inventories.map((inventory, index) => {
+                filteredAndSortedInventories.map((inventory, index) => {
                   // Get product and branch objects directly (they contain name, code, _id, etc.)
                   const product = inventory.product;
                   const branch = inventory.branch;

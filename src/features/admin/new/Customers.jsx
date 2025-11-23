@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, Users, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import CustomerForm from '../components/CustomerForm';
 
@@ -10,6 +10,8 @@ const Customers = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     fetchCustomers();
@@ -68,6 +70,65 @@ const Customers = () => {
     fetchCustomers();
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedCustomers = useMemo(() => {
+    let filtered = [...customers];
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'email':
+          aValue = (a.email || '').toLowerCase();
+          bValue = (b.email || '').toLowerCase();
+          break;
+        case 'phone':
+          aValue = (a.phone || '').toLowerCase();
+          bValue = (b.phone || '').toLowerCase();
+          break;
+        case 'company':
+          aValue = (a.company || '').toLowerCase();
+          bValue = (b.company || '').toLowerCase();
+          break;
+        case 'created':
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [customers, sortField, sortDirection]);
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -98,17 +159,41 @@ const Customers = () => {
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ID
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Name
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Name
+                        {getSortIcon('name')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                      Email
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center">
+                        Email
+                        {getSortIcon('email')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                      Phone
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('phone')}
+                    >
+                      <div className="flex items-center">
+                        Phone
+                        {getSortIcon('phone')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                      Company
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('company')}
+                    >
+                      <div className="flex items-center">
+                        Company
+                        {getSortIcon('company')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       Actions
@@ -123,7 +208,7 @@ const Customers = () => {
                         <p className="text-gray-500 dark:text-gray-400">Loading customers...</p>
                       </td>
                     </tr>
-                  ) : customers.length === 0 ? (
+                  ) : filteredAndSortedCustomers.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-3 sm:px-6 py-12 text-center">
                         <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -134,7 +219,7 @@ const Customers = () => {
                       </td>
                     </tr>
                   ) : (
-                    customers.map((customer) => (
+                    filteredAndSortedCustomers.map((customer) => (
                       <tr key={customer._id || customer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           <span className="truncate block max-w-[80px]">{customer._id?.toString().slice(-8) || customer.id}</span>

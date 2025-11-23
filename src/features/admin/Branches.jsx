@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Plus,
@@ -16,6 +16,9 @@ import {
   Activity,
   X,
   Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import BranchForm from './components/BranchForm';
 
@@ -28,6 +31,8 @@ const Branches = () => {
   const [editingBranch, setEditingBranch] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState(null);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -133,6 +138,76 @@ const Branches = () => {
     if (addr.country) parts.push(addr.country);
     return parts.length > 0 ? parts.join(', ') : '-';
   };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedBranches = useMemo(() => {
+    let filtered = [...branches];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(branch => 
+        (branch.name && branch.name.toLowerCase().includes(searchLower)) ||
+        (branch.code && branch.code.toLowerCase().includes(searchLower)) ||
+        (branch.address?.city && branch.address.city.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply active filter
+    if (filterActive !== null) {
+      filtered = filtered.filter(branch => branch.is_active === filterActive);
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'location':
+          aValue = getFullAddress(a).toLowerCase();
+          bValue = getFullAddress(b).toLowerCase();
+          break;
+        case 'status':
+          aValue = a.is_active ? 1 : 0;
+          bValue = b.is_active ? 1 : 0;
+          break;
+        case 'created':
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [branches, sortField, sortDirection, searchTerm, filterActive]);
 
   if (loading && branches.length === 0) {
     return (
@@ -252,11 +327,23 @@ const Branches = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Branch
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Branch
+                        {getSortIcon('name')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                      Address
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('location')}
+                    >
+                      <div className="flex items-center">
+                        Address
+                        {getSortIcon('location')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                       Contact
@@ -264,8 +351,14 @@ const Branches = () => {
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                       Manager
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
-                      Status
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Status
+                        {getSortIcon('status')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       Actions
@@ -273,7 +366,7 @@ const Branches = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {branches.length === 0 ? (
+                  {filteredAndSortedBranches.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-3 sm:px-6 py-12 text-center">
                     <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -286,7 +379,7 @@ const Branches = () => {
                   </td>
                 </tr>
               ) : (
-                branches.map((branch) => (
+                filteredAndSortedBranches.map((branch) => (
                   <tr key={branch._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">

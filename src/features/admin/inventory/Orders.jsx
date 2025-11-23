@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Filter, 
@@ -12,7 +12,10 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import OrderDetail from './components/OrderDetail';
@@ -35,6 +38,8 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [sortField, setSortField] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -207,6 +212,71 @@ const Orders = () => {
     }).format(amount || 0);
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedOrders = useMemo(() => {
+    let filtered = [...orders];
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'order_number':
+          aValue = (a.order_number || '').toLowerCase();
+          bValue = (b.order_number || '').toLowerCase();
+          break;
+        case 'customer':
+          const aCustomer = a.customer?.name || a.customer?.email || '';
+          const bCustomer = b.customer?.name || b.customer?.email || '';
+          aValue = aCustomer.toLowerCase();
+          bValue = bCustomer.toLowerCase();
+          break;
+        case 'date':
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        case 'total':
+          aValue = a.total_amount || 0;
+          bValue = b.total_amount || 0;
+          break;
+        case 'status':
+          aValue = (a.status || '').toLowerCase();
+          bValue = (b.status || '').toLowerCase();
+          break;
+        case 'payment_status':
+          aValue = (a.payment_status || '').toLowerCase();
+          bValue = (b.payment_status || '').toLowerCase();
+          break;
+        default:
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [orders, sortField, sortDirection]);
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
@@ -371,29 +441,65 @@ const Orders = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Order #
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('order_number')}
+                >
+                  <div className="flex items-center">
+                    Order #
+                    {getSortIcon('order_number')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Customer
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('customer')}
+                >
+                  <div className="flex items-center">
+                    Customer
+                    {getSortIcon('customer')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                  Date
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('date')}
+                >
+                  <div className="flex items-center">
+                    Date
+                    {getSortIcon('date')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                   Items
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Total
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('total')}
+                >
+                  <div className="flex items-center">
+                    Total
+                    {getSortIcon('total')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center">
+                    Status
+                    {getSortIcon('status')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
-                  Payment
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort('payment_status')}
+                >
+                  <div className="flex items-center">
+                    Payment
+                    {getSortIcon('payment_status')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
@@ -408,7 +514,7 @@ const Orders = () => {
                     <p className="text-gray-500 dark:text-gray-400">Loading orders...</p>
                   </td>
                 </tr>
-              ) : orders.length === 0 ? (
+              ) : filteredAndSortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="px-6 py-12 text-center">
                     <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -416,7 +522,7 @@ const Orders = () => {
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                filteredAndSortedOrders.map((order) => (
                   <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {order.order_number}
@@ -433,7 +539,7 @@ const Orders = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
-                      {formatDate(order.created_at)}
+                      {formatDate(order.createdAt || order.created_at)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 hidden lg:table-cell">
                       {order.order_type === 'formula' 

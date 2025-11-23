@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -20,6 +20,9 @@ import {
   TrendingDown,
   AlertTriangle,
   TrendingUp,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import ProductForm from './components/ProductForm';
 
@@ -37,6 +40,8 @@ const Products = () => {
   const [filterSubCategory, setFilterSubCategory] = useState('');
   const [filterProductType, setFilterProductType] = useState('');
   const [filterActive, setFilterActive] = useState(null);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [pagination, setPagination] = useState({
@@ -253,6 +258,101 @@ const Products = () => {
     return labels[type] || type;
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = [...products];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(product => 
+        (product.name && product.name.toLowerCase().includes(searchLower)) ||
+        (product.code && product.code.toLowerCase().includes(searchLower)) ||
+        (product.description && product.description.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply category filter
+    if (filterCategory) {
+      filtered = filtered.filter(product => {
+        const categoryId = product.category?._id || product.category_id;
+        return categoryId === filterCategory || categoryId?.toString() === filterCategory;
+      });
+    }
+    
+    // Apply subcategory filter
+    if (filterSubCategory) {
+      filtered = filtered.filter(product => {
+        const subCategoryId = product.subcategory?._id || product.subcategory_id;
+        return subCategoryId === filterSubCategory || subCategoryId?.toString() === filterSubCategory;
+      });
+    }
+    
+    // Apply product type filter
+    if (filterProductType) {
+      filtered = filtered.filter(product => product.product_type === filterProductType);
+    }
+    
+    // Apply active filter
+    if (filterActive !== null) {
+      filtered = filtered.filter(product => product.is_active === filterActive);
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'category':
+          aValue = (a.category?.name || '').toLowerCase();
+          bValue = (b.category?.name || '').toLowerCase();
+          break;
+        case 'type':
+          aValue = (a.product_type || '').toLowerCase();
+          bValue = (b.product_type || '').toLowerCase();
+          break;
+        case 'price':
+          aValue = a.base_price || 0;
+          bValue = b.base_price || 0;
+          break;
+        case 'status':
+          aValue = a.is_active ? 1 : 0;
+          bValue = b.is_active ? 1 : 0;
+          break;
+        default:
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [products, sortField, sortDirection, searchTerm, filterCategory, filterSubCategory, filterProductType, filterActive]);
+
   if (loading && products.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -427,23 +527,53 @@ const Products = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Product
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Product
+                        {getSortIcon('name')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                      Category
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('category')}
+                    >
+                      <div className="flex items-center">
+                        Category
+                        {getSortIcon('category')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Type
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('type')}
+                    >
+                      <div className="flex items-center">
+                        Type
+                        {getSortIcon('type')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                      Price
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('price')}
+                    >
+                      <div className="flex items-center">
+                        Price
+                        {getSortIcon('price')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                       Inventory
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
-                      Status
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Status
+                        {getSortIcon('status')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       Actions
@@ -451,7 +581,7 @@ const Products = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {products.length === 0 ? (
+                  {filteredAndSortedProducts.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-3 sm:px-6 py-12 text-center">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -464,7 +594,7 @@ const Products = () => {
                   </td>
                 </tr>
               ) : (
-                products.map((product) => {
+                filteredAndSortedProducts.map((product) => {
                   const inventory = product.inventory_summary || {};
                   const hasLowStock = inventory.low_stock_branches > 0;
                   const hasOutOfStock = inventory.out_of_stock_branches > 0;
@@ -474,12 +604,7 @@ const Products = () => {
                     <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${typeColor} flex items-center justify-center shadow-md`}>
-                              <Package className="w-5 h-5 text-white" />
-                            </div>
-                          </div>
-                          <div className="ml-3 sm:ml-4 min-w-0">
+                          <div className="min-w-0">
                             <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                               {product.name}
                             </div>

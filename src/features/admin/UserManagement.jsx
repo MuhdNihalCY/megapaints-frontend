@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiServiceFactory from '../../services/ApiServiceFactory.js';
 import UserForm from './components/UserForm.jsx';
@@ -16,6 +16,9 @@ import {
   XCircle,
   Activity,
   ArrowRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 const UserManagement = () => {
@@ -28,6 +31,8 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState(null); // null = all, true = active, false = inactive
   const [filterDesignation, setFilterDesignation] = useState('');
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -167,6 +172,93 @@ const UserManagement = () => {
     return Array.from(designations).sort();
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
+  };
+
+  const filteredAndSortedUsers = useMemo(() => {
+    let filtered = [...users];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(user => 
+        (user.first_name && user.first_name.toLowerCase().includes(searchLower)) ||
+        (user.last_name && user.last_name.toLowerCase().includes(searchLower)) ||
+        (user.username && user.username.toLowerCase().includes(searchLower)) ||
+        (user.email && user.email.toLowerCase().includes(searchLower)) ||
+        (user.designation && user.designation.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply active filter
+    if (filterActive !== null) {
+      filtered = filtered.filter(user => user.is_active === filterActive);
+    }
+    
+    // Apply designation filter
+    if (filterDesignation) {
+      filtered = filtered.filter(user => user.designation === filterDesignation);
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'name':
+          const aName = a.first_name && a.last_name 
+            ? `${a.first_name} ${a.last_name}`.toLowerCase() 
+            : (a.username || '').toLowerCase();
+          const bName = b.first_name && b.last_name 
+            ? `${b.first_name} ${b.last_name}`.toLowerCase() 
+            : (b.username || '').toLowerCase();
+          aValue = aName;
+          bValue = bName;
+          break;
+        case 'email':
+          aValue = (a.email || '').toLowerCase();
+          bValue = (b.email || '').toLowerCase();
+          break;
+        case 'designation':
+          aValue = (a.designation || '').toLowerCase();
+          bValue = (b.designation || '').toLowerCase();
+          break;
+        case 'status':
+          aValue = a.is_active ? 1 : 0;
+          bValue = b.is_active ? 1 : 0;
+          break;
+        case 'created':
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          aValue = (a.username || '').toLowerCase();
+          bValue = (b.username || '').toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filtered;
+  }, [users, sortField, sortDirection, searchTerm, filterActive, filterDesignation]);
+
   if (loading && users.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -300,23 +392,53 @@ const UserManagement = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      User
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        User
+                        {getSortIcon('name')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                      Email
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center">
+                        Email
+                        {getSortIcon('email')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                      Designation
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('designation')}
+                    >
+                      <div className="flex items-center">
+                        Designation
+                        {getSortIcon('designation')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                       Branches
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
-                      Status
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Status
+                        {getSortIcon('status')}
+                      </div>
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden xl:table-cell">
-                      Created
+                    <th 
+                      className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden xl:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      onClick={() => handleSort('created')}
+                    >
+                      <div className="flex items-center">
+                        Created
+                        {getSortIcon('created')}
+                      </div>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       Actions
@@ -324,7 +446,7 @@ const UserManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {users.length === 0 ? (
+                  {filteredAndSortedUsers.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-3 sm:px-6 py-12 text-center">
                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -337,7 +459,7 @@ const UserManagement = () => {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                filteredAndSortedUsers.map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
