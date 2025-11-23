@@ -67,7 +67,7 @@ const Analytics = () => {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Inventory Value</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ₹{financial.total_inventory_value?.toFixed(2) || '0.00'}
+                  AED {financial.total_inventory_value?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-500" />
@@ -79,7 +79,7 @@ const Analytics = () => {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Potential Profit</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ₹{financial.potential_profit?.toFixed(2) || '0.00'}
+                  AED {financial.potential_profit?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-500" />
@@ -103,7 +103,7 @@ const Analytics = () => {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Cost Value</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ₹{financial.total_cost_value?.toFixed(2) || '0.00'}
+                  AED {financial.total_cost_value?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-orange-500" />

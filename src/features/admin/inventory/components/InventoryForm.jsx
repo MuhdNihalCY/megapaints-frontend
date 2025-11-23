@@ -10,6 +10,7 @@ import {
   Save,
   Hash,
   Filter,
+  Calculator,
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 
@@ -35,6 +36,8 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
   });
   const [selectedProductType, setSelectedProductType] = useState('');
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [stockOperationMode, setStockOperationMode] = useState('edit'); // 'add' or 'edit'
+  const [stockQuantityToAdd, setStockQuantityToAdd] = useState('');
 
   useEffect(() => {
     fetchBranches();
@@ -177,25 +180,59 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
       const adminServices = getAdminServices();
 
       if (inventory) {
-        // Update existing inventory
         const branchId = inventory.branch?._id || inventory.branch?._id?._id;
         const productId = inventory.product?._id || inventory.product?._id?._id;
-        // Remove pricing from formData before sending
-        const { pricing, ...inventoryData } = formData;
-        const response = await adminServices.inventoryManagement.updateInventory(
-          branchId,
-          productId,
-          inventoryData
-        );
+        
+        if (stockOperationMode === 'add') {
+          // Add stock mode - use addStock API with standard_quantity calculation
+          const inputValue = stockQuantityToAdd === '' ? 0 : parseFloat(stockQuantityToAdd) || 0;
+          if (inputValue <= 0) {
+            setError('Units to add must be greater than 0');
+            setLoading(false);
+            return;
+          }
+          
+          // Get product to calculate actual quantity using standard_quantity
+          const product = products.find(p => {
+            const pId = p._id;
+            return pId && String(pId) === String(productId);
+          });
+          const standardQuantity = product?.standard_quantity || 1;
+          const calculatedQuantity = inputValue * standardQuantity;
+          
+          const response = await adminServices.inventoryManagement.addStock(
+            branchId,
+            productId,
+            calculatedQuantity
+          );
 
-        if (response.status === 'success') {
-          setSuccess('Inventory updated successfully!');
-          setTimeout(() => {
-            onSuccess && onSuccess();
-            onClose && onClose();
-          }, 1500);
+          if (response.status === 'success') {
+            setSuccess(`Stock added successfully! Added ${calculatedQuantity.toFixed(3)} ${formData.stock_info.unit} (${inputValue} units × ${standardQuantity.toFixed(3)})`);
+            setTimeout(() => {
+              onSuccess && onSuccess();
+              onClose && onClose();
+            }, 1500);
+          } else {
+            setError(response.message || 'Failed to add stock');
+          }
         } else {
-          setError(response.message || 'Failed to update inventory');
+          // Edit current stock mode - use updateInventory API
+          const { pricing, ...inventoryData } = formData;
+          const response = await adminServices.inventoryManagement.updateInventory(
+            branchId,
+            productId,
+            inventoryData
+          );
+
+          if (response.status === 'success') {
+            setSuccess('Inventory updated successfully!');
+            setTimeout(() => {
+              onSuccess && onSuccess();
+              onClose && onClose();
+            }, 1500);
+          } else {
+            setError(response.message || 'Failed to update inventory');
+          }
         }
       } else {
         // Create new inventory (pricing removed - not needed in inventory form)
@@ -346,22 +383,147 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
             {/* Stock Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Stock Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Current Stock *
+              
+              {/* Stock Operation Mode Selector - Only show when editing */}
+              {inventory && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Stock Operation Mode
                   </label>
-                  <input
-                    type="number"
-                    name="stock_info.current_stock"
-                    value={formData.stock_info.current_stock}
-                    onChange={handleInputChange}
-                    step="0.001"
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    required
-                  />
+                  <div className="flex gap-4">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="stockOperationMode"
+                        value="add"
+                        checked={stockOperationMode === 'add'}
+                        onChange={(e) => setStockOperationMode(e.target.value)}
+                        className="mr-2 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Add Stock</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="stockOperationMode"
+                        value="edit"
+                        checked={stockOperationMode === 'edit'}
+                        onChange={(e) => setStockOperationMode(e.target.value)}
+                        className="mr-2 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Edit Current Stock</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    {stockOperationMode === 'add' 
+                      ? 'Add quantity to current stock' 
+                      : 'Set stock to a new value'}
+                  </p>
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {inventory && stockOperationMode === 'add' ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Units to Add *
+                      </label>
+                      <input
+                        type="number"
+                        value={stockQuantityToAdd}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow empty string, or valid number
+                          if (value === '' || (!isNaN(value) && parseFloat(value) >= 0)) {
+                            setStockQuantityToAdd(value);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // On blur, if empty, keep it empty (don't convert to 0)
+                          // This allows the placeholder to show
+                          if (e.target.value === '') {
+                            setStockQuantityToAdd('');
+                          }
+                        }}
+                        step="0.001"
+                        min="0"
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Current Stock: {formData.stock_info.current_stock.toFixed(3)} {formData.stock_info.unit}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Calculated Quantity
+                      </label>
+                      <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                        {(() => {
+                          const product = products.find(p => {
+                            const pId = p._id;
+                            const productId = inventory.product?._id;
+                            return pId && String(pId) === String(productId);
+                          });
+                          const standardQuantity = product?.standard_quantity || 1;
+                          const inputValue = stockQuantityToAdd === '' ? 0 : parseFloat(stockQuantityToAdd) || 0;
+                          const calculatedValue = inputValue * standardQuantity;
+                          return (
+                            <div className="flex items-center space-x-2">
+                              <Calculator className="w-4 h-4 text-gray-400" />
+                              <div className="flex-1">
+                                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                  {calculatedValue > 0 ? (
+                                    <>
+                                      {calculatedValue.toFixed(3)} {formData.stock_info.unit}
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </div>
+                                {inputValue > 0 && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {inputValue} × {standardQuantity.toFixed(3)} = {calculatedValue.toFixed(3)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {(() => {
+                          const product = products.find(p => {
+                            const pId = p._id;
+                            const productId = inventory.product?._id;
+                            return pId && String(pId) === String(productId);
+                          });
+                          const standardQuantity = product?.standard_quantity || 1;
+                          const standardQuantityUnit = product?.standard_quantity_unit || product?.unit || '';
+                          return `Standard Quantity: ${standardQuantity.toFixed(3)} ${standardQuantityUnit} per unit`;
+                        })()}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Current Stock *
+                    </label>
+                    <input
+                      type="number"
+                      name="stock_info.current_stock"
+                      value={formData.stock_info.current_stock}
+                      onChange={handleInputChange}
+                      step="0.001"
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      required
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Unit
@@ -449,7 +611,9 @@ const InventoryForm = ({ inventory = null, onClose, onSuccess }) => {
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    {inventory ? 'Update Inventory' : 'Create Inventory'}
+                    {inventory 
+                      ? (stockOperationMode === 'add' ? 'Add Stock' : 'Update Inventory')
+                      : 'Create Inventory'}
                   </>
                 )}
               </button>

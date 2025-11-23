@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import InventoryForm from './components/InventoryForm';
 import BulkInventoryUpdate from './components/BulkInventoryUpdate';
-import StockUpdateTable from './components/StockUpdateTable';
 
 const Inventory = () => {
   const [inventories, setInventories] = useState([]);
@@ -29,7 +28,6 @@ const Inventory = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
   const [editingInventory, setEditingInventory] = useState(null);
   const [activeTab, setActiveTab] = useState('list'); // 'list' or 'stock-update'
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,6 +89,7 @@ const Inventory = () => {
         const paginationData = response.data.pagination || {};
         
         setInventories(inventories);
+        console.log('inventories', inventories);
         setPagination({
           ...pagination,
           total: paginationData.total || 0,
@@ -209,13 +208,6 @@ const Inventory = () => {
         {activeTab === 'list' && (
           <div className="flex gap-2">
             <button
-              onClick={() => setShowBulkUpdate(true)}
-              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Bulk Update
-            </button>
-            <button
               onClick={handleAddInventory}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -255,15 +247,18 @@ const Inventory = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <Plus className="w-4 h-4 inline mr-2" />
-            Stock Update
+            <Upload className="w-4 h-4 inline mr-2" />
+            Bulk Stock Update
           </button>
         </nav>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'stock-update' ? (
-        <StockUpdateTable />
+        <BulkInventoryUpdate
+          inline={true}
+          onSuccess={handleFormSuccess}
+        />
       ) : (
         <>
 
@@ -500,19 +495,19 @@ const Inventory = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1">
                           {alerts.out_of_stock && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                              <XCircle className="w-3 h-3 mr-1" />
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 w-fit px-4">
+                              <XCircle className="w-3 h-3 mr-1" /> 
                               Out of Stock
                             </span>
                           )}
                           {alerts.low_stock && !alerts.out_of_stock && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 w-fit px-4">
                               <AlertCircle className="w-3 h-3 mr-1" />
                               Low Stock
                             </span>
                           )}
                           {!alerts.low_stock && !alerts.out_of_stock && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 w-fit px-4">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               In Stock
                             </span>
@@ -587,12 +582,6 @@ const Inventory = () => {
             />
           )}
 
-          {showBulkUpdate && (
-            <BulkInventoryUpdate
-              onClose={() => setShowBulkUpdate(false)}
-              onSuccess={handleFormSuccess}
-            />
-          )}
         </>
       )}
     </div>

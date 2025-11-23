@@ -70,7 +70,7 @@ const InventorySummary = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Stock Value</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ₹{summary?.total_stock_value?.toFixed(2) || '0.00'}
+                AED {summary?.total_stock_value?.toFixed(2) || '0.00'}
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500" />
@@ -144,7 +144,7 @@ const InventorySummary = () => {
                       {branch.total_products || 0}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      ₹{branch.total_stock_value?.toFixed(2) || '0.00'}
+                      AED {branch.total_stock_value?.toFixed(2) || '0.00'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {branch.low_stock_count || 0}

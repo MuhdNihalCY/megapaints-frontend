@@ -1069,7 +1069,7 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Base Price *
+                    Base Price (AED) *
                   </label>
                   <input
                     type="number"
@@ -1081,7 +1081,7 @@ const ProductForm = ({ product = null, defaultProductType = null, onClose, onSuc
                     className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                       validationErrors.base_price ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
                     }`}
-                    placeholder="0.00"
+                    placeholder="0.00 AED"
                   />
                   {validationErrors.base_price && (
                     <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">

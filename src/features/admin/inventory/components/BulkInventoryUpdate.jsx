@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { X, Upload, Loader2, CheckCircle, AlertCircle, Building2, Package, Filter, Plus, Trash2 } from 'lucide-react';
 
-const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
+const BulkInventoryUpdate = ({ onClose, onSuccess, inline = false }) => {
   const { getAdminServices } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -115,7 +115,9 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
         setSuccess(`Bulk update completed: ${response.data.summary.success} successful, ${response.data.summary.failed} failed`);
         setTimeout(() => {
           onSuccess && onSuccess();
-          onClose && onClose();
+          if (!inline && onClose) {
+            onClose();
+          }
         }, 2000);
       } else {
         setError(response.message || 'Failed to bulk update inventory');
@@ -128,23 +130,22 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
+  const content = (
+    <>
+      {inline && (
+        <div className="mb-6">
+          <div className="flex items-center space-x-3 mb-2">
             <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bulk Inventory Update</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bulk Stock Update</h2>
           </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Update multiple inventory items at once with bulk operations
+          </p>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-6">
+      <div className={`${inline ? 'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700' : ''}`}>
+        <div className={`${inline ? 'p-6' : 'flex-1 overflow-y-auto p-6'}`}>
           {error && (
             <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
               <p className="text-red-700 dark:text-red-400 flex items-center">
@@ -311,14 +312,16 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
             </button>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
-              >
-                Cancel
-              </button>
+            <div className={`flex ${inline ? 'justify-end' : 'justify-end'} space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700`}>
+              {!inline && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={loading}
@@ -339,6 +342,30 @@ const BulkInventoryUpdate = ({ onClose, onSuccess }) => {
             </div>
           </form>
         </div>
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return <div className="space-y-6">{content}</div>;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bulk Inventory Update</h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {content}
       </div>
     </div>
   );

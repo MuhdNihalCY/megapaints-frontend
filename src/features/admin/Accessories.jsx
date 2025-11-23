@@ -310,7 +310,7 @@ const Accessories = () => {
                     </td>
                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                       <div className="flex items-center">
-                        <span className="font-semibold">{accessory.unit_price?.toFixed(2) || '0.00'}</span>
+                        <span className="font-semibold">AED {accessory.unit_price?.toFixed(2) || '0.00'}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
                           / {accessory.unit || 'unit'}
                         </span>
