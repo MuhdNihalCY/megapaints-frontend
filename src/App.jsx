@@ -22,7 +22,7 @@ import SubCategories from './features/admin/new/SubCategories';
 import Groups from './features/admin/new/Groups';
 import Employees from './features/admin/new/Employees';
 import Customers from './features/admin/new/Customers';
-import PurchasedItems from './features/admin/new/PurchasedItems';
+import OrdersAdmin from './features/admin/inventory/Orders';
 import Inventory from './features/admin/inventory/Inventory';
 import InventorySummary from './features/admin/inventory/InventorySummary';
 import AdminLayout from './features/admin/components/AdminLayout';
@@ -130,7 +130,7 @@ function App() {
                 <Route path="third-party-products" element={<ThirdPartyProducts />} />
                 <Route path="employees" element={<Employees />} />
                 <Route path="customers" element={<Customers />} />
-                <Route path="purchased-items" element={<PurchasedItems />} />
+                <Route path="orders" element={<OrdersAdmin />} />
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="inventory/summary" element={<InventorySummary />} />
               </Route>

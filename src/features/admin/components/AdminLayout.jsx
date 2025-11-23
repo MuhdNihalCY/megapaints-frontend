@@ -49,7 +49,7 @@ const menuItems = [
   { text: 'Users', icon: Users, path: '/admin/users' },
   { text: 'Employees', icon: Users, path: '/admin/employees' },
   { text: 'Customers', icon: Users, path: '/admin/customers' },
-  { text: 'Purchased Items', icon: ShoppingCart, path: '/admin/purchased-items' },
+  { text: 'Orders', icon: ShoppingCart, path: '/admin/orders' },
 ];
 
 export default function AdminLayout() {
