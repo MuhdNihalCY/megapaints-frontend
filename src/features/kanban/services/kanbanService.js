@@ -46,8 +46,14 @@ class KanbanService {
       headers: error.config?.headers
     });
     
+    // Preserve the original error with response data
     if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
+      const newError = new Error(error.response.data.message);
+      // Attach original error and response for debugging
+      newError.originalError = error;
+      newError.response = error.response;
+      newError.status = error.response.status;
+      throw newError;
     }
     throw error;
   }

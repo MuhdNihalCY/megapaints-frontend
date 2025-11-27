@@ -3,7 +3,7 @@
  * Handles branch-related operations and API calls
  */
 
-import { api } from '../../utils/api';
+import api from '../utils/api';
 
 class BranchService {
   constructor() {

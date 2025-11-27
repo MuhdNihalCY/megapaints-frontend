@@ -365,13 +365,15 @@ const TrelloCardModal = ({
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-64 z-50 flex items-start justify-center overflow-y-auto p-4"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
+      {isOpen && (
+        <motion.div
+          key="trello-card-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-64 z-50 flex items-start justify-center overflow-y-auto p-4"
+          onClick={(e) => e.target === e.currentTarget && onClose()}
+        >
         <motion.div
           ref={modalRef}
           initial={{ scale: 0.95, opacity: 0 }}
@@ -1137,13 +1139,17 @@ const TrelloCardModal = ({
           </AnimatePresence>
         </motion.div>
       </motion.div>
+      )}
       
       {/* Customer Management Modal */}
-      <CustomerManagementModal
-        isOpen={showCustomerModal}
-        onClose={() => setShowCustomerModal(false)}
-        onCustomerSelect={handleCustomerSelect}
-      />
+      {showCustomerModal && (
+        <CustomerManagementModal
+          key="customer-management-modal"
+          isOpen={showCustomerModal}
+          onClose={() => setShowCustomerModal(false)}
+          onCustomerSelect={handleCustomerSelect}
+        />
+      )}
     </AnimatePresence>
   );
 };

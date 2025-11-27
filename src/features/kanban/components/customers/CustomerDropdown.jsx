@@ -2,6 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, User, Building, ChevronDown, X, Check } from 'lucide-react';
 import { kanbanService } from '../../services/kanbanService';
+import { useAuth } from '../../../../contexts/AuthContext';
+
+// Helper function to check if a string is a valid MongoDB ObjectId
+const isValidObjectId = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  // MongoDB ObjectId is 24 characters of hexadecimal
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
 
 const CustomerDropdown = ({ 
   selectedCustomer, 
@@ -12,6 +20,7 @@ const CustomerDropdown = ({
   disabled = false,
   className = ""
 }) => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [customers, setCustomers] = useState([]);
@@ -41,15 +50,47 @@ const CustomerDropdown = ({
       setError(null);
       
       try {
+        // Get valid branch_id from user context
+        let branchId = null;
+        
+        // Try to get from user.branches
+        if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
+          const firstBranch = user.branches[0];
+          // Handle both string and object formats
+          let branchIdStr = null;
+          if (typeof firstBranch === 'string') {
+            branchIdStr = firstBranch;
+          } else if (firstBranch && typeof firstBranch === 'object') {
+            // Try various possible properties
+            branchIdStr = firstBranch._id || firstBranch.id || 
+                         (firstBranch.toString && typeof firstBranch.toString === 'function' ? firstBranch.toString() : null);
+          }
+          
+          if (branchIdStr) {
+            const branchIdString = String(branchIdStr);
+            if (isValidObjectId(branchIdString)) {
+              branchId = branchIdString;
+            }
+          }
+        }
+
+        // If we still don't have a valid branch_id, the backend should use req.user.branches[0]
+        // But since the backend requires it, we'll include it only if we have it
         const params = {
-          branch_id: 'default-branch-id', // TODO: Get from context or props
+          ...(branchId ? { branch_id: branchId } : {}),
           ...(searchQuery ? { search: searchQuery } : {})
         };
+        
         const response = await kanbanService.getCustomers(params);
         setCustomers(response.customers || []);
       } catch (err) {
         console.error('Failed to load customers:', err);
-        setError('Failed to load customers');
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to load customers';
+        if (errorMessage.includes('Branch filter required') || errorMessage.includes('Branch ID')) {
+          setError('No branch assigned. Please contact an administrator.');
+        } else {
+          setError(errorMessage);
+        }
         setCustomers([]);
       } finally {
         setLoading(false);
@@ -58,7 +99,7 @@ const CustomerDropdown = ({
 
     const debounceTimer = setTimeout(loadCustomers, 300);
     return () => clearTimeout(debounceTimer);
-  }, [isOpen, searchQuery]);
+  }, [isOpen, searchQuery, user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

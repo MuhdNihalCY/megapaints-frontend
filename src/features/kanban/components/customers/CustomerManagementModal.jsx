@@ -2,11 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Search, Plus, Edit2, Trash2, User, Building, 
-  Mail, Phone, MapPin, Calendar, Tag, Eye, EyeOff 
+  Mail, Phone, MapPin, Calendar, Tag, Eye, EyeOff,
+  Users, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { kanbanService } from '../../services/kanbanService';
+import { useAuth } from '../../../../contexts/AuthContext';
+
+// Helper function to check if a string is a valid MongoDB ObjectId
+const isValidObjectId = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  // MongoDB ObjectId is 24 characters of hexadecimal
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
 
 const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -43,15 +53,120 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
     setError(null);
     
     try {
+      // DEBUG: Log user object
+      console.log('🔍 [CustomerManagementModal] DEBUG - User object:', {
+        user: user,
+        hasUser: !!user,
+        userBranches: user?.branches,
+        branchesType: typeof user?.branches,
+        isArray: Array.isArray(user?.branches),
+        branchesLength: Array.isArray(user?.branches) ? user.branches.length : 'N/A',
+        branchesContent: user?.branches,
+        userKeys: user ? Object.keys(user) : [],
+        userRoles: user?.roles,
+        userIsAdmin: user?.isAdmin || user?.roles?.includes('admin') || user?.roles?.includes('super_admin')
+      });
+
+      // Get valid branch_id from user context
+      let branchId = null;
+      
+      // Try to get from user.branches
+      if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
+        const firstBranch = user.branches[0];
+        console.log('🔍 [CustomerManagementModal] DEBUG - First branch:', {
+          firstBranch,
+          firstBranchType: typeof firstBranch,
+          isString: typeof firstBranch === 'string',
+          isObject: typeof firstBranch === 'object' && firstBranch !== null
+        });
+
+        // Handle both string and object formats
+        let branchIdStr = null;
+        if (typeof firstBranch === 'string') {
+          branchIdStr = firstBranch;
+          console.log('🔍 [CustomerManagementModal] DEBUG - Branch is string:', branchIdStr);
+        } else if (firstBranch && typeof firstBranch === 'object') {
+          // Try various possible properties
+          branchIdStr = firstBranch._id || firstBranch.id || 
+                       (firstBranch.toString && typeof firstBranch.toString === 'function' ? firstBranch.toString() : null);
+          console.log('🔍 [CustomerManagementModal] DEBUG - Branch is object:', {
+            _id: firstBranch._id,
+            id: firstBranch.id,
+            toString: firstBranch.toString ? firstBranch.toString() : 'no toString',
+            extracted: branchIdStr
+          });
+        }
+        
+        if (branchIdStr) {
+          const branchIdString = String(branchIdStr);
+          console.log('🔍 [CustomerManagementModal] DEBUG - Branch ID string:', branchIdString);
+          const isValid = isValidObjectId(branchIdString);
+          console.log('🔍 [CustomerManagementModal] DEBUG - Is valid ObjectId:', isValid);
+          if (isValid) {
+            branchId = branchIdString;
+            console.log('✅ [CustomerManagementModal] DEBUG - Using branch_id:', branchId);
+          } else {
+            console.warn('⚠️ [CustomerManagementModal] DEBUG - Branch ID is not valid ObjectId:', branchIdString);
+          }
+        } else {
+          console.warn('⚠️ [CustomerManagementModal] DEBUG - Could not extract branch ID from firstBranch');
+        }
+      } else {
+        console.warn('⚠️ [CustomerManagementModal] DEBUG - No branches available:', {
+          hasBranches: !!user?.branches,
+          isArray: Array.isArray(user?.branches),
+          length: Array.isArray(user?.branches) ? user.branches.length : 'N/A'
+        });
+      }
+
+      // Check if user has no branches - prevent API call and show error immediately
+      if (!branchId && (!user?.branches || (Array.isArray(user.branches) && user.branches.length === 0))) {
+        console.error('❌ [CustomerManagementModal] DEBUG - User has no branches assigned');
+        setError('No branch assigned to your account. Please contact an administrator to assign a branch before accessing customers.');
+        setCustomers([]);
+        setLoading(false);
+        return;
+      }
+
+      // If we still don't have a valid branch_id, the backend should use req.user.branches[0]
+      // But since the backend requires it, we'll include it only if we have it
       const params = {
-        branch_id: 'default-branch-id', // TODO: Get from context or props
+        ...(branchId ? { branch_id: branchId } : {}),
         ...(searchQuery ? { search: searchQuery } : {})
       };
+      
+      console.log('🔍 [CustomerManagementModal] DEBUG - Request params:', params);
+      console.log('🔍 [CustomerManagementModal] DEBUG - Has branch_id in params:', !!params.branch_id);
+      
       const response = await kanbanService.getCustomers(params);
+      console.log('✅ [CustomerManagementModal] DEBUG - Successfully loaded customers:', response);
       setCustomers(response.customers || []);
     } catch (err) {
-      console.error('Failed to load customers:', err);
-      setError('Failed to load customers');
+      console.error('❌ [CustomerManagementModal] DEBUG - Failed to load customers:', err);
+      
+      // The kanbanService.handleError throws a new Error, so we need to check the original error
+      // Try to get the original error response from the error object
+      const originalError = err.originalError || err.cause || err;
+      const errorResponse = originalError?.response?.data || err.response?.data;
+      const errorMessage = errorResponse?.message || err.message || 'Failed to load customers';
+      const errorDetails = errorResponse?.details || '';
+      
+      console.error('❌ [CustomerManagementModal] DEBUG - Error response:', errorResponse);
+      console.error('❌ [CustomerManagementModal] DEBUG - Error message:', errorMessage);
+      console.error('❌ [CustomerManagementModal] DEBUG - Error details:', errorDetails);
+      
+      // Check if the error is about missing branch
+      if (errorMessage.includes('Branch filter required') || errorMessage.includes('Branch ID') || 
+          errorDetails.includes('Branch ID must be specified')) {
+        // Check if user has no branches assigned
+        if (!user?.branches || (Array.isArray(user.branches) && user.branches.length === 0)) {
+          setError('No branch assigned to your account. Please contact an administrator to assign a branch before accessing customers.');
+        } else {
+          setError('Branch ID is required to access customers. Please contact support if this issue persists.');
+        }
+      } else {
+        setError(errorMessage);
+      }
       setCustomers([]);
     } finally {
       setLoading(false);
@@ -72,11 +187,43 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
       return;
     }
 
+    // Get valid branch_id from user context
+    let branchId = null;
+    if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
+      const firstBranch = user.branches[0];
+      let branchIdStr = null;
+      if (typeof firstBranch === 'string') {
+        branchIdStr = firstBranch;
+      } else if (firstBranch && typeof firstBranch === 'object') {
+        branchIdStr = firstBranch._id || firstBranch.id || 
+                     (firstBranch.toString && typeof firstBranch.toString === 'function' ? firstBranch.toString() : null);
+      }
+      
+      if (branchIdStr) {
+        const branchIdString = String(branchIdStr);
+        if (isValidObjectId(branchIdString)) {
+          branchId = branchIdString;
+        }
+      }
+    }
+
+    // Check if user has no branches
+    if (!branchId) {
+      setCreateError('No branch assigned to your account. Please contact an administrator to assign a branch before creating customers.');
+      return;
+    }
+
     setCreating(true);
     setCreateError(null);
 
     try {
-      const response = await kanbanService.createCustomer(newCustomer);
+      // Include branch_id in the customer data
+      const customerData = {
+        ...newCustomer,
+        branch_id: branchId
+      };
+      
+      const response = await kanbanService.createCustomer(customerData);
       const createdCustomer = response.customer;
       
       setCustomers(prev => [createdCustomer, ...prev]);
@@ -93,10 +240,23 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
       setShowCreateForm(false);
     } catch (err) {
       console.error('Failed to create customer:', err);
-      if (err.response?.data?.message?.includes('already exists')) {
+      
+      // Get error details from the error object
+      const originalError = err.originalError || err.cause || err;
+      const errorResponse = originalError?.response?.data || err.response?.data;
+      const errorMessage = errorResponse?.message || err.message || 'Failed to create customer';
+      const errorDetails = errorResponse?.details || [];
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
         setCreateError('A customer with this name already exists. Please choose a different name.');
+      } else if (errorMessage.includes('Validation failed') && Array.isArray(errorDetails)) {
+        // Show validation errors
+        setCreateError(errorDetails.join(', ') || 'Please check your input and try again.');
+      } else if (errorMessage.includes('Branch') || errorDetails.some(d => typeof d === 'string' && d.includes('Branch'))) {
+        setCreateError('Branch ID is required. Please contact support if this issue persists.');
       } else {
-        setCreateError('Failed to create customer. Please try again.');
+        setCreateError(errorMessage || 'Failed to create customer. Please try again.');
       }
     } finally {
       setCreating(false);
@@ -233,7 +393,16 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                     />
                   </div>
                   <button
-                    onClick={() => setShowCreateForm(true)}
+                    onClick={() => {
+                      // Pre-fill the name field with the search query if available
+                      if (searchQuery.trim()) {
+                        setNewCustomer(prev => ({
+                          ...prev,
+                          name: searchQuery.trim()
+                        }));
+                      }
+                      setShowCreateForm(true);
+                    }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
@@ -449,151 +618,261 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
             </div>
           </div>
 
-          {/* Create Customer Form */}
+          {/* Create Customer Form Modal */}
           <AnimatePresence>
             {showCreateForm && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-white dark:bg-gray-900 p-6 overflow-y-auto"
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setNewCustomer({
+                      name: '',
+                      email: '',
+                      phone: '',
+                      company: '',
+                      customer_type: 'business',
+                      status: 'prospect',
+                      notes: '',
+                      tags: []
+                    });
+                    setShowCreateForm(false);
+                  }
+                }}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Create New Customer</h3>
-                  <button
-                    onClick={() => setShowCreateForm(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <form onSubmit={handleCreateCustomer} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Customer Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={newCustomer.name}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter customer name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        required
-                      />
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                          Create New Customer
+                        </h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Add a new customer to your system
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Company
-                      </label>
-                      <input
-                        type="text"
-                        value={newCustomer.company}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
-                        placeholder="Company name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={newCustomer.email}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
-                        placeholder="email@example.com"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Phone
-                      </label>
-                      <input
-                        type="tel"
-                        value={newCustomer.phone}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="+1234567890"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Customer Type
-                      </label>
-                      <select
-                        value={newCustomer.customer_type}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, customer_type: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      >
-                        <option value="individual">Individual</option>
-                        <option value="business">Business</option>
-                        <option value="contractor">Contractor</option>
-                        <option value="retailer">Retailer</option>
-                        <option value="wholesaler">Wholesaler</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Status
-                      </label>
-                      <select
-                        value={newCustomer.status}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, status: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      >
-                        <option value="prospect">Prospect</option>
-                        <option value="lead">Lead</option>
-                        <option value="customer">Customer</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Notes
-                    </label>
-                    <textarea
-                      value={newCustomer.notes}
-                      onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
-                      placeholder="Additional notes..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-
-                  {createError && (
-                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded">
-                      {createError}
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
                     <button
-                      type="submit"
-                      disabled={creating}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => {
+                        setNewCustomer({
+                          name: '',
+                          email: '',
+                          phone: '',
+                          company: '',
+                          customer_type: 'business',
+                          status: 'prospect',
+                          notes: '',
+                          tags: []
+                        });
+                        setShowCreateForm(false);
+                      }}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
-                      {creating ? 'Creating...' : 'Create Customer'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateForm(false)}
-                      className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                    >
-                      Cancel
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
-                </form>
+
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {createError && (
+                      <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg text-red-700 dark:text-red-400 flex items-start space-x-3">
+                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-medium">Error</p>
+                          <p className="text-sm mt-1">{createError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleCreateCustomer} className="space-y-6">
+                      {/* Basic Information */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
+                              Customer Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={newCustomer.name}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Enter customer name"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Building className="w-4 h-4 mr-2 text-gray-500" />
+                              Company
+                            </label>
+                            <input
+                              type="text"
+                              value={newCustomer.company}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
+                              placeholder="Company name"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contact Information */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Information</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Mail className="w-4 h-4 mr-2 text-gray-500" />
+                              Email
+                            </label>
+                            <input
+                              type="email"
+                              value={newCustomer.email}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
+                              placeholder="email@example.com"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                              Phone
+                            </label>
+                            <input
+                              type="tel"
+                              value={newCustomer.phone}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="+1234567890"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Customer Details */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Tag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Customer Details</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Customer Type
+                            </label>
+                            <select
+                              value={newCustomer.customer_type}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, customer_type: e.target.value }))}
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            >
+                              <option value="individual">Individual</option>
+                              <option value="business">Business</option>
+                              <option value="contractor">Contractor</option>
+                              <option value="retailer">Retailer</option>
+                              <option value="wholesaler">Wholesaler</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Status
+                            </label>
+                            <select
+                              value={newCustomer.status}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, status: e.target.value }))}
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            >
+                              <option value="prospect">Prospect</option>
+                              <option value="lead">Lead</option>
+                              <option value="customer">Customer</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                            <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                            Notes
+                          </label>
+                          <textarea
+                            value={newCustomer.notes}
+                            onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="Additional notes about the customer..."
+                            rows={4}
+                            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors resize-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          type="submit"
+                          disabled={creating}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2"
+                        >
+                          {creating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" />
+                              Create Customer
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewCustomer({
+                              name: '',
+                              email: '',
+                              phone: '',
+                              company: '',
+                              customer_type: 'business',
+                              status: 'prospect',
+                              notes: '',
+                              tags: []
+                            });
+                            setShowCreateForm(false);
+                          }}
+                          className="px-6 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
