@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Search, Plus, Edit2, Trash2, User, Building, 
   Mail, Phone, MapPin, Calendar, Tag, Eye, EyeOff,
-  Users, AlertCircle, CheckCircle
+  Users, AlertCircle, CheckCircle, MessageCircle, Copy, Save
 } from 'lucide-react';
 import { kanbanService } from '../../services/kanbanService';
 import { useAuth } from '../../../../contexts/AuthContext';
@@ -33,8 +33,29 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
     customer_type: 'business',
     status: 'prospect',
     notes: '',
-    tags: []
+    tags: [],
+    contacts: [],
+    address: {
+      street: '',
+      city: ''
+    },
+    location: '',
+    sales_executive: '',
+    coordinator: ''
   });
+  
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  
+  // Country codes for GCC countries (default +971 for UAE)
+  const countryCodes = [
+    { code: '+971', country: 'UAE', flag: '🇦🇪' },
+    { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+    { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+    { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+    { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
+    { code: '+968', country: 'Oman', flag: '🇴🇲' }
+  ];
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [createError, setCreateError] = useState(null);
@@ -45,8 +66,32 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
   useEffect(() => {
     if (isOpen) {
       loadCustomers();
+      loadUsers();
     }
   }, [isOpen]);
+  
+  // Load users for Sales Executive and Co-ordinator dropdowns
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const usersData = await kanbanService.getUsers();
+      // Handle different response formats
+      if (Array.isArray(usersData)) {
+        setUsers(usersData);
+      } else if (usersData?.data?.users) {
+        setUsers(usersData.data.users);
+      } else if (usersData?.users) {
+        setUsers(usersData.users);
+      } else {
+        setUsers([]);
+      }
+    } catch (err) {
+      console.error('Failed to load users:', err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const loadCustomers = async () => {
     setLoading(true);
@@ -217,11 +262,80 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
     setCreateError(null);
 
     try {
-      // Include branch_id in the customer data
+      // Transform contacts data for backend
+      const transformedContacts = (newCustomer.contacts || []).map(contact => {
+        const phone = contact.phone_country_code && contact.phone_number 
+          ? `${contact.phone_country_code}${contact.phone_number}`.trim()
+          : '';
+        
+        // Get WhatsApp number
+        let whatsappNumber = '';
+        if (contact.use_same_as_phone) {
+          whatsappNumber = phone;
+        } else if (contact.whatsapp_country_code && contact.whatsapp_number) {
+          whatsappNumber = `${contact.whatsapp_country_code}${contact.whatsapp_number}`.trim();
+        }
+        
+        // Build position field with WhatsApp info if different from phone
+        let position = '';
+        if (whatsappNumber && whatsappNumber !== phone) {
+          position = `WhatsApp: ${whatsappNumber}`;
+        }
+        
+        return {
+          name: contact.name ? contact.name.trim() : '',
+          phone: phone,
+          position: position || undefined,
+          is_primary: false // First contact will be primary
+        };
+      }).filter(contact => contact.name || contact.phone || contact.position); // Only include contacts that have at least one field filled
+      
+      // Set first contact as primary
+      if (transformedContacts.length > 0) {
+        transformedContacts[0].is_primary = true;
+      }
+      
+      // Include branch_id and transformed contacts in the customer data
+      // Also include address (street), location, sales_executive, and coordinator
+      // Clean up empty strings - convert to null/undefined to avoid validation errors
       const customerData = {
-        ...newCustomer,
-        branch_id: branchId
+        name: newCustomer.name.trim(),
+        email: newCustomer.email?.trim() || undefined,
+        phone: newCustomer.phone?.trim() || undefined,
+        company: newCustomer.company?.trim() || undefined,
+        customer_type: newCustomer.customer_type,
+        status: newCustomer.status,
+        branch_id: branchId,
+        notes: newCustomer.notes?.trim() || undefined,
+        tags: newCustomer.tags || [],
+        contacts: transformedContacts,
+        address: {
+          street: newCustomer.address?.street?.trim() || undefined,
+          city: (newCustomer.location?.trim() || newCustomer.address?.city?.trim()) || undefined
+        },
+        sales_executive: newCustomer.sales_executive?.trim() || null,
+        coordinator: newCustomer.coordinator?.trim() || null
       };
+      
+      // Remove undefined values to avoid sending them
+      Object.keys(customerData).forEach(key => {
+        if (customerData[key] === undefined) {
+          delete customerData[key];
+        }
+      });
+      
+      // Clean address object
+      if (customerData.address) {
+        Object.keys(customerData.address).forEach(key => {
+          if (customerData.address[key] === undefined) {
+            delete customerData.address[key];
+          }
+        });
+        // Remove address if it's empty
+        if (Object.keys(customerData.address).length === 0) {
+          delete customerData.address;
+        }
+      }
       
       const response = await kanbanService.createCustomer(customerData);
       const createdCustomer = response.customer;
@@ -235,7 +349,15 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
         customer_type: 'business',
         status: 'prospect',
         notes: '',
-        tags: []
+        tags: [],
+        contacts: [],
+        address: {
+          street: '',
+          city: ''
+        },
+        location: '',
+        sales_executive: '',
+        coordinator: ''
       });
       setShowCreateForm(false);
     } catch (err) {
@@ -275,7 +397,78 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
     setUpdateError(null);
 
     try {
-      const response = await kanbanService.updateCustomer(editingCustomer._id, editingCustomer);
+      // Transform contacts data for backend (same as create)
+      const transformedContacts = (editingCustomer.contacts || []).map(contact => {
+        const phone = contact.phone_country_code && contact.phone_number 
+          ? `${contact.phone_country_code}${contact.phone_number}`.trim()
+          : '';
+        
+        // Get WhatsApp number
+        let whatsappNumber = '';
+        if (contact.use_same_as_phone) {
+          whatsappNumber = phone;
+        } else if (contact.whatsapp_country_code && contact.whatsapp_number) {
+          whatsappNumber = `${contact.whatsapp_country_code}${contact.whatsapp_number}`.trim();
+        }
+        
+        // Build position field with WhatsApp info if different from phone
+        let position = '';
+        if (whatsappNumber && whatsappNumber !== phone) {
+          position = `WhatsApp: ${whatsappNumber}`;
+        }
+        
+        return {
+          name: contact.name ? contact.name.trim() : '',
+          phone: phone,
+          position: position || undefined,
+          is_primary: false
+        };
+      }).filter(contact => contact.name || contact.phone || contact.position);
+      
+      // Set first contact as primary
+      if (transformedContacts.length > 0) {
+        transformedContacts[0].is_primary = true;
+      }
+      
+      // Clean up empty strings - convert to null/undefined to avoid validation errors
+      const updateData = {
+        name: editingCustomer.name.trim(),
+        email: editingCustomer.email?.trim() || undefined,
+        phone: editingCustomer.phone?.trim() || undefined,
+        company: editingCustomer.company?.trim() || undefined,
+        customer_type: editingCustomer.customer_type,
+        status: editingCustomer.status,
+        notes: editingCustomer.notes?.trim() || undefined,
+        tags: editingCustomer.tags || [],
+        contacts: transformedContacts,
+        address: {
+          street: editingCustomer.address?.street?.trim() || undefined,
+          city: (editingCustomer.location?.trim() || editingCustomer.address?.city?.trim()) || undefined
+        },
+        sales_executive: editingCustomer.sales_executive?.trim() || null,
+        coordinator: editingCustomer.coordinator?.trim() || null
+      };
+      
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+      
+      // Clean address object
+      if (updateData.address) {
+        Object.keys(updateData.address).forEach(key => {
+          if (updateData.address[key] === undefined) {
+            delete updateData.address[key];
+          }
+        });
+        if (Object.keys(updateData.address).length === 0) {
+          delete updateData.address;
+        }
+      }
+      
+      const response = await kanbanService.updateCustomer(editingCustomer._id, updateData);
       
       setCustomers(prev => prev.map(customer => 
         customer._id === editingCustomer._id ? response.customer : customer
@@ -284,10 +477,20 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
       setEditingCustomer(null);
     } catch (err) {
       console.error('Failed to update customer:', err);
-      if (err.response?.data?.message?.includes('already exists')) {
+      
+      // Get error details from the error object
+      const originalError = err.originalError || err.cause || err;
+      const errorResponse = originalError?.response?.data || err.response?.data;
+      const errorMessage = errorResponse?.message || err.message || 'Failed to update customer';
+      const errorDetails = errorResponse?.details || [];
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
         setUpdateError('A customer with this name already exists. Please choose a different name.');
+      } else if (errorMessage.includes('Validation failed') && Array.isArray(errorDetails)) {
+        setUpdateError(errorDetails.join(', ') || 'Please check your input and try again.');
       } else {
-        setUpdateError('Failed to update customer. Please try again.');
+        setUpdateError(errorMessage || 'Failed to update customer. Please try again.');
       }
     } finally {
       setUpdating(false);
@@ -306,7 +509,59 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
   };
 
   const handleEditCustomer = (customer) => {
-    setEditingCustomer({ ...customer });
+    // Transform customer data to match form structure
+    // Transform contacts from backend format to form format
+    const transformedContacts = (customer.contacts || []).map(contact => {
+      // Parse phone number to extract country code and number
+      const phone = contact.phone || '';
+      let phone_country_code = '+971';
+      let phone_number = '';
+      
+      // Try to extract country code from phone
+      const countryCodeMatch = phone.match(/^(\+\d{1,4})/);
+      if (countryCodeMatch) {
+        phone_country_code = countryCodeMatch[1];
+        phone_number = phone.replace(countryCodeMatch[1], '').trim();
+      } else if (phone) {
+        phone_number = phone;
+      }
+      
+      // Parse WhatsApp from position field if it exists
+      let whatsapp_country_code = '+971';
+      let whatsapp_number = '';
+      let use_same_as_phone = false;
+      
+      if (contact.position && contact.position.includes('WhatsApp:')) {
+        const whatsappMatch = contact.position.match(/WhatsApp:\s*(\+\d{1,4})(\d+)/);
+        if (whatsappMatch) {
+          whatsapp_country_code = whatsappMatch[1];
+          whatsapp_number = whatsappMatch[2];
+        }
+      } else if (phone) {
+        // If no WhatsApp in position, check if it's the same as phone
+        use_same_as_phone = true;
+        whatsapp_country_code = phone_country_code;
+        whatsapp_number = phone_number;
+      }
+      
+      return {
+        name: contact.name || '',
+        phone_country_code,
+        phone_number,
+        whatsapp_country_code,
+        whatsapp_number,
+        use_same_as_phone
+      };
+    });
+    
+    setEditingCustomer({
+      ...customer,
+      address: customer.address || { street: '', city: '' },
+      location: customer.address?.city || '',
+      sales_executive: customer.sales_executive?._id || customer.sales_executive || '',
+      coordinator: customer.coordinator?._id || customer.coordinator || '',
+      contacts: transformedContacts.length > 0 ? transformedContacts : []
+    });
     setShowEditForm(true);
   };
 
@@ -636,7 +891,15 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                       customer_type: 'business',
                       status: 'prospect',
                       notes: '',
-                      tags: []
+                      tags: [],
+                      contacts: [],
+                      address: {
+                        street: '',
+                        city: ''
+                      },
+                      location: '',
+                      sales_executive: '',
+                      coordinator: ''
                     });
                     setShowCreateForm(false);
                   }
@@ -664,7 +927,7 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         </p>
                       </div>
                     </div>
-                    <button
+                  <button
                       onClick={() => {
                         setNewCustomer({
                           name: '',
@@ -674,15 +937,23 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                           customer_type: 'business',
                           status: 'prospect',
                           notes: '',
-                          tags: []
+                          tags: [],
+                          contacts: [],
+                          address: {
+                            street: '',
+                            city: ''
+                          },
+                          location: '',
+                          sales_executive: '',
+                          coordinator: ''
                         });
                         setShowCreateForm(false);
                       }}
                       className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto p-6">
@@ -708,33 +979,94 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                           <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                               <User className="w-4 h-4 mr-2 text-gray-500" />
-                              Customer Name *
+                        Customer Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomer.name}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Enter name here"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                        required
+                      />
+                    </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                              Address
+                      </label>
+                      <input
+                        type="text"
+                              value={newCustomer.address?.street || ''}
+                              onChange={(e) => setNewCustomer(prev => ({ 
+                                ...prev, 
+                                address: { ...prev.address, street: e.target.value }
+                              }))}
+                              placeholder="Address here"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                      />
+                    </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                              Location
                             </label>
                             <input
                               type="text"
-                              value={newCustomer.name}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
-                              placeholder="Enter customer name"
+                              value={newCustomer.location || ''}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, location: e.target.value }))}
+                              placeholder="Enter Location here"
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                              required
                             />
+                  </div>
+
+                    <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
+                              Sales Ex.
+                            </label>
+                            <select
+                              value={newCustomer.sales_executive || ''}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, sales_executive: e.target.value }))}
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                              disabled={loadingUsers}
+                            >
+                              <option value="">Select Sales Executive</option>
+                              {users.map(user => (
+                                <option key={user._id || user.id} value={user._id || user.id}>
+                                  {user.first_name && user.last_name
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.username || user.email || 'User'}
+                                </option>
+                              ))}
+                            </select>
                           </div>
 
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                              <Building className="w-4 h-4 mr-2 text-gray-500" />
-                              Company
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
+                              Co-ordinator
                             </label>
-                            <input
-                              type="text"
-                              value={newCustomer.company}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
-                              placeholder="Company name"
+                            <select
+                              value={newCustomer.coordinator || ''}
+                              onChange={(e) => setNewCustomer(prev => ({ ...prev, coordinator: e.target.value }))}
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                            />
+                              disabled={loadingUsers}
+                            >
+                              <option value="">Select Co-ordinator</option>
+                              {users.map(user => (
+                                <option key={user._id || user.id} value={user._id || user.id}>
+                                  {user.first_name && user.last_name
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.username || user.email || 'User'}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
-                      </div>
+                  </div>
 
                       {/* Contact Information */}
                       <div className="space-y-4">
@@ -744,35 +1076,35 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                    <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                               <Mail className="w-4 h-4 mr-2 text-gray-500" />
-                              Email
-                            </label>
-                            <input
-                              type="email"
-                              value={newCustomer.email}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
-                              placeholder="email@example.com"
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={newCustomer.email}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="email@example.com"
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                            />
-                          </div>
+                      />
+                    </div>
 
-                          <div>
+                    <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                               <Phone className="w-4 h-4 mr-2 text-gray-500" />
-                              Phone
-                            </label>
-                            <input
-                              type="tel"
-                              value={newCustomer.phone}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
-                              placeholder="+1234567890"
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={newCustomer.phone}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+1234567890"
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                            />
+                      />
                           </div>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
 
                       {/* Customer Details */}
                       <div className="space-y-4">
@@ -782,60 +1114,259 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
+                    <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Customer Type
-                            </label>
-                            <select
-                              value={newCustomer.customer_type}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, customer_type: e.target.value }))}
+                        Customer Type
+                      </label>
+                      <select
+                        value={newCustomer.customer_type}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, customer_type: e.target.value }))}
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                            >
-                              <option value="individual">Individual</option>
-                              <option value="business">Business</option>
-                              <option value="contractor">Contractor</option>
-                              <option value="retailer">Retailer</option>
-                              <option value="wholesaler">Wholesaler</option>
-                            </select>
-                          </div>
+                      >
+                        <option value="individual">Individual</option>
+                        <option value="business">Business</option>
+                        <option value="contractor">Contractor</option>
+                        <option value="retailer">Retailer</option>
+                        <option value="wholesaler">Wholesaler</option>
+                      </select>
+                    </div>
 
-                          <div>
+                    <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Status
-                            </label>
-                            <select
-                              value={newCustomer.status}
-                              onChange={(e) => setNewCustomer(prev => ({ ...prev, status: e.target.value }))}
+                        Status
+                      </label>
+                      <select
+                        value={newCustomer.status}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, status: e.target.value }))}
                               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
-                            >
-                              <option value="prospect">Prospect</option>
-                              <option value="lead">Lead</option>
-                              <option value="customer">Customer</option>
-                              <option value="inactive">Inactive</option>
-                            </select>
-                          </div>
-                        </div>
+                      >
+                        <option value="prospect">Prospect</option>
+                        <option value="lead">Lead</option>
+                        <option value="customer">Customer</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
 
-                        <div>
+                  <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                             <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                            Notes
-                          </label>
-                          <textarea
-                            value={newCustomer.notes}
-                            onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
+                      Notes
+                    </label>
+                    <textarea
+                      value={newCustomer.notes}
+                      onChange={(e) => setNewCustomer(prev => ({ ...prev, notes: e.target.value }))}
                             placeholder="Additional notes about the customer..."
                             rows={4}
                             className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors resize-none"
                           />
                         </div>
+                  </div>
+
+                      {/* Contact Persons */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center space-x-2">
+                            <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Persons</h3>
+                    </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewCustomer(prev => ({
+                                ...prev,
+                                contacts: [
+                                  ...prev.contacts,
+                                  {
+                                    name: '',
+                                    phone_country_code: '+971',
+                                    phone_number: '',
+                                    whatsapp_country_code: '+971',
+                                    whatsapp_number: '',
+                                    use_same_as_phone: false
+                                  }
+                                ]
+                              }));
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Contact
+                          </button>
+                        </div>
+
+                        {newCustomer.contacts.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No contact persons added yet</p>
+                            <p className="text-xs mt-1">Click "Add Contact" to add a contact person</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {newCustomer.contacts.map((contact, index) => (
+                              <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Contact Person {index + 1}
+                                  </h4>
+                                  {newCustomer.contacts.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setNewCustomer(prev => ({
+                                          ...prev,
+                                          contacts: prev.contacts.filter((_, i) => i !== index)
+                                        }));
+                                      }}
+                                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Remove contact"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="space-y-3">
+                                  {/* Contact Name */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <User className="w-4 h-4 mr-2 text-gray-500" />
+                                      Name of Contact Person *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={contact.name || ''}
+                                      onChange={(e) => {
+                                        const updatedContacts = [...newCustomer.contacts];
+                                        updatedContacts[index] = { ...updatedContacts[index], name: e.target.value };
+                                        setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                      }}
+                                      placeholder="Enter contact person name"
+                                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* Contact Number */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                                      Contact Number
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <select
+                                        value={contact.phone_country_code || '+971'}
+                                        onChange={(e) => {
+                                          const updatedContacts = [...newCustomer.contacts];
+                                          const newCountryCode = e.target.value;
+                                          updatedContacts[index] = { 
+                                            ...updatedContacts[index], 
+                                            phone_country_code: newCountryCode,
+                                            // If "same as phone" is checked, update WhatsApp country code too
+                                            whatsapp_country_code: contact.use_same_as_phone ? newCountryCode : updatedContacts[index].whatsapp_country_code
+                                          };
+                                          setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                        }}
+                                        className="w-32 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                      >
+                                        {countryCodes.map((cc) => (
+                                          <option key={cc.code} value={cc.code}>
+                                            {cc.flag} {cc.code}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="tel"
+                                        value={contact.phone_number || ''}
+                                        onChange={(e) => {
+                                          const updatedContacts = [...newCustomer.contacts];
+                                          const newPhoneNumber = e.target.value;
+                                          updatedContacts[index] = { 
+                                            ...updatedContacts[index], 
+                                            phone_number: newPhoneNumber,
+                                            // If "same as phone" is checked, update WhatsApp too
+                                            whatsapp_number: contact.use_same_as_phone ? newPhoneNumber : updatedContacts[index].whatsapp_number
+                                          };
+                                          setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                        }}
+                                        placeholder="1234567890"
+                                        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* WhatsApp Number */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-2 text-gray-500" />
+                                      WhatsApp Number
+                                    </label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`same-as-phone-${index}`}
+                                          checked={contact.use_same_as_phone || false}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...newCustomer.contacts];
+                                            const useSame = e.target.checked;
+                                            updatedContacts[index] = {
+                                              ...updatedContacts[index],
+                                              use_same_as_phone: useSame,
+                                              whatsapp_country_code: useSame ? updatedContacts[index].phone_country_code : (updatedContacts[index].whatsapp_country_code || '+971'),
+                                              whatsapp_number: useSame ? updatedContacts[index].phone_number : (updatedContacts[index].whatsapp_number || '')
+                                            };
+                                            setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                        <label htmlFor={`same-as-phone-${index}`} className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                          Same as contact number
+                                        </label>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <select
+                                          value={contact.whatsapp_country_code || '+971'}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...newCustomer.contacts];
+                                            updatedContacts[index] = { ...updatedContacts[index], whatsapp_country_code: e.target.value };
+                                            setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          disabled={contact.use_same_as_phone}
+                                          className="w-32 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {countryCodes.map((cc) => (
+                                            <option key={cc.code} value={cc.code}>
+                                              {cc.flag} {cc.code}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          type="tel"
+                                          value={contact.whatsapp_number || ''}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...newCustomer.contacts];
+                                            updatedContacts[index] = { ...updatedContacts[index], whatsapp_number: e.target.value };
+                                            setNewCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          disabled={contact.use_same_as_phone}
+                                          placeholder="1234567890"
+                                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Action Buttons */}
                       <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                          type="submit"
-                          disabled={creating}
+                    <button
+                      type="submit"
+                      disabled={creating}
                           className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2"
                         >
                           {creating ? (
@@ -849,9 +1380,9 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                               Create Customer
                             </>
                           )}
-                        </button>
-                        <button
-                          type="button"
+                    </button>
+                    <button
+                      type="button"
                           onClick={() => {
                             setNewCustomer({
                               name: '',
@@ -861,16 +1392,17 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                               customer_type: 'business',
                               status: 'prospect',
                               notes: '',
-                              tags: []
+                              tags: [],
+                              contacts: []
                             });
                             setShowCreateForm(false);
                           }}
                           className="px-6 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
                   </div>
                 </motion.div>
               </motion.div>
@@ -884,35 +1416,150 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-white dark:bg-gray-900 p-6 overflow-y-auto"
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Customer</h3>
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <Edit2 className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Customer</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Update customer information
+                        </p>
+                      </div>
+                    </div>
                   <button
                     onClick={() => setShowEditForm(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <form onSubmit={handleUpdateCustomer} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {updateError && (
+                      <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg text-red-700 dark:text-red-400 flex items-start space-x-3">
+                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-medium">Error</p>
+                          <p className="text-sm mt-1">{updateError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleUpdateCustomer} className="space-y-6">
+                      {/* Basic Information */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
                         Customer Name *
                       </label>
                       <input
                         type="text"
                         value={editingCustomer.name}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter customer name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              placeholder="Enter name here"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                         required
                       />
                     </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                              Address
+                            </label>
+                            <input
+                              type="text"
+                              value={editingCustomer.address?.street || ''}
+                              onChange={(e) => setEditingCustomer(prev => ({ 
+                                ...prev, 
+                                address: { ...prev.address, street: e.target.value }
+                              }))}
+                              placeholder="Address here"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                              Location
+                            </label>
+                            <input
+                              type="text"
+                              value={editingCustomer.location || ''}
+                              onChange={(e) => setEditingCustomer(prev => ({ ...prev, location: e.target.value }))}
+                              placeholder="Enter Location here"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                            />
+                          </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
+                              Sales Ex.
+                            </label>
+                            <select
+                              value={editingCustomer.sales_executive || ''}
+                              onChange={(e) => setEditingCustomer(prev => ({ ...prev, sales_executive: e.target.value }))}
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                              disabled={loadingUsers}
+                            >
+                              <option value="">Select Sales Executive</option>
+                              {users.map(user => (
+                                <option key={user._id || user.id} value={user._id || user.id}>
+                                  {user.first_name && user.last_name
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.username || user.email || 'User'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <User className="w-4 h-4 mr-2 text-gray-500" />
+                              Co-ordinator
+                            </label>
+                            <select
+                              value={editingCustomer.coordinator || ''}
+                              onChange={(e) => setEditingCustomer(prev => ({ ...prev, coordinator: e.target.value }))}
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                              disabled={loadingUsers}
+                            >
+                              <option value="">Select Co-ordinator</option>
+                              {users.map(user => (
+                                <option key={user._id || user.id} value={user._id || user.id}>
+                                  {user.first_name && user.last_name
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.username || user.email || 'User'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Building className="w-4 h-4 mr-2 text-gray-500" />
                         Company
                       </label>
                       <input
@@ -920,14 +1567,23 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         value={editingCustomer.company || ''}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, company: e.target.value }))}
                         placeholder="Company name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                       />
+                          </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                      {/* Contact Information */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Information</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Mail className="w-4 h-4 mr-2 text-gray-500" />
                         Email
                       </label>
                       <input
@@ -935,11 +1591,13 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         value={editingCustomer.email || ''}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, email: e.target.value }))}
                         placeholder="email@example.com"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Phone className="w-4 h-4 mr-2 text-gray-500" />
                         Phone
                       </label>
                       <input
@@ -947,20 +1605,28 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         value={editingCustomer.phone || ''}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="+1234567890"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                       />
+                          </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                      {/* Customer Details */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <Tag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Customer Details</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Customer Type
                       </label>
                       <select
                         value={editingCustomer.customer_type}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, customer_type: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                       >
                         <option value="individual">Individual</option>
                         <option value="business">Business</option>
@@ -969,14 +1635,15 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                         <option value="wholesaler">Wholesaler</option>
                       </select>
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Status
                       </label>
                       <select
                         value={editingCustomer.status}
                         onChange={(e) => setEditingCustomer(prev => ({ ...prev, status: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                       >
                         <option value="prospect">Prospect</option>
                         <option value="lead">Lead</option>
@@ -987,41 +1654,247 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                            <Calendar className="w-4 h-4 mr-2 text-gray-500" />
                       Notes
                     </label>
                     <textarea
                       value={editingCustomer.notes || ''}
                       onChange={(e) => setEditingCustomer(prev => ({ ...prev, notes: e.target.value }))}
-                      placeholder="Additional notes..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
+                            placeholder="Additional notes about the customer..."
+                            rows={4}
+                            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors resize-none"
+                          />
+                        </div>
                   </div>
 
-                  {updateError && (
-                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded">
-                      {updateError}
+                      {/* Contact Persons */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center space-x-2">
+                            <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Persons</h3>
                     </div>
-                  )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCustomer(prev => ({
+                                ...prev,
+                                contacts: [
+                                  ...(prev.contacts || []),
+                                  {
+                                    name: '',
+                                    phone_country_code: '+971',
+                                    phone_number: '',
+                                    whatsapp_country_code: '+971',
+                                    whatsapp_number: '',
+                                    use_same_as_phone: false
+                                  }
+                                ]
+                              }));
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Contact
+                          </button>
+                        </div>
 
-                  <div className="flex gap-3">
+                        {(!editingCustomer.contacts || editingCustomer.contacts.length === 0) ? (
+                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No contact persons added yet</p>
+                            <p className="text-xs mt-1">Click "Add Contact" to add a contact person</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {editingCustomer.contacts.map((contact, index) => (
+                              <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Contact Person {index + 1}
+                                  </h4>
+                                  {(editingCustomer.contacts.length > 1) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingCustomer(prev => ({
+                                          ...prev,
+                                          contacts: prev.contacts.filter((_, i) => i !== index)
+                                        }));
+                                      }}
+                                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Remove contact"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="space-y-3">
+                                  {/* Contact Name */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <User className="w-4 h-4 mr-2 text-gray-500" />
+                                      Name of Contact Person
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={contact.name || ''}
+                                      onChange={(e) => {
+                                        const updatedContacts = [...editingCustomer.contacts];
+                                        updatedContacts[index] = { ...updatedContacts[index], name: e.target.value };
+                                        setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                      }}
+                                      placeholder="Enter contact person name"
+                                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* Contact Number */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                                      Contact Number
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <select
+                                        value={contact.phone_country_code || '+971'}
+                                        onChange={(e) => {
+                                          const updatedContacts = [...editingCustomer.contacts];
+                                          const newCountryCode = e.target.value;
+                                          updatedContacts[index] = { 
+                                            ...updatedContacts[index], 
+                                            phone_country_code: newCountryCode,
+                                            whatsapp_country_code: contact.use_same_as_phone ? newCountryCode : updatedContacts[index].whatsapp_country_code
+                                          };
+                                          setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                        }}
+                                        className="w-32 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                      >
+                                        {countryCodes.map((cc) => (
+                                          <option key={cc.code} value={cc.code}>
+                                            {cc.flag} {cc.code}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="tel"
+                                        value={contact.phone_number || ''}
+                                        onChange={(e) => {
+                                          const updatedContacts = [...editingCustomer.contacts];
+                                          const newPhoneNumber = e.target.value;
+                                          updatedContacts[index] = { 
+                                            ...updatedContacts[index], 
+                                            phone_number: newPhoneNumber,
+                                            whatsapp_number: contact.use_same_as_phone ? newPhoneNumber : updatedContacts[index].whatsapp_number
+                                          };
+                                          setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                        }}
+                                        placeholder="1234567890"
+                                        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* WhatsApp Number */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                      <MessageCircle className="w-4 h-4 mr-2 text-gray-500" />
+                                      WhatsApp Number
+                                    </label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`edit-same-as-phone-${index}`}
+                                          checked={contact.use_same_as_phone || false}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...editingCustomer.contacts];
+                                            const useSame = e.target.checked;
+                                            updatedContacts[index] = {
+                                              ...updatedContacts[index],
+                                              use_same_as_phone: useSame,
+                                              whatsapp_country_code: useSame ? updatedContacts[index].phone_country_code : (updatedContacts[index].whatsapp_country_code || '+971'),
+                                              whatsapp_number: useSame ? updatedContacts[index].phone_number : (updatedContacts[index].whatsapp_number || '')
+                                            };
+                                            setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                        <label htmlFor={`edit-same-as-phone-${index}`} className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                          Same as contact number
+                                        </label>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <select
+                                          value={contact.whatsapp_country_code || '+971'}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...editingCustomer.contacts];
+                                            updatedContacts[index] = { ...updatedContacts[index], whatsapp_country_code: e.target.value };
+                                            setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          disabled={contact.use_same_as_phone}
+                                          className="w-32 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {countryCodes.map((cc) => (
+                                            <option key={cc.code} value={cc.code}>
+                                              {cc.flag} {cc.code}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          type="tel"
+                                          value={contact.whatsapp_number || ''}
+                                          onChange={(e) => {
+                                            const updatedContacts = [...editingCustomer.contacts];
+                                            updatedContacts[index] = { ...updatedContacts[index], whatsapp_number: e.target.value };
+                                            setEditingCustomer(prev => ({ ...prev, contacts: updatedContacts }));
+                                          }}
+                                          disabled={contact.use_same_as_phone}
+                                          placeholder="1234567890"
+                                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       type="submit"
                       disabled={updating}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {updating ? 'Updating...' : 'Update Customer'}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2"
+                        >
+                          {updating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Update Customer
+                            </>
+                          )}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowEditForm(false)}
-                      className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                          className="px-6 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
                     >
                       Cancel
                     </button>
                   </div>
                 </form>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
