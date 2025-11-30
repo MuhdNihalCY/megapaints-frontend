@@ -40,9 +40,11 @@ export { default as CommentsSection } from './components/comments/CommentsSectio
 export { default as NotificationPanel } from './components/notifications/NotificationPanel';
 export { default as NotificationBell } from './components/notifications/NotificationBell';
 
-// Customer Management
-export { default as CustomerDropdown } from './components/customers/CustomerDropdown';
-export { default as CustomerManagementModal } from './components/customers/CustomerManagementModal';
+// Customer Management - Now in components/customer
+export { default as CustomerDropdown } from '../../components/customer/CustomerDropdown';
+export { default as CustomerManagementModal } from '../../components/customer/CustomerManagementModal';
+export { default as CustomerManagementButton } from '../../components/customer/CustomerManagementButton';
+export { default as CustomerFollowupModal } from '../../components/customer/CustomerFollowupModal';
 
 // Contexts
 export { KanbanProvider, useKanban } from './contexts/KanbanContext';

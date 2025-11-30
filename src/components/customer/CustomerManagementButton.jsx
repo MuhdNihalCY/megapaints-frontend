@@ -7,11 +7,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Plus, Calendar, Search } from 'lucide-react';
-import CustomerManagementModal from '../../features/kanban/components/customers/CustomerManagementModal';
+import CustomerManagementModal from './CustomerManagementModal';
 import CustomerFollowupModal from './CustomerFollowupModal';
+
+// Configuration: Set to true to auto-show create form when "New Customer" button is clicked
+// Set to false to show full list view (manage mode) instead
+const AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER = false;
 
 const CustomerManagementButton = ({ user, className = "" }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
   const [showFollowupModal, setShowFollowupModal] = useState(false);
   const [activeAction, setActiveAction] = useState(null);
 
@@ -33,10 +38,13 @@ const CustomerManagementButton = ({ user, className = "" }) => {
     setActiveAction(action);
     switch (action) {
       case 'create-customer':
-        setShowCustomerModal(true);
+        setShowCreateCustomerModal(true);
         break;
       case 'create-followup':
         setShowFollowupModal(true);
+        break;
+      case 'manage-customers':
+        setShowCustomerModal(true);
         break;
       default:
         break;
@@ -82,6 +90,23 @@ const CustomerManagementButton = ({ user, className = "" }) => {
           </motion.button>
         </div>
       </div>
+
+      {/* New Customer Modal - Opens in manage mode (full list view) */}
+      {/* To auto-show create form instead, change AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER to true */}
+      <CustomerManagementModal
+        isOpen={showCreateCustomerModal}
+        onClose={() => {
+          setShowCreateCustomerModal(false);
+          setActiveAction(null);
+        }}
+        mode="manage"
+        autoShowCreateForm={AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER}
+        onCustomerCreated={(customer) => {
+          // Customer created successfully - form will close but modal stays open
+          // Any additional logic can be added here if needed
+          console.log('Customer created:', customer);
+        }}
+      />
 
       {/* Customer Management Modal */}
       <CustomerManagementModal

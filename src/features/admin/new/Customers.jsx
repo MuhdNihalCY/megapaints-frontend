@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Users, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-import CustomerForm from '../components/CustomerForm';
+import CustomerManagementModal from '../../../components/customer/CustomerManagementModal';
 
 const Customers = () => {
   const { getAdminServices, getUserServices } = useAuth();
@@ -266,16 +266,18 @@ const Customers = () => {
         </div>
       </div>
 
-      {showForm && (
-        <CustomerForm
-          customer={editingCustomer}
-          onClose={() => {
-            setShowForm(false);
-            setEditingCustomer(null);
-          }}
-          onSuccess={handleFormSuccess}
-        />
-      )}
+      {/* Use unified CustomerManagementModal for both create and edit */}
+      <CustomerManagementModal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingCustomer(null);
+        }}
+        mode={editingCustomer ? 'edit-only' : 'create-only'}
+        editingCustomer={editingCustomer}
+        onCustomerCreated={handleFormSuccess}
+        onCustomerUpdated={handleFormSuccess}
+      />
     </div>
   );
 };

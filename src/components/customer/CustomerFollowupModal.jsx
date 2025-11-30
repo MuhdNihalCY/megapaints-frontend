@@ -567,3 +567,4 @@ const CustomerFollowupModal = ({ isOpen, onClose, user, mode = 'manage' }) => {
 };
 
 export default CustomerFollowupModal;
+

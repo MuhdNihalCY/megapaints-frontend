@@ -43,8 +43,8 @@ import TrelloChecklist from './TrelloChecklist';
 import TrelloAttachments from './TrelloAttachments';
 import CustomFieldsManager from './CustomFieldsManager';
 import { DEFAULT_CUSTOM_FIELDS } from '../../types/customFields';
-import CustomerDropdown from '../customers/CustomerDropdown';
-import CustomerManagementModal from '../customers/CustomerManagementModal';
+import CustomerDropdown from '../../../../components/customer/CustomerDropdown';
+import CustomerManagementModal from '../../../../components/customer/CustomerManagementModal';
 import { 
   generateCardTitle, 
   parseCardTitle, 
