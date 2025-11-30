@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Search, Plus, Edit2, Trash2, User, Building, 
-  Mail, Phone, MapPin, Calendar, Tag, Eye, EyeOff,
-  Users, AlertCircle, CheckCircle, MessageCircle, Copy, Save
+  Mail, Phone, MapPin, Calendar, Tag,
+  Users, AlertCircle, MessageCircle, Save
 } from 'lucide-react';
 import { kanbanService } from '../../features/kanban/services/kanbanService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -144,75 +144,34 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
     setError(null);
     
     try {
-      // DEBUG: Log user object
-      console.log('🔍 [CustomerManagementModal] DEBUG - User object:', {
-        user: user,
-        hasUser: !!user,
-        userBranches: user?.branches,
-        branchesType: typeof user?.branches,
-        isArray: Array.isArray(user?.branches),
-        branchesLength: Array.isArray(user?.branches) ? user.branches.length : 'N/A',
-        branchesContent: user?.branches,
-        userKeys: user ? Object.keys(user) : [],
-        userRoles: user?.roles,
-        userIsAdmin: user?.isAdmin || user?.roles?.includes('admin') || user?.roles?.includes('super_admin')
-      });
-
       // Get valid branch_id from user context
       let branchId = null;
       
       // Try to get from user.branches
       if (user?.branches && Array.isArray(user.branches) && user.branches.length > 0) {
         const firstBranch = user.branches[0];
-        console.log('🔍 [CustomerManagementModal] DEBUG - First branch:', {
-          firstBranch,
-          firstBranchType: typeof firstBranch,
-          isString: typeof firstBranch === 'string',
-          isObject: typeof firstBranch === 'object' && firstBranch !== null
-        });
 
         // Handle both string and object formats
         let branchIdStr = null;
         if (typeof firstBranch === 'string') {
           branchIdStr = firstBranch;
-          console.log('🔍 [CustomerManagementModal] DEBUG - Branch is string:', branchIdStr);
         } else if (firstBranch && typeof firstBranch === 'object') {
           // Try various possible properties
           branchIdStr = firstBranch._id || firstBranch.id || 
                        (firstBranch.toString && typeof firstBranch.toString === 'function' ? firstBranch.toString() : null);
-          console.log('🔍 [CustomerManagementModal] DEBUG - Branch is object:', {
-            _id: firstBranch._id,
-            id: firstBranch.id,
-            toString: firstBranch.toString ? firstBranch.toString() : 'no toString',
-            extracted: branchIdStr
-          });
         }
         
         if (branchIdStr) {
           const branchIdString = String(branchIdStr);
-          console.log('🔍 [CustomerManagementModal] DEBUG - Branch ID string:', branchIdString);
           const isValid = isValidObjectId(branchIdString);
-          console.log('🔍 [CustomerManagementModal] DEBUG - Is valid ObjectId:', isValid);
           if (isValid) {
             branchId = branchIdString;
-            console.log('✅ [CustomerManagementModal] DEBUG - Using branch_id:', branchId);
-          } else {
-            console.warn('⚠️ [CustomerManagementModal] DEBUG - Branch ID is not valid ObjectId:', branchIdString);
           }
-        } else {
-          console.warn('⚠️ [CustomerManagementModal] DEBUG - Could not extract branch ID from firstBranch');
         }
-      } else {
-        console.warn('⚠️ [CustomerManagementModal] DEBUG - No branches available:', {
-          hasBranches: !!user?.branches,
-          isArray: Array.isArray(user?.branches),
-          length: Array.isArray(user?.branches) ? user.branches.length : 'N/A'
-        });
       }
 
       // Check if user has no branches - prevent API call and show error immediately
       if (!branchId && (!user?.branches || (Array.isArray(user.branches) && user.branches.length === 0))) {
-        console.error('❌ [CustomerManagementModal] DEBUG - User has no branches assigned');
         setError('No branch assigned to your account. Please contact an administrator to assign a branch before accessing customers.');
         setCustomers([]);
         setLoading(false);
@@ -241,14 +200,10 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
         params.search = searchQuery;
       }
       
-      console.log('🔍 [CustomerManagementModal] DEBUG - Request params:', params);
-      console.log('🔍 [CustomerManagementModal] DEBUG - Has branch_id in params:', !!params.branch_id);
-      
       const response = await kanbanService.getCustomers(params);
-      console.log('✅ [CustomerManagementModal] DEBUG - Successfully loaded customers:', response);
       setCustomers(response.customers || []);
     } catch (err) {
-      console.error('❌ [CustomerManagementModal] DEBUG - Failed to load customers:', err);
+      console.error('Failed to load customers:', err);
       
       // The kanbanService.handleError throws a new Error, so we need to check the original error
       // Try to get the original error response from the error object
@@ -256,10 +211,6 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
       const errorResponse = originalError?.response?.data || err.response?.data;
       const errorMessage = errorResponse?.message || err.message || 'Failed to load customers';
       const errorDetails = errorResponse?.details || '';
-      
-      console.error('❌ [CustomerManagementModal] DEBUG - Error response:', errorResponse);
-      console.error('❌ [CustomerManagementModal] DEBUG - Error message:', errorMessage);
-      console.error('❌ [CustomerManagementModal] DEBUG - Error details:', errorDetails);
       
       // Check if the error is about missing branch
       if (errorMessage.includes('Branch filter required') || errorMessage.includes('Branch ID') || 
