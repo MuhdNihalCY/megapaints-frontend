@@ -94,9 +94,15 @@ const kanbanReducer = (state, action) => {
     case ACTION_TYPES.UPDATE_CARD:
       return {
         ...state,
-        cards: state.cards.map(card =>
-          card.id === action.payload.id ? { ...card, ...action.payload } : card
-        )
+        cards: state.cards.map(card => {
+          // Match by id or _id
+          const cardId = card.id || card._id;
+          const payloadId = action.payload.id || action.payload._id;
+          if (cardId === payloadId) {
+            return { ...card, ...action.payload };
+          }
+          return card;
+        })
       };
 
     case ACTION_TYPES.DELETE_CARD:
@@ -367,16 +373,27 @@ export const KanbanProvider = ({ children, user }) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
-      const result = await kanbanService.updateCard(cardId, updates);
+      // Transform updates to backend format
+      const backendUpdates = kanbanService.transformTaskToApi(updates);
+      
+      const result = await kanbanService.updateCard(cardId, backendUpdates);
       
       if (result.status === 'success') {
-        const transformedCard = kanbanService.transformCardData(result.data);
+        // Handle both { data: { task } } and { data: task } response formats
+        const taskData = result.data?.task || result.data;
+        const transformedCard = kanbanService.transformCardData(taskData);
+        
+        // Ensure card has both id and _id for matching
+        if (!transformedCard._id) transformedCard._id = transformedCard.id;
+        if (!transformedCard.id) transformedCard.id = transformedCard._id;
+        
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: transformedCard });
         
-        // Log activity
-        const activity = logCardUpdated(transformedCard, state.user, updates);
-        await kanbanService.logActivity(activity);
+        // Log activity (activity logging is now handled in TrelloCardModal)
+        // const activity = logCardUpdated(transformedCard, state.user, updates);
+        // await kanbanService.logActivity(activity);
         
+        dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
         return transformedCard;
       } else {
         throw new Error(result.error || 'Failed to update card');
@@ -384,6 +401,7 @@ export const KanbanProvider = ({ children, user }) => {
     } catch (error) {
       console.error('Error updating card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
       throw error;
     }
   }, [state.user]);

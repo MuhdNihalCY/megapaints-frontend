@@ -52,6 +52,7 @@ import {
   formatIdentifierForDisplay,
   getCardTitleComponents
 } from '../../utils/cardTitleUtils';
+import { kanbanService } from '../../services/kanbanService';
 
 const TrelloCardModal = ({
   card,
@@ -69,6 +70,7 @@ const TrelloCardModal = ({
     labels, 
     columns, 
     user: currentUser,
+    updateCard: contextUpdateCard,
     addAttachment: contextAddAttachment,
     deleteAttachment: contextDeleteAttachment,
     setCardCover: contextSetCardCover,
@@ -88,11 +90,198 @@ const TrelloCardModal = ({
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Card Title System State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [titleComponents, setTitleComponents] = useState({ identifier: '', customerName: '', customerSlug: '' });
+  
+  // Helper: Extract card ID
+  const getCardId = () => {
+    const cardId = card?._id || card?.id;
+    if (!cardId && isNewCard) {
+      // For new cards, return null - they need to be saved first
+      return null;
+    }
+    return cardId;
+  };
+  
+  // Helper: Check if card is new (not saved yet)
+  const isCardNew = () => {
+    return isNewCard || !card?._id && !card?.id;
+  };
+  
+  // Helper: Extract only changed fields between old and new card
+  const extractUpdates = (oldCard, newCard) => {
+    const updates = {};
+    const fieldsToCheck = [
+      'title', 'description', 'priority', 'dueDate', 'due_date', 
+      'startDate', 'start_date', 'members', 'labels', 'customer',
+      'customFields', 'closed', 'is_archived', 'column_id', 'listId'
+    ];
+    
+    fieldsToCheck.forEach(field => {
+      const oldValue = oldCard[field];
+      const newValue = newCard[field];
+      
+      // Deep comparison for objects/arrays
+      if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+        updates[field] = newValue;
+      }
+    });
+    
+    return updates;
+  };
+  
+  // Helper: Transform frontend card format to backend API format
+  const transformCardToBackendFormat = (cardData) => {
+    const transformed = {};
+    
+    // Basic fields
+    if (cardData.title !== undefined) transformed.title = cardData.title;
+    if (cardData.description !== undefined) transformed.description = cardData.description;
+    if (cardData.priority !== undefined) transformed.priority = cardData.priority;
+    
+    // Date fields
+    if (cardData.dueDate !== undefined) {
+      transformed.due_date = cardData.dueDate?.date || cardData.dueDate || null;
+    }
+    if (cardData.due_date !== undefined) {
+      transformed.due_date = cardData.due_date;
+    }
+    if (cardData.startDate !== undefined) {
+      transformed.start_date = cardData.startDate?.date || cardData.startDate || null;
+    }
+    if (cardData.start_date !== undefined) {
+      transformed.start_date = cardData.start_date;
+    }
+    
+    // Column/List ID
+    if (cardData.column_id !== undefined) transformed.column_id = cardData.column_id;
+    if (cardData.listId !== undefined) transformed.column_id = cardData.listId;
+    
+    // Members to Assignees conversion
+    if (cardData.members !== undefined) {
+      transformed.assignees = (cardData.members || []).map(memberId => ({
+        user_id: memberId
+      }));
+    }
+    
+    // Labels - keep as array of IDs or objects
+    if (cardData.labels !== undefined) {
+      transformed.labels = (cardData.labels || []).map(labelId => {
+        // If it's already an object, use it; otherwise create object
+        if (typeof labelId === 'object') {
+          return labelId;
+        }
+        return { label_id: labelId };
+      });
+    }
+    
+    // Customer field
+    if (cardData.customer !== undefined) {
+      if (cardData.customer && typeof cardData.customer === 'object') {
+        transformed.customer = cardData.customer._id || cardData.customer.id;
+      } else {
+        transformed.customer = cardData.customer;
+      }
+    }
+    
+    // Custom fields
+    if (cardData.customFields !== undefined) {
+      transformed.customFields = cardData.customFields;
+    }
+    
+    // Archive status
+    if (cardData.closed !== undefined) {
+      transformed.is_archived = cardData.closed;
+    }
+    if (cardData.is_archived !== undefined) {
+      transformed.is_archived = cardData.is_archived;
+    }
+    
+    return transformed;
+  };
+  
+  // Helper: Handle card update with proper error handling
+  const handleCardUpdate = async (updates, options = {}) => {
+    const cardId = getCardId();
+    
+    // For new cards, we need to create them first
+    if (!cardId && isCardNew()) {
+      // If this is a new card, we should create it first
+      // But for now, we'll just update local state and let the parent handle creation
+      if (options.updateLocalState !== false) {
+        setFormData(prev => ({ ...prev, ...updates }));
+      }
+      // Don't log warning - this is expected behavior for new cards
+      return;
+    }
+    
+    if (!cardId) {
+      console.error('Cannot update: Card ID is missing');
+      setError('Cannot update: Card ID is missing. Please save the card first.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Transform updates to backend format
+      const backendUpdates = transformCardToBackendFormat(updates);
+      
+      // Call onUpdate callback (which should call contextUpdateCard)
+      if (onUpdate && typeof onUpdate === 'function') {
+        // Check if onUpdate expects (cardId, updates) or (updates)
+        if (onUpdate.length === 2) {
+          await onUpdate(cardId, backendUpdates);
+        } else {
+          // Fallback for old signature
+          await onUpdate({ ...formData, ...updates, id: cardId, _id: cardId });
+        }
+      } else if (contextUpdateCard) {
+        // Use context directly if onUpdate not provided
+        await contextUpdateCard(cardId, backendUpdates);
+      }
+      
+      // Update local state after successful update
+      if (options.updateLocalState !== false) {
+        setFormData(prev => ({ ...prev, ...updates }));
+      }
+      
+      // Log activity if specified
+      if (options.logActivity && currentUser) {
+        try {
+          const activity = {
+            type: options.activityType || 'card_updated',
+            card_id: cardId,
+            user_id: currentUser.id || currentUser._id,
+            description: options.activityDescription || 'Card updated',
+            metadata: options.activityMetadata || {},
+            timestamp: new Date().toISOString()
+          };
+          await kanbanService.logActivity(activity);
+        } catch (activityError) {
+          console.warn('Failed to log activity:', activityError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update card:', error);
+      setError(error.message || 'Failed to update card');
+      
+      // Revert local state on error if we updated it optimistically
+      if (options.revertOnError && options.previousState) {
+        setFormData(options.previousState);
+      }
+      
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Don't render if no card data
   if (!isOpen || !card) {
@@ -108,6 +297,11 @@ const TrelloCardModal = ({
   useEffect(() => {
     if (card) {
       setFormData(card);
+      
+      // Initialize customer if present
+      if (card.customer) {
+        setSelectedCustomer(card.customer);
+      }
       
       // Initialize card title system
       if (card.title) {
@@ -147,24 +341,45 @@ const TrelloCardModal = ({
   }, [isOpen, onClose]);
   
   // Handle customer selection
-  const handleCustomerSelect = (customer) => {
-    setSelectedCustomer(customer);
-    
-    // Generate complete card title
-    const completeTitle = generateCardTitle(titleComponents.identifier, customer.name);
-    
-    // Update form data with new title
-    const updatedFormData = {
-      ...formData,
-      title: completeTitle,
-      customer: customer
-    };
-    
-    setFormData(updatedFormData);
-    
-    // Update title components
-    const newComponents = getCardTitleComponents(completeTitle);
-    setTitleComponents(newComponents);
+  const handleCustomerSelect = async (customer) => {
+    try {
+      setSelectedCustomer(customer);
+      
+      // Generate complete card title
+      const completeTitle = generateCardTitle(titleComponents.identifier, customer.name);
+      
+      // Save previous state for rollback
+      const previousState = { ...formData };
+      
+      // Update local state optimistically
+      const updatedFormData = {
+        ...formData,
+        title: completeTitle,
+        customer: customer
+      };
+      setFormData(updatedFormData);
+      
+      // Update title components
+      const newComponents = getCardTitleComponents(completeTitle);
+      setTitleComponents(newComponents);
+      
+      // Update backend
+      await handleCardUpdate(
+        { title: completeTitle, customer: customer },
+        {
+          updateLocalState: false, // Already updated above
+          logActivity: true,
+          activityType: 'customer_assigned',
+          activityDescription: `assigned customer "${customer.name}" to this card`,
+          activityMetadata: { customer_id: customer._id || customer.id, customer_name: customer.name },
+          revertOnError: true,
+          previousState
+        }
+      );
+    } catch (error) {
+      console.error('Failed to update customer:', error);
+      // State will be reverted by handleCardUpdate if revertOnError is true
+    }
   };
 
   const handleCustomerCreate = (newCustomer) => {
@@ -182,7 +397,7 @@ const TrelloCardModal = ({
     }, 0);
   };
   
-  const handleTitleSave = () => {
+  const handleTitleSave = async () => {
     setIsTitleEditing(false);
     
     // Always enforce format: DD-MM-YY-XXX-customername
@@ -199,18 +414,23 @@ const TrelloCardModal = ({
       finalTitle = titleComponents.identifier;
     }
     
-    // Update form data with the correctly formatted title
-    setFormData(prev => ({ ...prev, title: finalTitle }));
-    
+    // Only update if title actually changed
     if (finalTitle.trim() !== card.title) {
-      const updatedCard = addActivity(
-        { ...formData, title: finalTitle },
-        'edit',
-        currentUser?.id,
-        { field: 'title', from: card.title, to: finalTitle },
-        `changed title from "${card.title}" to "${finalTitle}"`
-      );
-      onUpdate(updatedCard);
+      try {
+        await handleCardUpdate(
+          { title: finalTitle },
+          {
+            logActivity: true,
+            activityType: 'title_updated',
+            activityDescription: `changed title from "${card.title}" to "${finalTitle}"`,
+            activityMetadata: { field: 'title', from: card.title, to: finalTitle }
+          }
+        );
+      } catch (error) {
+        console.error('Failed to update title:', error);
+        // Revert title in form
+        setFormData(prev => ({ ...prev, title: card.title }));
+      }
     }
   };
   
@@ -224,17 +444,24 @@ const TrelloCardModal = ({
     }, 0);
   };
   
-  const handleDescriptionSave = () => {
+  const handleDescriptionSave = async () => {
     setIsDescriptionEditing(false);
     if (formData.description !== card.description) {
-      const updatedCard = addActivity(
-        formData,
-        'edit',
-        currentUser?.id,
-        { field: 'description' },
-        'updated the description'
-      );
-      onUpdate(updatedCard);
+      try {
+        await handleCardUpdate(
+          { description: formData.description },
+          {
+            logActivity: true,
+            activityType: 'description_updated',
+            activityDescription: 'updated the description',
+            activityMetadata: { field: 'description' }
+          }
+        );
+      } catch (error) {
+        console.error('Failed to update description:', error);
+        // Revert description in form
+        setFormData(prev => ({ ...prev, description: card.description }));
+      }
     }
   };
   
@@ -244,92 +471,139 @@ const TrelloCardModal = ({
   };
   
   // Handle member toggle
-  const handleMemberToggle = (userId) => {
-    const currentMembers = formData.members || [];
-    const newMembers = currentMembers.includes(userId)
-      ? currentMembers.filter(id => id !== userId)
-      : [...currentMembers, userId];
-    
-    const updatedCard = {
-      ...formData,
-      members: newMembers
-    };
-    
-    const user = users.find(u => u.id === userId || u._id === userId);
-    const action = currentMembers.includes(userId) ? 'removed' : 'added';
-    const activityCard = addActivity(
-      updatedCard,
-      'add_member',
-      currentUser?.id,
-      { userId, action },
-      `${action} ${user?.name || 'member'} ${action === 'added' ? 'to' : 'from'} this card`
-    );
-    
-    onUpdate(activityCard);
-    setActiveSection(null);
+  const handleMemberToggle = async (userId) => {
+    try {
+      const cardId = getCardId();
+      const currentMembers = formData.members || [];
+      const isMember = currentMembers.includes(userId);
+      const user = users.find(u => u.id === userId || u._id === userId);
+      const action = isMember ? 'removed' : 'added';
+      
+      // Update local state optimistically
+      const newMembers = isMember
+        ? currentMembers.filter(id => id !== userId)
+        : [...currentMembers, userId];
+      setFormData(prev => ({ ...prev, members: newMembers }));
+      
+      // For new cards, just update local state (no API call)
+      if (!cardId || isCardNew()) {
+        setActiveSection(null);
+        return;
+      }
+      
+      // For existing cards, use backend assign/unassign endpoints
+      try {
+        if (isMember) {
+          // Unassign member
+          await kanbanService.unassignTask(cardId, userId);
+        } else {
+          // Assign member
+          await kanbanService.assignTask(cardId, userId);
+        }
+      } catch (apiError) {
+        // Fallback to update endpoint if assign/unassign not available
+        await handleCardUpdate(
+          { members: newMembers },
+          {
+            updateLocalState: false, // Already updated above
+            logActivity: true,
+            activityType: 'member_toggled',
+            activityDescription: `${action} ${user?.name || user?.email || 'member'} ${action === 'added' ? 'to' : 'from'} this card`,
+            activityMetadata: { userId, action, user_name: user?.name || user?.email }
+          }
+        );
+      }
+      
+      setActiveSection(null);
+    } catch (error) {
+      console.error('Failed to toggle member:', error);
+      // Revert state on error
+      setFormData(prev => ({ ...prev, members: formData.members || [] }));
+      setError('Failed to update member: ' + (error.message || 'Unknown error'));
+    }
   };
   
   // Handle label toggle
-  const handleLabelToggle = (labelId) => {
-    const currentLabels = formData.labels || [];
-    const newLabels = currentLabels.includes(labelId)
-      ? currentLabels.filter(id => id !== labelId)
-      : [...currentLabels, labelId];
-    
-    const updatedCard = {
-      ...formData,
-      labels: newLabels
-    };
-    
-    const label = labels.find(l => l.id === labelId || l._id === labelId);
-    const action = currentLabels.includes(labelId) ? 'removed' : 'added';
-    const activityCard = addActivity(
-      updatedCard,
-      'add_label',
-      currentUser?.id,
-      { labelId, action },
-      `${action} ${label?.name || 'label'}`
-    );
-    
-    onUpdate(activityCard);
+  const handleLabelToggle = async (labelId) => {
+    try {
+      const cardId = getCardId();
+      const currentLabels = formData.labels || [];
+      const isLabelApplied = currentLabels.includes(labelId);
+      const label = labels.find(l => l.id === labelId || l._id === labelId);
+      const action = isLabelApplied ? 'removed' : 'added';
+      
+      // Update local state optimistically
+      const newLabels = isLabelApplied
+        ? currentLabels.filter(id => id !== labelId)
+        : [...currentLabels, labelId];
+      setFormData(prev => ({ ...prev, labels: newLabels }));
+      
+      // For new cards, just update local state (no API call)
+      if (!cardId || isCardNew()) {
+        return;
+      }
+      
+      // Update backend
+      await handleCardUpdate(
+        { labels: newLabels },
+        {
+          updateLocalState: false, // Already updated above
+          logActivity: true,
+          activityType: 'label_toggled',
+          activityDescription: `${action} ${label?.name || 'label'}`,
+          activityMetadata: { labelId, action, label_name: label?.name }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to toggle label:', error);
+      // Revert state
+      setFormData(prev => ({ ...prev, labels: formData.labels || [] }));
+      setError('Failed to update label: ' + (error.message || 'Unknown error'));
+    }
   };
   
   // Handle due date change
-  const handleDueDateChange = (date) => {
-    const updatedCard = {
-      ...formData,
-      dueDate: date ? { date, completed: false } : null
-    };
-    
-    const activityCard = addActivity(
-      updatedCard,
-      'due_date',
-      currentUser?.id,
-      { date },
-      date ? `set due date to ${new Date(date).toLocaleDateString()}` : 'removed due date'
-    );
-    
-    onUpdate(activityCard);
-    setActiveSection(null);
+  const handleDueDateChange = async (date) => {
+    try {
+      const dueDateData = date ? { date, completed: false } : null;
+      
+      await handleCardUpdate(
+        { dueDate: dueDateData },
+        {
+          logActivity: true,
+          activityType: 'due_date_updated',
+          activityDescription: date 
+            ? `set due date to ${new Date(date).toLocaleDateString()}` 
+            : 'removed due date',
+          activityMetadata: { date: date || null }
+        }
+      );
+      
+      setActiveSection(null);
+    } catch (error) {
+      console.error('Failed to update due date:', error);
+    }
   };
   
   // Handle archive
-  const handleArchive = () => {
-    const updatedCard = {
-      ...formData,
-      closed: !formData.closed
-    };
-    
-    const activityCard = addActivity(
-      updatedCard,
-      formData.closed ? 'unarchive' : 'archive',
-      currentUser?.id,
-      {},
-      formData.closed ? 'unarchived this card' : 'archived this card'
-    );
-    
-    onUpdate(activityCard);
-    setActiveSection(null);
+  const handleArchive = async () => {
+    try {
+      const newClosedState = !formData.closed;
+      
+      await handleCardUpdate(
+        { closed: newClosedState },
+        {
+          logActivity: true,
+          activityType: newClosedState ? 'archive' : 'unarchive',
+          activityDescription: newClosedState ? 'archived this card' : 'unarchived this card',
+          activityMetadata: {}
+        }
+      );
+      
+      setActiveSection(null);
+    } catch (error) {
+      console.error('Failed to archive/unarchive card:', error);
+    }
   };
   
   // Handle watch/unwatch
@@ -338,9 +612,10 @@ const TrelloCardModal = ({
     const isWatching = currentSubscriptions.includes(currentUser?.id);
     
     try {
+      const cardId = getCardId();
       if (isWatching) {
         // Unwatch card
-        await contextUnwatchCard(card._id);
+        await contextUnwatchCard(cardId);
         setFormData(prev => ({
           ...prev,
           subscriptions: currentSubscriptions.filter(id => id !== currentUser?.id),
@@ -348,7 +623,7 @@ const TrelloCardModal = ({
         }));
       } else {
         // Watch card
-        await contextWatchCard(card._id);
+        await contextWatchCard(cardId);
         setFormData(prev => ({
           ...prev,
           subscriptions: [...currentSubscriptions, currentUser?.id],
@@ -358,6 +633,7 @@ const TrelloCardModal = ({
       setActiveSection(null);
     } catch (error) {
       console.error('Failed to toggle watch status:', error);
+      setError('Failed to toggle watch status: ' + (error.message || 'Unknown error'));
     }
   };
   
@@ -382,7 +658,7 @@ const TrelloCardModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-64 z-50 flex items-start justify-center overflow-y-auto p-4"
+          className="fixed inset-0 bg-black bg-opacity-64 z-50 flex items-center justify-center overflow-y-auto p-4"
           onClick={(e) => e.target === e.currentTarget && onClose()}
         >
         <motion.div
@@ -390,7 +666,7 @@ const TrelloCardModal = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-[868px] bg-white dark:bg-gray-900 rounded-none md:rounded-lg shadow-2xl my-0 md:my-8 h-full md:h-auto max-h-screen md:max-h-[90vh]"
+          className="w-full max-w-[868px] bg-white dark:bg-gray-900 rounded-none md:rounded-lg shadow-2xl my-0 md:my-8 flex flex-col h-full md:h-auto max-h-screen md:max-h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Cover Image */}
@@ -408,7 +684,29 @@ const TrelloCardModal = ({
           )}
           
           {/* Header */}
-          <div className="p-6 pb-2">
+          <div className="p-6 pb-2 flex-shrink-0">
+            {/* Error Display */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Loading Indicator */}
+            {isLoading && (
+              <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">Updating card...</p>
+              </div>
+            )}
+            
             <div className="flex items-start gap-3">
               <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-1" />
               <div className="flex-1">
@@ -493,9 +791,9 @@ const TrelloCardModal = ({
           </div>
           
           {/* Main Content Area */}
-          <div className="flex flex-col md:flex-row gap-4 p-6 overflow-y-auto">
+          <div className="flex flex-col md:flex-row gap-4 p-6 overflow-y-auto flex-1 min-h-0">
             {/* Left Column - 552px on desktop, full width on mobile */}
-            <div className="flex-1 md:max-w-[614px]">
+            <div className="flex-1 md:max-w-[614px] min-w-0">
               {/* Members Section */}
               {cardMembers.length > 0 && (
                 <div className="mb-6">
@@ -558,12 +856,23 @@ const TrelloCardModal = ({
                     <input
                       type="checkbox"
                       checked={formData.dueDate.completed || false}
-                      onChange={(e) => {
-                        const updatedCard = {
-                          ...formData,
-                          dueDate: { ...formData.dueDate, completed: e.target.checked }
-                        };
-                        onUpdate(updatedCard);
+                      onChange={async (e) => {
+                        try {
+                          const updatedDueDate = { ...formData.dueDate, completed: e.target.checked };
+                          await handleCardUpdate(
+                            { dueDate: updatedDueDate },
+                            {
+                              logActivity: true,
+                              activityType: 'due_date_completed',
+                              activityDescription: e.target.checked 
+                                ? 'marked due date as complete' 
+                                : 'marked due date as incomplete',
+                              activityMetadata: { completed: e.target.checked }
+                            }
+                          );
+                        } catch (error) {
+                          console.error('Failed to update due date completion:', error);
+                        }
                       }}
                       className="w-4 h-4"
                     />
@@ -667,8 +976,22 @@ const TrelloCardModal = ({
                 attachments={formData.attachments || []}
                 onAdd={async (attachment) => {
                   try {
+                    const cardId = getCardId();
+                    
+                    if (!cardId) {
+                      // For new cards, store attachment locally until card is saved
+                      setFormData(prev => ({
+                        ...prev,
+                        attachments: [...(prev.attachments || []), attachment]
+                      }));
+                      // Show info message (not error) - attachments will be uploaded when card is saved
+                      // Clear any previous errors
+                      setError(null);
+                      return;
+                    }
+                    
                     // Call backend API via context
-                    await contextAddAttachment(card._id, attachment);
+                    await contextAddAttachment(cardId, attachment);
                     // Update local state
                     setFormData(prev => ({
                       ...prev,
@@ -676,12 +999,24 @@ const TrelloCardModal = ({
                     }));
                   } catch (error) {
                     console.error('Failed to add attachment:', error);
+                    setError('Failed to add attachment: ' + (error.message || 'Unknown error'));
                   }
                 }}
                 onDelete={async (attachmentId) => {
                   try {
+                    const cardId = getCardId();
+                    
+                    if (!cardId) {
+                      // For new cards, just remove from local state
+                      setFormData(prev => ({
+                        ...prev,
+                        attachments: (prev.attachments || []).filter(a => a.id !== attachmentId)
+                      }));
+                      return;
+                    }
+                    
                     // Call backend API via context
-                    await contextDeleteAttachment(card._id, attachmentId);
+                    await contextDeleteAttachment(cardId, attachmentId);
                     // Update local state
                     setFormData(prev => ({
                       ...prev,
@@ -689,10 +1024,30 @@ const TrelloCardModal = ({
                     }));
                   } catch (error) {
                     console.error('Failed to delete attachment:', error);
+                    setError('Failed to delete attachment: ' + (error.message || 'Unknown error'));
                   }
                 }}
                 onMakeCover={async (attachment) => {
                   try {
+                    const cardId = getCardId();
+                    
+                    if (!cardId) {
+                      // For new cards, just update local state
+                      const coverData = {
+                        attachmentId: attachment.id,
+                        url: attachment.url,
+                        color: null,
+                        size: 'normal'
+                      };
+                      setFormData(prev => ({
+                        ...prev,
+                        coverImage: coverData
+                      }));
+                      // Clear any previous errors - cover will be set when card is saved
+                      setError(null);
+                      return;
+                    }
+                    
                     const coverData = {
                       attachmentId: attachment.id,
                       url: attachment.url,
@@ -700,7 +1055,7 @@ const TrelloCardModal = ({
                       size: 'normal'
                     };
                     // Call backend API via context
-                    await contextSetCardCover(card._id, coverData);
+                    await contextSetCardCover(cardId, coverData);
                     // Update local state
                     setFormData(prev => ({
                       ...prev,
@@ -708,6 +1063,7 @@ const TrelloCardModal = ({
                     }));
                   } catch (error) {
                     console.error('Failed to set card cover:', error);
+                    setError('Failed to set card cover: ' + (error.message || 'Unknown error'));
                   }
                 }}
               />
@@ -719,8 +1075,21 @@ const TrelloCardModal = ({
                   checklist={checklist}
                   onUpdate={async (updatedChecklist) => {
                     try {
+                      const cardId = getCardId();
+                      
+                      if (!cardId) {
+                        // For new cards, just update local state
+                        setFormData(prev => ({
+                          ...prev,
+                          checklists: (prev.checklists || []).map(c =>
+                            c.id === updatedChecklist.id ? updatedChecklist : c
+                          )
+                        }));
+                        return;
+                      }
+                      
                       // Call backend API via context
-                      await contextUpdateChecklist(card._id, checklist.id, updatedChecklist);
+                      await contextUpdateChecklist(cardId, checklist.id, updatedChecklist);
                       // Update local state
                       setFormData(prev => ({
                         ...prev,
@@ -730,12 +1099,24 @@ const TrelloCardModal = ({
                       }));
                     } catch (error) {
                       console.error('Failed to update checklist:', error);
+                      setError('Failed to update checklist: ' + (error.message || 'Unknown error'));
                     }
                   }}
                   onDelete={async (checklistId) => {
                     try {
+                      const cardId = getCardId();
+                      
+                      if (!cardId) {
+                        // For new cards, just update local state
+                        setFormData(prev => ({
+                          ...prev,
+                          checklists: (prev.checklists || []).filter(c => c.id !== checklistId)
+                        }));
+                        return;
+                      }
+                      
                       // Call backend API via context
-                      await contextDeleteChecklist(card._id, checklistId);
+                      await contextDeleteChecklist(cardId, checklistId);
                       // Update local state
                       setFormData(prev => ({
                         ...prev,
@@ -743,6 +1124,7 @@ const TrelloCardModal = ({
                       }));
                     } catch (error) {
                       console.error('Failed to delete checklist:', error);
+                      setError('Failed to delete checklist: ' + (error.message || 'Unknown error'));
                     }
                   }}
                 />
@@ -752,35 +1134,55 @@ const TrelloCardModal = ({
               <CustomFieldsManager
                 card={formData}
                 customFieldDefinitions={DEFAULT_CUSTOM_FIELDS}
-                onUpdate={(fieldId, value) => {
-                  // Update custom field value
-                  const existingFields = formData.customFields || [];
-                  const existingIndex = existingFields.findIndex(cf => cf.fieldId === fieldId);
-                  
-                  let updatedFields;
-                  if (existingIndex >= 0) {
-                    updatedFields = [...existingFields];
-                    updatedFields[existingIndex] = {
-                      fieldId,
-                      value,
-                      updatedAt: new Date().toISOString(),
-                      updatedBy: currentUser?.id
-                    };
-                  } else {
-                    updatedFields = [...existingFields, {
-                      fieldId,
-                      value,
-                      updatedAt: new Date().toISOString(),
-                      updatedBy: currentUser?.id
-                    }];
+                onUpdate={async (fieldId, value) => {
+                  try {
+                    // Update custom field value
+                    const existingFields = formData.customFields || [];
+                    const existingIndex = existingFields.findIndex(cf => cf.fieldId === fieldId);
+                    
+                    let updatedFields;
+                    if (existingIndex >= 0) {
+                      updatedFields = [...existingFields];
+                      updatedFields[existingIndex] = {
+                        fieldId,
+                        value,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: currentUser?.id
+                      };
+                    } else {
+                      updatedFields = [...existingFields, {
+                        fieldId,
+                        value,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: currentUser?.id
+                      }];
+                    }
+                    
+                    // Update local state optimistically
+                    setFormData(prev => ({
+                      ...prev,
+                      customFields: updatedFields
+                    }));
+                    
+                    // Update backend
+                    await handleCardUpdate(
+                      { customFields: updatedFields },
+                      {
+                        updateLocalState: false, // Already updated above
+                        logActivity: true,
+                        activityType: 'custom_field_updated',
+                        activityDescription: `updated custom field ${fieldId}`,
+                        activityMetadata: { fieldId, value }
+                      }
+                    );
+                  } catch (error) {
+                    console.error('Failed to update custom field:', error);
+                    // Revert state on error
+                    setFormData(prev => ({
+                      ...prev,
+                      customFields: formData.customFields || []
+                    }));
                   }
-                  
-                  setFormData(prev => ({
-                    ...prev,
-                    customFields: updatedFields
-                  }));
-                  
-                  onUpdate({ ...formData, customFields: updatedFields });
                 }}
                 currentUser={currentUser}
               />
@@ -811,7 +1213,7 @@ const TrelloCardModal = ({
             </div>
             
             {/* Right Sidebar - 168px on desktop, full width on mobile */}
-            <div className="w-full md:w-[200px] flex-shrink-0">
+            <div className="w-full md:w-[200px] flex-shrink-0 md:overflow-y-auto md:max-h-[calc(90vh-200px)]">
               {/* Add to Card */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ADD TO CARD</h3>
@@ -957,14 +1359,18 @@ const TrelloCardModal = ({
             </div>
           </div>
           
-          {/* Popup Menus */}
+          {/* Popup Menus - Positioned relative to modal */}
           <AnimatePresence>
             {activeSection === 'members' && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+                className="fixed md:absolute right-4 md:right-4 top-20 md:top-auto md:bottom-auto w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 md:z-10 p-4 max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto"
+                style={{ 
+                  top: '80px',
+                  right: '16px'
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Members</h3>
@@ -1002,7 +1408,11 @@ const TrelloCardModal = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+                className="fixed md:absolute right-4 md:right-4 top-20 md:top-auto md:bottom-auto w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 md:z-10 p-4 max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto"
+                style={{ 
+                  top: '80px',
+                  right: '16px'
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Labels</h3>
@@ -1042,7 +1452,11 @@ const TrelloCardModal = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+                className="fixed md:absolute right-4 md:right-4 top-20 md:top-auto md:bottom-auto w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 md:z-10 p-4 max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto"
+                style={{ 
+                  top: '80px',
+                  right: '16px'
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Add Checklist</h3>
@@ -1059,56 +1473,96 @@ const TrelloCardModal = ({
                       type="text"
                       placeholder="Checklist"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700"
-                      onKeyDown={(e) => {
+                      onKeyDown={async (e) => {
                         if (e.key === 'Enter') {
-                          const title = e.target.value.trim() || 'Checklist';
-                          const newChecklist = {
-                            id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                            title,
-                            position: (formData.checklists || []).length,
-                            items: []
-                          };
-                          const updatedCard = {
-                            ...formData,
-                            checklists: [...(formData.checklists || []), newChecklist]
-                          };
-                          const activityCard = addActivity(
-                            updatedCard,
-                            'checklist',
-                            currentUser?.id,
-                            { checklistTitle: title },
-                            `added checklist "${title}"`
-                          );
-                          onUpdate(activityCard);
-                          setActiveSection(null);
+                          try {
+                            const title = e.target.value.trim() || 'Checklist';
+                            const cardId = getCardId();
+                            
+                            if (!cardId) {
+                              // For new cards, create checklist locally
+                              const newChecklist = {
+                                id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                title,
+                                position: (formData.checklists || []).length,
+                                items: []
+                              };
+                              setFormData(prev => ({
+                                ...prev,
+                                checklists: [...(prev.checklists || []), newChecklist]
+                              }));
+                              e.target.value = '';
+                              setActiveSection(null);
+                              return;
+                            }
+                            
+                            // Create checklist via backend
+                            const newChecklist = await contextAddChecklist(cardId, {
+                              title,
+                              position: (formData.checklists || []).length,
+                              items: []
+                            });
+                            
+                            // Update local state
+                            setFormData(prev => ({
+                              ...prev,
+                              checklists: [...(prev.checklists || []), newChecklist]
+                            }));
+                            
+                            // Clear input
+                            e.target.value = '';
+                            setActiveSection(null);
+                          } catch (error) {
+                            console.error('Failed to add checklist:', error);
+                          }
                         }
                       }}
                       autoFocus
                     />
                   </div>
                   <button
-                    onClick={(e) => {
-                      const input = e.target.parentElement.parentElement.querySelector('input');
-                      const title = input.value.trim() || 'Checklist';
-                      const newChecklist = {
-                        id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                        title,
-                        position: (formData.checklists || []).length,
-                        items: []
-                      };
-                      const updatedCard = {
-                        ...formData,
-                        checklists: [...(formData.checklists || []), newChecklist]
-                      };
-                      const activityCard = addActivity(
-                        updatedCard,
-                        'checklist',
-                        currentUser?.id,
-                        { checklistTitle: title },
-                        `added checklist "${title}"`
-                      );
-                      onUpdate(activityCard);
-                      setActiveSection(null);
+                    onClick={async (e) => {
+                      try {
+                        const input = e.target.parentElement.parentElement.querySelector('input');
+                        const title = input.value.trim() || 'Checklist';
+                        const cardId = getCardId();
+                        
+                        if (!cardId) {
+                          // For new cards, create checklist locally
+                          const newChecklist = {
+                            id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            title,
+                            position: (formData.checklists || []).length,
+                            items: []
+                          };
+                          setFormData(prev => ({
+                            ...prev,
+                            checklists: [...(prev.checklists || []), newChecklist]
+                          }));
+                          input.value = '';
+                          setActiveSection(null);
+                          return;
+                        }
+                        
+                        // Create checklist via backend
+                        const newChecklist = await contextAddChecklist(cardId, {
+                          title,
+                          position: (formData.checklists || []).length,
+                          items: []
+                        });
+                        
+                        // Update local state
+                        setFormData(prev => ({
+                          ...prev,
+                          checklists: [...(prev.checklists || []), newChecklist]
+                        }));
+                        
+                        // Clear input
+                        input.value = '';
+                        setActiveSection(null);
+                      } catch (error) {
+                        console.error('Failed to add checklist:', error);
+                      }
                     }}
                     className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   >
@@ -1123,7 +1577,11 @@ const TrelloCardModal = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute right-4 top-32 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-10 p-4"
+                className="fixed md:absolute right-4 md:right-4 top-20 md:top-auto md:bottom-auto w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 md:z-10 p-4 max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto"
+                style={{ 
+                  top: '80px',
+                  right: '16px'
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Due Date</h3>

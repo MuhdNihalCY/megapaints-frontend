@@ -1289,37 +1289,78 @@ class KanbanService {
    * Transform task data to frontend format
    */
   transformTaskData(apiTask) {
+    if (!apiTask) return null;
+    
+    // Extract assignees to members (array of user IDs)
+    const members = (apiTask.assignees || []).map(assignee => {
+      if (typeof assignee === 'object' && assignee.user_id) {
+        return assignee.user_id._id || assignee.user_id.id || assignee.user_id;
+      }
+      return assignee._id || assignee.id || assignee;
+    });
+    
+    // Extract labels to array of label IDs
+    const labelIds = (apiTask.labels || []).map(label => {
+      if (typeof label === 'object' && (label._id || label.id || label.label_id)) {
+        return label._id || label.id || label.label_id;
+      }
+      return label;
+    });
+    
+    // Handle due date
+    let dueDate = null;
+    if (apiTask.due_date) {
+      dueDate = {
+        date: apiTask.due_date,
+        completed: apiTask.due_date_completed || false
+      };
+    } else if (apiTask.dueDate) {
+      dueDate = typeof apiTask.dueDate === 'object' 
+        ? apiTask.dueDate 
+        : { date: apiTask.dueDate, completed: false };
+    }
+    
     return {
       id: apiTask._id || apiTask.id,
+      _id: apiTask._id || apiTask.id, // Keep both for compatibility
       title: apiTask.title || 'Untitled Task',
-      identifier: apiTask.identifier || null, // Add identifier field
+      identifier: apiTask.identifier || null,
       description: apiTask.description || '',
-      cardId: apiTask.cardId || apiTask._id,
-      columnId: apiTask.columnId,
-      subcolumnId: apiTask.subcolumnId || null,
+      cardId: apiTask.cardId || apiTask._id || apiTask.id,
+      columnId: apiTask.column_id || apiTask.columnId,
+      listId: apiTask.column_id || apiTask.columnId, // Alias for compatibility
+      subcolumnId: apiTask.subcolumn_id || apiTask.subcolumnId || null,
       priority: apiTask.priority || 'medium',
-      labels: (apiTask.labels || []).map(label => ({
-        id: label._id || label.id,
+      labels: labelIds, // Array of label IDs
+      labelObjects: (apiTask.labels || []).map(label => ({
+        id: label._id || label.id || label.label_id,
         name: label.text || label.name,
         color: label.color || '#6b7280'
       })),
-      assignees: apiTask.assignees || [],
-      dueDate: apiTask.dueDate || null,
-      createdAt: apiTask.createdAt || new Date().toISOString(),
-      updatedAt: apiTask.updatedAt || new Date().toISOString(),
-      createdBy: apiTask.createdBy,
+      members: members, // Array of member/user IDs
+      assignees: apiTask.assignees || [], // Keep original for reference
+      dueDate: dueDate,
+      due_date: apiTask.due_date, // Keep original format
+      customer: apiTask.customer || null, // Customer object or ID
+      createdAt: apiTask.createdAt || apiTask.created_at || new Date().toISOString(),
+      updatedAt: apiTask.updatedAt || apiTask.updated_at || new Date().toISOString(),
+      createdBy: apiTask.created_by || apiTask.createdBy,
       // Additional fields
       attachments: apiTask.attachments || [],
       comments: apiTask.comments || [],
-      activities: apiTask.activities || [],
+      activities: apiTask.activity_log || apiTask.activities || [],
+      activityLog: apiTask.activity_log || apiTask.activities || [],
       checklists: apiTask.checklists || [],
-      customFields: apiTask.customFields || [],
+      customFields: apiTask.customFields || apiTask.custom_fields || [],
       contacts: apiTask.contacts || [],
       readyProducts: apiTask.readyProducts || [],
-      isDeleted: apiTask.isDeleted || false,
-      isArchived: apiTask.isArchived || false,
+      isDeleted: apiTask.isDeleted || apiTask.is_deleted || false,
+      isArchived: apiTask.isArchived || apiTask.is_archived || false,
+      closed: apiTask.is_archived || apiTask.isArchived || false,
       position: apiTask.position || 0,
-      branchId: apiTask.branchId,
+      branchId: apiTask.branch_id || apiTask.branchId,
+      watchers: apiTask.watchers || [],
+      subscriptions: apiTask.watchers || [], // Alias for compatibility
       // Keep original data for debugging
       _originalData: apiTask
     };
@@ -1329,25 +1370,95 @@ class KanbanService {
    * Transform frontend task data to API format
    */
   transformTaskToApi(frontendTask) {
-    return {
-      title: frontendTask.title,
-      description: frontendTask.description,
-      priority: frontendTask.priority,
-      dueDate: frontendTask.dueDate,
-      columnId: frontendTask.columnId,
-      subcolumnId: frontendTask.subcolumnId,
-      contacts: frontendTask.contacts || [],
-      labels: frontendTask.labels?.map(label => ({
-        text: label.name || label.text,
-        color: label.color
-      })) || [],
-      checklists: frontendTask.checklists || [],
-      readyProducts: frontendTask.readyProducts || [],
-      attachments: frontendTask.attachments || [],
-      customFields: frontendTask.customFields || [],
-      assignees: frontendTask.assignees || [],
-      position: frontendTask.position || 0
-    };
+    const apiData = {};
+    
+    // Basic fields
+    if (frontendTask.title !== undefined) apiData.title = frontendTask.title;
+    if (frontendTask.description !== undefined) apiData.description = frontendTask.description;
+    if (frontendTask.priority !== undefined) apiData.priority = frontendTask.priority;
+    
+    // Date fields - convert to ISO string
+    if (frontendTask.dueDate !== undefined) {
+      if (frontendTask.dueDate && typeof frontendTask.dueDate === 'object' && frontendTask.dueDate.date) {
+        apiData.due_date = frontendTask.dueDate.date;
+      } else if (frontendTask.dueDate) {
+        apiData.due_date = frontendTask.dueDate;
+      } else {
+        apiData.due_date = null;
+      }
+    }
+    if (frontendTask.due_date !== undefined) {
+      apiData.due_date = frontendTask.due_date;
+    }
+    
+    if (frontendTask.startDate !== undefined) {
+      if (frontendTask.startDate && typeof frontendTask.startDate === 'object' && frontendTask.startDate.date) {
+        apiData.start_date = frontendTask.startDate.date;
+      } else if (frontendTask.startDate) {
+        apiData.start_date = frontendTask.startDate;
+      } else {
+        apiData.start_date = null;
+      }
+    }
+    if (frontendTask.start_date !== undefined) {
+      apiData.start_date = frontendTask.start_date;
+    }
+    
+    // Column/List ID
+    if (frontendTask.column_id !== undefined) apiData.column_id = frontendTask.column_id;
+    if (frontendTask.columnId !== undefined) apiData.column_id = frontendTask.columnId;
+    if (frontendTask.listId !== undefined) apiData.column_id = frontendTask.listId;
+    
+    if (frontendTask.subcolumnId !== undefined) apiData.subcolumn_id = frontendTask.subcolumnId;
+    if (frontendTask.subcolumn_id !== undefined) apiData.subcolumn_id = frontendTask.subcolumn_id;
+    
+    // Members to Assignees conversion
+    if (frontendTask.members !== undefined) {
+      apiData.assignees = (frontendTask.members || []).map(memberId => ({
+        user_id: memberId
+      }));
+    }
+    if (frontendTask.assignees !== undefined) {
+      apiData.assignees = frontendTask.assignees;
+    }
+    
+    // Labels - handle both IDs and objects
+    if (frontendTask.labels !== undefined) {
+      apiData.labels = (frontendTask.labels || []).map(label => {
+        if (typeof label === 'object') {
+          return {
+            label_id: label.id || label._id || label.label_id,
+            text: label.name || label.text,
+            color: label.color
+          };
+        }
+        return { label_id: label };
+      });
+    }
+    
+    // Customer field
+    if (frontendTask.customer !== undefined) {
+      if (frontendTask.customer && typeof frontendTask.customer === 'object') {
+        apiData.customer = frontendTask.customer._id || frontendTask.customer.id;
+      } else {
+        apiData.customer = frontendTask.customer;
+      }
+    }
+    
+    // Other fields
+    if (frontendTask.contacts !== undefined) apiData.contacts = frontendTask.contacts || [];
+    if (frontendTask.checklists !== undefined) apiData.checklists = frontendTask.checklists || [];
+    if (frontendTask.readyProducts !== undefined) apiData.readyProducts = frontendTask.readyProducts || [];
+    if (frontendTask.attachments !== undefined) apiData.attachments = frontendTask.attachments || [];
+    if (frontendTask.customFields !== undefined) apiData.customFields = frontendTask.customFields || [];
+    if (frontendTask.position !== undefined) apiData.position = frontendTask.position || 0;
+    
+    // Archive status
+    if (frontendTask.closed !== undefined) apiData.is_archived = frontendTask.closed;
+    if (frontendTask.is_archived !== undefined) apiData.is_archived = frontendTask.is_archived;
+    if (frontendTask.isArchived !== undefined) apiData.is_archived = frontendTask.isArchived;
+    
+    return apiData;
   }
 
   /**
