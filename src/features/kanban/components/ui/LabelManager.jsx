@@ -3,22 +3,44 @@
  * Allows users to create, edit, and delete custom labels
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, X, Save } from 'lucide-react';
-import { useKanban } from '../contexts/KanbanContext';
+import { useKanban } from '../../contexts/KanbanContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { LoadingOverlay } from '../../../components';
+import { LoadingOverlay } from '../../../../components';
 
 const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
-  const { labels, createLabel, updateLabel, deleteLabel } = useKanban();
+  const { labels, createLabel, updateLabel, deleteLabel, fetchLabelsByBranch } = useKanban();
+  const { user } = useAuth();
+  const [branchId, setBranchId] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [editingLabel, setEditingLabel] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingLabelId, setDeletingLabelId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    color: '#3b82f6'
+    color: '#3b82f6',
+    description: ''
   });
+
+  // Get branch ID from user
+  useEffect(() => {
+    if (user?.branches && user.branches.length > 0) {
+      const firstBranch = user.branches[0];
+      const branchIdStr = typeof firstBranch === 'string' 
+        ? firstBranch 
+        : (firstBranch?._id || firstBranch?.id || firstBranch);
+      setBranchId(branchIdStr);
+      
+      // Fetch labels for this branch
+      if (isOpen && branchIdStr && fetchLabelsByBranch) {
+        fetchLabelsByBranch(branchIdStr).catch(err => {
+          console.error('Failed to fetch labels:', err);
+        });
+      }
+    }
+  }, [user, isOpen, fetchLabelsByBranch]);
 
   const handleCreateLabel = async (e) => {
     e.preventDefault();
@@ -27,16 +49,27 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       return;
     }
 
+    if (!branchId) {
+      toast.error('Branch ID is required');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await createLabel({
         name: formData.name.trim(),
-        color: formData.color
+        color: formData.color,
+        description: formData.description.trim(),
+        branch_id: branchId
       });
       
-      setFormData({ name: '', color: '#3b82f6' });
+      setFormData({ name: '', color: '#3b82f6', description: '' });
       setIsCreating(false);
       toast.success('Label created successfully');
+      // Refresh labels
+      if (branchId) {
+        fetchLabelsByBranch(branchId);
+      }
     } catch (error) {
       toast.error('Failed to create label');
     } finally {
@@ -53,14 +86,20 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
 
     setIsSubmitting(true);
     try {
-      await updateLabel(editingLabel.id, {
+      const labelId = editingLabel.id || editingLabel._id;
+      await updateLabel(labelId, {
         name: formData.name.trim(),
-        color: formData.color
+        color: formData.color,
+        description: formData.description.trim()
       });
       
-      setFormData({ name: '', color: '#3b82f6' });
+      setFormData({ name: '', color: '#3b82f6', description: '' });
       setEditingLabel(null);
       toast.success('Label updated successfully');
+      // Refresh labels
+      if (branchId) {
+        fetchLabelsByBranch(branchId);
+      }
     } catch (error) {
       toast.error('Failed to update label');
     } finally {
@@ -77,6 +116,10 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
     try {
       await deleteLabel(labelId);
       toast.success('Label deleted successfully');
+      // Refresh labels
+      if (branchId) {
+        fetchLabelsByBranch(branchId);
+      }
     } catch (error) {
       toast.error('Failed to delete label');
     } finally {
@@ -88,13 +131,14 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
     setEditingLabel(label);
     setFormData({
       name: label.name,
-      color: label.color
+      color: label.color,
+      description: label.description || ''
     });
   };
 
   const cancelEditing = () => {
     setEditingLabel(null);
-    setFormData({ name: '', color: '#3b82f6' });
+    setFormData({ name: '', color: '#3b82f6', description: '' });
   };
 
   const handleLabelClick = (label) => {
@@ -108,7 +152,7 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
   return (
     <>
       {/* Loading Overlay for form submission */}
-      {isSubmitting && <LoadingOverlay message="Saving label..." />}
+      <LoadingOverlay isLoading={isSubmitting} message="Saving label..." />
       
       <div 
         className="fixed inset-0 bg-gradient-to-br from-neutral-900/90 via-gray-900/80 to-neutral-800/90 backdrop-blur-xl flex items-center justify-center z-50 p-4 overflow-hidden"
@@ -173,6 +217,20 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Enter label description"
+                  maxLength={200}
+                  rows={2}
+                />
+              </div>
+
               <div className="flex space-x-3">
                 <button
                   type="submit"
@@ -205,44 +263,47 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
                 No labels created yet
               </p>
             ) : (
-              labels.map((label) => (
-                <div
-                  key={label.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                  onClick={() => handleLabelClick(label)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: label.color }}
-                    />
-                    <span className="text-gray-900 dark:text-white font-medium">
-                      {label.name}
-                    </span>
+              labels.map((label) => {
+                const labelId = label.id || label._id;
+                return (
+                  <div
+                    key={labelId}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    onClick={() => handleLabelClick(label)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: label.color }}
+                      />
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {label.name}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => startEditing(label)}
+                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Edit label"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLabel(labelId)}
+                        disabled={deletingLabelId === labelId}
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete label"
+                      >
+                        {deletingLabelId === labelId ? (
+                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => startEditing(label)}
-                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      title="Edit label"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteLabel(label.id)}
-                      disabled={deletingLabelId === label.id}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete label"
-                    >
-                      {deletingLabelId === label.id ? (
-                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Trash2 size={16} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

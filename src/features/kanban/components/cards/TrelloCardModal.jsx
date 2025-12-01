@@ -36,12 +36,15 @@ import {
   Hash
 } from 'lucide-react';
 import { useKanban } from '../../contexts/KanbanContext';
+import { useAuth } from '../../../../contexts/AuthContext';
+import LabelManager from '../ui/LabelManager';
 import { calculateCardBadges, addActivity } from '../../types/cardModel';
 import CommentsSection from '../comments/CommentsSection';
 import ActivityLog from '../activity/ActivityLog';
 import TrelloChecklist from './TrelloChecklist';
 import TrelloAttachments from './TrelloAttachments';
 import CustomFieldsManager from './CustomFieldsManager';
+import ReadyProductsManager from './ReadyProductsManager';
 import { DEFAULT_CUSTOM_FIELDS } from '../../types/customFields';
 import CustomerDropdown from '../../../../components/customer/CustomerDropdown';
 import CustomerManagementModal from '../../../../components/customer/CustomerManagementModal';
@@ -81,7 +84,8 @@ const TrelloCardModal = ({
     unwatchCard: contextUnwatchCard,
     addComment: contextAddComment,
     updateComment: contextUpdateComment,
-    deleteComment: contextDeleteComment
+    deleteComment: contextDeleteComment,
+    fetchLabelsByBranch
   } = useKanban();
   
   // State
@@ -92,6 +96,7 @@ const TrelloCardModal = ({
   const [showActivityDetails, setShowActivityDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showLabelManager, setShowLabelManager] = useState(false);
   
   // Card Title System State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -119,7 +124,7 @@ const TrelloCardModal = ({
     const fieldsToCheck = [
       'title', 'description', 'priority', 'dueDate', 'due_date', 
       'startDate', 'start_date', 'members', 'labels', 'customer',
-      'customFields', 'closed', 'is_archived', 'column_id', 'listId'
+      'readyProducts', 'ready_products', 'customFields', 'closed', 'is_archived', 'column_id', 'listId'
     ];
     
     fieldsToCheck.forEach(field => {
@@ -187,6 +192,11 @@ const TrelloCardModal = ({
       } else {
         transformed.customer = cardData.customer;
       }
+    }
+    
+    // Ready products
+    if (cardData.readyProducts !== undefined || cardData.ready_products !== undefined) {
+      transformed.ready_products = cardData.readyProducts || cardData.ready_products || [];
     }
     
     // Custom fields
@@ -321,6 +331,21 @@ const TrelloCardModal = ({
     // activeSection changed
   }, [activeSection]);
   
+  // Load labels by branch when modal opens
+  useEffect(() => {
+    if (isOpen && currentUser?.branches && currentUser.branches.length > 0 && fetchLabelsByBranch) {
+      const firstBranch = currentUser.branches[0];
+      const branchId = typeof firstBranch === 'string' 
+        ? firstBranch 
+        : (firstBranch?._id || firstBranch?.id || firstBranch);
+      if (branchId) {
+        fetchLabelsByBranch(branchId).catch(err => {
+          console.error('Failed to fetch labels by branch:', err);
+        });
+      }
+    }
+  }, [isOpen, currentUser, fetchLabelsByBranch]);
+
   // Handle ESC key to close
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -528,14 +553,26 @@ const TrelloCardModal = ({
     try {
       const cardId = getCardId();
       const currentLabels = formData.labels || [];
-      const isLabelApplied = currentLabels.includes(labelId);
-      const label = labels.find(l => l.id === labelId || l._id === labelId);
+      
+      // Normalize label IDs for comparison (handle both string and object formats)
+      const normalizeLabelId = (id) => {
+        if (typeof id === 'string') return id;
+        if (typeof id === 'object' && id) return id.id || id._id || id.label_id;
+        return String(id);
+      };
+      
+      const normalizedLabelId = normalizeLabelId(labelId);
+      const isLabelApplied = currentLabels.some(l => normalizeLabelId(l) === normalizedLabelId);
+      const label = labels.find(l => {
+        const lId = l.id || l._id;
+        return normalizeLabelId(lId) === normalizedLabelId;
+      });
       const action = isLabelApplied ? 'removed' : 'added';
       
       // Update local state optimistically
       const newLabels = isLabelApplied
-        ? currentLabels.filter(id => id !== labelId)
-        : [...currentLabels, labelId];
+        ? currentLabels.filter(l => normalizeLabelId(l) !== normalizedLabelId)
+        : [...currentLabels, normalizedLabelId];
       setFormData(prev => ({ ...prev, labels: newLabels }));
       
       // For new cards, just update local state (no API call)
@@ -551,7 +588,7 @@ const TrelloCardModal = ({
           logActivity: true,
           activityType: 'label_toggled',
           activityDescription: `${action} ${label?.name || 'label'}`,
-          activityMetadata: { labelId, action, label_name: label?.name }
+          activityMetadata: { labelId: normalizedLabelId, action, label_name: label?.name }
         }
       );
     } catch (error) {
@@ -642,8 +679,22 @@ const TrelloCardModal = ({
   const cardMembers = (formData.members || [])
     .map(id => users.find(u => u.id === id || u._id === id))
     .filter(Boolean);
+  // Map label IDs to label objects, handling different ID formats
   const cardLabels = (formData.labels || [])
-    .map(id => labels.find(l => l.id === id || l._id === id))
+    .map(labelId => {
+      // Normalize label ID for comparison
+      const normalizeId = (id) => {
+        if (typeof id === 'string') return id;
+        if (typeof id === 'object' && id) return id.id || id._id || id.label_id;
+        return String(id);
+      };
+      
+      const normalizedId = normalizeId(labelId);
+      return labels.find(l => {
+        const lId = l.id || l._id;
+        return normalizeId(lId) === normalizedId;
+      });
+    })
     .filter(Boolean);
   
   const isWatching = (formData.subscriptions || formData.watchers || []).includes(currentUser?.id);
@@ -1130,6 +1181,41 @@ const TrelloCardModal = ({
                 />
               ))}
               
+              {/* Ready Products Section */}
+              <ReadyProductsManager
+                card={formData}
+                onUpdate={async (readyProducts) => {
+                  try {
+                    // Update local state optimistically
+                    setFormData(prev => ({
+                      ...prev,
+                      readyProducts,
+                      ready_products: readyProducts // Also set backend format
+                    }));
+                    
+                    // Update backend
+                    const cardId = getCardId();
+                    if (cardId) {
+                      await handleCardUpdate(
+                        { ready_products: readyProducts },
+                        {
+                          updateLocalState: false, // Already updated above
+                          logActivity: true,
+                          activityType: 'ready_products_updated',
+                          activityDescription: `updated ready products`,
+                          activityMetadata: { count: readyProducts.length }
+                        }
+                      );
+                    }
+                    // For new cards, readyProducts will be saved when card is created
+                  } catch (error) {
+                    console.error('Failed to update ready products:', error);
+                    setError('Failed to update ready products: ' + (error.message || 'Unknown error'));
+                  }
+                }}
+                currentUser={currentUser}
+              />
+              
               {/* Custom Fields Section */}
               <CustomFieldsManager
                 card={formData}
@@ -1416,22 +1502,46 @@ const TrelloCardModal = ({
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Labels</h3>
-                  <button onClick={() => setActiveSection(null)}>
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setShowLabelManager(true);
+                        setActiveSection(null);
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      title="Manage Labels"
+                    >
+                      Manage
+                    </button>
+                    <button onClick={() => setActiveSection(null)}>
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {labels.map((label, index) => (
-                    <label
-                      key={label.id || label._id || `label-${index}`}
-                      className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={(formData.labels || []).includes(label.id || label._id)}
-                        onChange={() => handleLabelToggle(label.id || label._id)}
-                        className="w-4 h-4"
-                      />
+                  {labels.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                      No labels available. Click "Manage" to create labels.
+                    </div>
+                  ) : (
+                    labels.map((label, index) => {
+                      const labelId = label.id || label._id;
+                      const isChecked = (formData.labels || []).some(l => {
+                        const lId = typeof l === 'string' ? l : (l?.id || l?._id || l);
+                        return String(lId) === String(labelId);
+                      });
+                      
+                      return (
+                        <label
+                          key={labelId || `label-${index}`}
+                          className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleLabelToggle(labelId)}
+                            className="w-4 h-4"
+                          />
                       <div
                         className="w-full px-3 py-2 rounded font-medium"
                         style={{
@@ -1439,10 +1549,12 @@ const TrelloCardModal = ({
                           color: label.color === '#FFFFFF' || label.color === 'white' ? '#000' : '#FFF'
                         }}
                       >
-                        {label.name}
-                      </div>
-                    </label>
-                  ))}
+                          {label.name}
+                        </div>
+                      </label>
+                    );
+                  })
+                  )}
                 </div>
               </motion.div>
             )}
@@ -1619,6 +1731,30 @@ const TrelloCardModal = ({
           onCustomerSelect={handleCustomerSelect}
         />
       )}
+      
+      {/* Label Manager Modal */}
+      <LabelManager
+        isOpen={showLabelManager}
+        onClose={() => {
+          setShowLabelManager(false);
+          // Refresh labels after closing manager (in case new labels were created)
+          if (currentUser?.branches && currentUser.branches.length > 0 && fetchLabelsByBranch) {
+            const firstBranch = currentUser.branches[0];
+            const branchId = typeof firstBranch === 'string' 
+              ? firstBranch 
+              : (firstBranch?._id || firstBranch?.id || firstBranch);
+            if (branchId) {
+              fetchLabelsByBranch(branchId).catch(err => {
+                console.error('Failed to refresh labels:', err);
+              });
+            }
+          }
+        }}
+        onLabelSelect={(label) => {
+          handleLabelToggle(label.id || label._id);
+          setShowLabelManager(false);
+        }}
+      />
     </AnimatePresence>
   );
 };

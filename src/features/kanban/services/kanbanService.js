@@ -826,6 +826,36 @@ class KanbanService {
     }
   }
 
+  /**
+   * Get labels by branch
+   * GET /api/kanban/labels/v2/labels?branch_id=xxx
+   */
+  async getLabelsByBranch(branchId) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/labels/v2/labels`, {
+        params: { branch_id: branchId }
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Get all labels (with optional branch filter)
+   * GET /api/kanban/labels?branch_id=xxx
+   */
+  async getLabels(params = {}) {
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/labels`, {
+        params
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   // ==================== CUSTOM FIELDS MANAGEMENT ====================
 
   /**
@@ -1353,7 +1383,7 @@ class KanbanService {
       checklists: apiTask.checklists || [],
       customFields: apiTask.customFields || apiTask.custom_fields || [],
       contacts: apiTask.contacts || [],
-      readyProducts: apiTask.readyProducts || [],
+      readyProducts: apiTask.ready_products || apiTask.readyProducts || [],
       isDeleted: apiTask.isDeleted || apiTask.is_deleted || false,
       isArchived: apiTask.isArchived || apiTask.is_archived || false,
       closed: apiTask.is_archived || apiTask.isArchived || false,
@@ -1448,7 +1478,9 @@ class KanbanService {
     // Other fields
     if (frontendTask.contacts !== undefined) apiData.contacts = frontendTask.contacts || [];
     if (frontendTask.checklists !== undefined) apiData.checklists = frontendTask.checklists || [];
-    if (frontendTask.readyProducts !== undefined) apiData.readyProducts = frontendTask.readyProducts || [];
+    if (frontendTask.readyProducts !== undefined || frontendTask.ready_products !== undefined) {
+      apiData.ready_products = frontendTask.readyProducts || frontendTask.ready_products || [];
+    }
     if (frontendTask.attachments !== undefined) apiData.attachments = frontendTask.attachments || [];
     if (frontendTask.customFields !== undefined) apiData.customFields = frontendTask.customFields || [];
     if (frontendTask.position !== undefined) apiData.position = frontendTask.position || 0;

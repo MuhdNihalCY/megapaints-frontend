@@ -77,13 +77,23 @@ export interface SubColumn {
 // Label Types
 export interface Label {
   _id: string;
+  id?: string;
   name: string;
   color: string;
-  textColor: string;
+  textColor?: string;
+  text_color?: string;
+  branchId?: string;
+  branch_id?: string;
   boardId?: string;
+  board_id?: string;
   category?: string;
-  isActive: boolean;
-  usageCount: number;
+  description?: string;
+  isActive?: boolean;
+  is_active?: boolean;
+  usageCount?: number;
+  usage_count?: number;
+  sortOrder?: number;
+  sort_order?: number;
 }
 
 // Comment Types
@@ -170,10 +180,17 @@ export interface Contact {
 
 // Ready Product Types
 export interface ReadyProduct {
-  _id: string;
-  name: string;
+  product_id: string;
+  product_name: string;
+  product_code: string;
   quantity: number;
   unit: string;
+  added_at?: string;
+  added_by?: string;
+  // Legacy fields for compatibility
+  _id?: string;
+  name?: string;
+  code?: string;
   notes?: string;
 }
 

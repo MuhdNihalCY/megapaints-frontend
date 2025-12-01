@@ -618,6 +618,74 @@ export const KanbanProvider = ({ children, user }) => {
     dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
   }, []);
 
+  // ==================== LABEL METHODS ====================
+  
+  // Fetch labels by branch
+  const fetchLabelsByBranch = useCallback(async (branchId) => {
+    try {
+      const result = await kanbanService.getLabelsByBranch(branchId);
+      if (result && result.data && result.data.labels) {
+        dispatch({ type: ACTION_TYPES.SET_LABELS, payload: result.data.labels });
+      }
+      return result;
+    } catch (error) {
+      console.error('Error fetching labels by branch:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, []);
+
+  // Create label
+  const createLabel = useCallback(async (labelData) => {
+    try {
+      const result = await kanbanService.createLabel(labelData);
+      if (result && result.data && result.data.label) {
+        // Add new label to state
+        dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [...state.labels, result.data.label] });
+      }
+      return result;
+    } catch (error) {
+      console.error('Error creating label:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.labels]);
+
+  // Update label
+  const updateLabel = useCallback(async (labelId, labelData) => {
+    try {
+      const result = await kanbanService.updateLabel(labelId, labelData);
+      if (result && result.data && result.data.label) {
+        // Update label in state
+        const updatedLabels = state.labels.map(label => 
+          (label._id === labelId || label.id === labelId) ? result.data.label : label
+        );
+        dispatch({ type: ACTION_TYPES.SET_LABELS, payload: updatedLabels });
+      }
+      return result;
+    } catch (error) {
+      console.error('Error updating label:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.labels]);
+
+  // Delete label
+  const deleteLabel = useCallback(async (labelId) => {
+    try {
+      await kanbanService.deleteLabel(labelId);
+      // Remove label from state
+      const updatedLabels = state.labels.filter(label => 
+        (label._id !== labelId && label.id !== labelId)
+      );
+      dispatch({ type: ACTION_TYPES.SET_LABELS, payload: updatedLabels });
+    } catch (error) {
+      console.error('Error deleting label:', error);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      throw error;
+    }
+  }, [state.labels]);
+
   // Get cards by column
   const getCardsByColumn = useCallback((columnId) => {
     return state.cards.filter(card => card.columnId === columnId);
@@ -886,6 +954,12 @@ export const KanbanProvider = ({ children, user }) => {
     // Watch Actions
     watchCard,
     unwatchCard,
+    
+    // Label Actions
+    fetchLabelsByBranch,
+    createLabel,
+    updateLabel,
+    deleteLabel,
     
     // Utilities
     getCardsByColumn,
