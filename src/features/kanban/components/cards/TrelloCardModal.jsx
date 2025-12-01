@@ -185,11 +185,22 @@ const TrelloCardModal = ({
   const handleTitleSave = () => {
     setIsTitleEditing(false);
     
-    // Generate complete title if customer is selected
+    // Always enforce format: DD-MM-YY-XXX-customername
     let finalTitle = formData.title;
+    
+    // If we have both identifier and customer, ensure format is correct
     if (selectedCustomer && titleComponents.identifier) {
       finalTitle = generateCardTitle(titleComponents.identifier, selectedCustomer.name);
+    } else if (titleComponents.identifier && titleComponents.customerName) {
+      // If we have identifier and customer name from title components, regenerate
+      finalTitle = generateCardTitle(titleComponents.identifier, titleComponents.customerName);
+    } else if (titleComponents.identifier) {
+      // If only identifier, keep it as is (will be updated when customer is selected)
+      finalTitle = titleComponents.identifier;
     }
+    
+    // Update form data with the correctly formatted title
+    setFormData(prev => ({ ...prev, title: finalTitle }));
     
     if (finalTitle.trim() !== card.title) {
       const updatedCard = addActivity(

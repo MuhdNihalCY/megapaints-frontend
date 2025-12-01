@@ -82,13 +82,32 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
     }
 
     try {
-      // Create the card with the complete title
+      // Import card title utilities to ensure format
+      const { generateCardTitle } = await import('../../utils/cardTitleUtils');
+      
+      // Ensure title follows format: DD-MM-YY-XXX-customername
+      let finalTitle = cardData.title;
+      const identifier = cardData.identifier || reservation?.identifier;
+      
+      // If we have a customer in the card data, ensure format is correct
+      if (cardData.customer && identifier) {
+        finalTitle = generateCardTitle(identifier, cardData.customer.name || cardData.customer);
+      } else if (identifier && !finalTitle.includes('-')) {
+        // If title doesn't have customer part but we have identifier, keep identifier only
+        // (customer will be added when selected)
+        finalTitle = identifier;
+      }
+      
+      // Create the card with the complete title in correct format
       const cardToCreate = {
         ...cardData,
         listId: columnId,
         columnId: columnId,
-        identifier: cardData.identifier || reservation?.identifier,
-        title: cardData.title // This should be the complete title (identifier + customer)
+        column_id: columnId, // Backend expects column_id
+        boardId: boardId,
+        board_id: boardId, // Backend expects board_id
+        identifier: identifier,
+        title: finalTitle // Always in format: DD-MM-YY-XXX-customername
       };
 
       

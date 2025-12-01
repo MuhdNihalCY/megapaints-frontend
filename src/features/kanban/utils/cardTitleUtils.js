@@ -24,19 +24,38 @@ export function generateCustomerSlug(name) {
 
 /**
  * Generate complete card title from identifier and customer
- * @param {string} identifier - Primary identifier (e.g., "27-07-24-002")
- * @param {Object} customer - Customer object
- * @returns {string} - Complete card title (e.g., "27-07-24-002-store-makers")
+ * @param {string} identifier - Primary identifier (e.g., "02-12-25-004")
+ * @param {string|Object} customer - Customer object or customer name string
+ * @returns {string} - Complete card title (e.g., "02-12-25-004-customername")
  */
 export function generateCardTitle(identifier, customer) {
   if (!identifier) return '';
+  
+  // Normalize identifier format - ensure it's DD-MM-YY-XXX
+  const identifierPattern = /^(\d{2})-(\d{2})-(\d{2})-(\d{3})$/;
+  if (!identifierPattern.test(identifier)) {
+    // If identifier doesn't match format, return as-is (shouldn't happen, but handle gracefully)
+    console.warn('Identifier does not match expected format DD-MM-YY-XXX:', identifier);
+  }
   
   if (!customer) {
     return identifier;
   }
   
-  const customerSlug = generateCustomerSlug(customer.name);
-  return customerSlug ? `${identifier}-${customerSlug}` : identifier;
+  // Handle both string and object inputs
+  const customerName = typeof customer === 'string' ? customer : customer.name;
+  
+  if (!customerName || !customerName.trim()) {
+    return identifier;
+  }
+  
+  const customerSlug = generateCustomerSlug(customerName);
+  if (!customerSlug) {
+    return identifier;
+  }
+  
+  // Always return in format: DD-MM-YY-XXX-customername
+  return `${identifier}-${customerSlug}`;
 }
 
 /**
@@ -258,19 +277,30 @@ export function getCardTitleComponents(cardTitle) {
 
 /**
  * Create card title from components
- * @param {string} identifier - Primary identifier
+ * @param {string} identifier - Primary identifier (format: DD-MM-YY-XXX)
  * @param {string} customerName - Customer name
- * @returns {string} - Complete card title
+ * @returns {string} - Complete card title (format: DD-MM-YY-XXX-customername)
  */
 export function createCardTitleFromComponents(identifier, customerName) {
   if (!identifier) return '';
   
-  if (!customerName) {
+  // Normalize identifier format - ensure it's DD-MM-YY-XXX
+  const identifierPattern = /^(\d{2})-(\d{2})-(\d{2})-(\d{3})$/;
+  if (!identifierPattern.test(identifier)) {
+    console.warn('Identifier does not match expected format DD-MM-YY-XXX:', identifier);
+  }
+  
+  if (!customerName || !customerName.trim()) {
     return identifier;
   }
   
   const customerSlug = generateCustomerSlug(customerName);
-  return customerSlug ? `${identifier}-${customerSlug}` : identifier;
+  if (!customerSlug) {
+    return identifier;
+  }
+  
+  // Always return in format: DD-MM-YY-XXX-customername
+  return `${identifier}-${customerSlug}`;
 }
 
 export default {

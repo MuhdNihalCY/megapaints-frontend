@@ -1831,49 +1831,182 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
                         </div>
                       )}
                       {selectedCustomer.address && (
-                        <div className="flex items-start gap-3">
-                          <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                          <div className="text-gray-900 dark:text-white">
-                            {selectedCustomer.full_address || selectedCustomer.address}
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-3">
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                            <div className="text-gray-900 dark:text-white">
+                              {selectedCustomer.full_address || 
+                               (selectedCustomer.address.street && selectedCustomer.address.city 
+                                 ? `${selectedCustomer.address.street}, ${selectedCustomer.address.city}${selectedCustomer.address.state ? `, ${selectedCustomer.address.state}` : ''}${selectedCustomer.address.postal_code ? ` ${selectedCustomer.address.postal_code}` : ''}${selectedCustomer.address.country ? `, ${selectedCustomer.address.country}` : ''}`
+                                 : selectedCustomer.address.street || selectedCustomer.address.city || 'N/A')}
+                            </div>
                           </div>
+                          {(selectedCustomer.address.street || selectedCustomer.address.city || selectedCustomer.address.state || selectedCustomer.address.postal_code || selectedCustomer.address.country) && (
+                            <div className="ml-7 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {selectedCustomer.address.street && <div>Street: {selectedCustomer.address.street}</div>}
+                              {selectedCustomer.address.city && <div>City: {selectedCustomer.address.city}</div>}
+                              {selectedCustomer.address.state && <div>State: {selectedCustomer.address.state}</div>}
+                              {selectedCustomer.address.postal_code && <div>Postal Code: {selectedCustomer.address.postal_code}</div>}
+                              {selectedCustomer.address.country && <div>Country: {selectedCustomer.address.country}</div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {selectedCustomer.location && (
+                        <div className="flex items-center gap-3">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-900 dark:text-white">Location: {selectedCustomer.location}</span>
                         </div>
                       )}
                     </div>
+
+                    {/* Additional Contacts */}
+                    {selectedCustomer.contacts && selectedCustomer.contacts.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">Additional Contacts</h4>
+                        <div className="space-y-3">
+                          {selectedCustomer.contacts.map((contact, index) => (
+                            <div key={contact._id || index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="font-medium text-gray-900 dark:text-white">
+                                  {contact.name || 'Unnamed Contact'}
+                                  {contact.is_primary && (
+                                    <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 rounded">
+                                      Primary
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                {contact.position && <div>Position: {contact.position}</div>}
+                                {contact.phone && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="w-3 h-3" />
+                                    <span>{contact.phone}</span>
+                                  </div>
+                                )}
+                                {contact.email && (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="w-3 h-3" />
+                                    <span>{contact.email}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Business Information */}
                     {selectedCustomer.business_info && (
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900 dark:text-white">Business Information</h4>
-                        {selectedCustomer.business_info.industry && (
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Industry: {selectedCustomer.business_info.industry}
-                          </div>
-                        )}
-                        {selectedCustomer.business_info.website && (
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Website: {selectedCustomer.business_info.website}
-                          </div>
-                        )}
-                        {selectedCustomer.business_info.annual_revenue && (
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Annual Revenue: ${selectedCustomer.business_info.annual_revenue.toLocaleString()}
-                          </div>
-                        )}
+                        <div className="space-y-2 text-sm">
+                          {selectedCustomer.business_info.industry && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Industry:</span> {selectedCustomer.business_info.industry}
+                            </div>
+                          )}
+                          {selectedCustomer.business_info.website && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Website:</span>{' '}
+                              <a href={selectedCustomer.business_info.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                                {selectedCustomer.business_info.website}
+                              </a>
+                            </div>
+                          )}
+                          {selectedCustomer.business_info.tax_id && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Tax ID:</span> {selectedCustomer.business_info.tax_id}
+                            </div>
+                          )}
+                          {selectedCustomer.business_info.annual_revenue && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Annual Revenue:</span> ${selectedCustomer.business_info.annual_revenue.toLocaleString()}
+                            </div>
+                          )}
+                          {selectedCustomer.business_info.employee_count && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Employee Count:</span> {selectedCustomer.business_info.employee_count.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {selectedCustomer.notes && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">Notes</h4>
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white whitespace-pre-wrap">
+                          {selectedCustomer.notes}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sales & Coordination */}
+                    {(selectedCustomer.sales_executive || selectedCustomer.coordinator || selectedCustomer.branch_id) && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">Sales & Coordination</h4>
+                        <div className="space-y-2 text-sm">
+                          {selectedCustomer.sales_executive && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Sales Executive:</span>{' '}
+                              {typeof selectedCustomer.sales_executive === 'object' 
+                                ? selectedCustomer.sales_executive.name || selectedCustomer.sales_executive.username || selectedCustomer.sales_executive.email || 'N/A'
+                                : 'Assigned'}
+                            </div>
+                          )}
+                          {selectedCustomer.coordinator && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Coordinator:</span>{' '}
+                              {typeof selectedCustomer.coordinator === 'object'
+                                ? selectedCustomer.coordinator.name || selectedCustomer.coordinator.username || selectedCustomer.coordinator.email || 'N/A'
+                                : 'Assigned'}
+                            </div>
+                          )}
+                          {selectedCustomer.branch_id && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">Branch:</span>{' '}
+                              {typeof selectedCustomer.branch_id === 'object'
+                                ? `${selectedCustomer.branch_id.name || 'N/A'}${selectedCustomer.branch_id.code ? ` (${selectedCustomer.branch_id.code})` : ''}`
+                                : 'Assigned'}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
                     {/* Projects */}
                     {selectedCustomer.projects && selectedCustomer.projects.length > 0 && (
                       <div className="space-y-3">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">Active Projects</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-white">Projects</h4>
                         <div className="space-y-2">
                           {selectedCustomer.projects.map((project) => (
                             <div key={project._id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <div className="font-medium text-gray-900 dark:text-white">
+                              <div className="font-medium text-gray-900 dark:text-white mb-2">
                                 {project.name}
                               </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                Status: {project.status} • Value: ${project.estimated_value?.toLocaleString()}
+                              {project.description && (
+                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                  {project.description}
+                                </div>
+                              )}
+                              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                <div>Status: <span className="font-medium">{project.status || 'N/A'}</span></div>
+                                {project.estimated_value && (
+                                  <div>Estimated Value: <span className="font-medium">${project.estimated_value.toLocaleString()}</span></div>
+                                )}
+                                {project.actual_value && (
+                                  <div>Actual Value: <span className="font-medium">${project.actual_value.toLocaleString()}</span></div>
+                                )}
+                                {project.start_date && (
+                                  <div>Start Date: <span className="font-medium">{new Date(project.start_date).toLocaleDateString()}</span></div>
+                                )}
+                                {project.end_date && (
+                                  <div>End Date: <span className="font-medium">{new Date(project.end_date).toLocaleDateString()}</span></div>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -1898,10 +2031,39 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
                       </div>
                     )}
 
-                    {/* Created Date */}
-                    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                      <Calendar className="w-4 h-4" />
-                      <span>Created: {new Date(selectedCustomer.created_at).toLocaleDateString()}</span>
+                    {/* Metadata */}
+                    <div className="space-y-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                        <Calendar className="w-4 h-4" />
+                        <span>Created: {selectedCustomer.created_at ? new Date(selectedCustomer.created_at).toLocaleString() : 'N/A'}</span>
+                      </div>
+                      {selectedCustomer.updated_at && (
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                          <Calendar className="w-4 h-4" />
+                          <span>Updated: {new Date(selectedCustomer.updated_at).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {selectedCustomer.customer_id && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <span className="font-medium">Customer ID:</span> {selectedCustomer.customer_id}
+                        </div>
+                      )}
+                      {selectedCustomer.is_active !== undefined && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <span className="font-medium">Status:</span>{' '}
+                          <span className={selectedCustomer.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                            {selectedCustomer.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      )}
+                      {selectedCustomer.created_by && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <span className="font-medium">Created By:</span>{' '}
+                          {typeof selectedCustomer.created_by === 'object'
+                            ? selectedCustomer.created_by.name || selectedCustomer.created_by.username || selectedCustomer.created_by.email || 'N/A'
+                            : 'System'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
