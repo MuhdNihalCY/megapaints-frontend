@@ -201,7 +201,9 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
       }
       
       const response = await kanbanService.getCustomers(params);
-      setCustomers(response.customers || []);
+      // handleResponse returns { status: 'success', data: { customers: [...], ... }, message: '...' }
+      const customersList = response?.data?.customers || response?.customers || [];
+      setCustomers(customersList);
     } catch (err) {
       console.error('Failed to load customers:', err);
       
@@ -1832,14 +1834,14 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
                       )}
                       {selectedCustomer.address && (
                         <div className="space-y-2">
-                          <div className="flex items-start gap-3">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                            <div className="text-gray-900 dark:text-white">
+                        <div className="flex items-start gap-3">
+                          <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                          <div className="text-gray-900 dark:text-white">
                               {selectedCustomer.full_address || 
                                (selectedCustomer.address.street && selectedCustomer.address.city 
                                  ? `${selectedCustomer.address.street}, ${selectedCustomer.address.city}${selectedCustomer.address.state ? `, ${selectedCustomer.address.state}` : ''}${selectedCustomer.address.postal_code ? ` ${selectedCustomer.address.postal_code}` : ''}${selectedCustomer.address.country ? `, ${selectedCustomer.address.country}` : ''}`
                                  : selectedCustomer.address.street || selectedCustomer.address.city || 'N/A')}
-                            </div>
+                          </div>
                           </div>
                           {(selectedCustomer.address.street || selectedCustomer.address.city || selectedCustomer.address.state || selectedCustomer.address.postal_code || selectedCustomer.address.country) && (
                             <div className="ml-7 space-y-1 text-sm text-gray-600 dark:text-gray-400">
@@ -1903,12 +1905,12 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900 dark:text-white">Business Information</h4>
                         <div className="space-y-2 text-sm">
-                          {selectedCustomer.business_info.industry && (
+                        {selectedCustomer.business_info.industry && (
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Industry:</span> {selectedCustomer.business_info.industry}
-                            </div>
-                          )}
-                          {selectedCustomer.business_info.website && (
+                          </div>
+                        )}
+                        {selectedCustomer.business_info.website && (
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Website:</span>{' '}
                               <a href={selectedCustomer.business_info.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
@@ -1919,13 +1921,13 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
                           {selectedCustomer.business_info.tax_id && (
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Tax ID:</span> {selectedCustomer.business_info.tax_id}
-                            </div>
-                          )}
-                          {selectedCustomer.business_info.annual_revenue && (
+                          </div>
+                        )}
+                        {selectedCustomer.business_info.annual_revenue && (
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Annual Revenue:</span> ${selectedCustomer.business_info.annual_revenue.toLocaleString()}
-                            </div>
-                          )}
+                          </div>
+                        )}
                           {selectedCustomer.business_info.employee_count && (
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Employee Count:</span> {selectedCustomer.business_info.employee_count.toLocaleString()}
@@ -2033,10 +2035,10 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
 
                     {/* Metadata */}
                     <div className="space-y-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                        <Calendar className="w-4 h-4" />
+                    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                      <Calendar className="w-4 h-4" />
                         <span>Created: {selectedCustomer.created_at ? new Date(selectedCustomer.created_at).toLocaleString() : 'N/A'}</span>
-                      </div>
+                    </div>
                       {selectedCustomer.updated_at && (
                         <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                           <Calendar className="w-4 h-4" />
@@ -2264,8 +2266,8 @@ const CustomerManagementModal = ({ isOpen, onClose, onCustomerSelect, mode = 'ma
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
-      </motion.div>
+                </motion.div>
+              </motion.div>
     </AnimatePresence>,
     document.body
   );

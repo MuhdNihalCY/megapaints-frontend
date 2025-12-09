@@ -110,14 +110,12 @@ const PERMISSION_MATRIX = {
  */
 export const hasPermission = (user, permission) => {
   if (!user || !user.designation) {
-    console.warn('User or designation not found:', user);
     return false;
   }
   
   const userPermissions = PERMISSION_MATRIX[user.designation] || [];
   const hasAccess = userPermissions.includes(permission);
   
-  console.log(`Permission check - User: ${user.username} (${user.designation}), Permission: ${permission}, Result: ${hasAccess}`);
   return hasAccess;
 };
 
@@ -126,11 +124,8 @@ export const hasPermission = (user, permission) => {
  */
 export const canPerformAction = (user, action, resource = null, context = {}) => {
   if (!user) {
-    console.warn('No user provided for permission check');
     return false;
   }
-
-  console.log(`Action check - User: ${user.username} (${user.designation}), Action: ${action}`, { resource, context });
 
   switch (action) {
     case 'CREATE_CARD':
@@ -181,7 +176,6 @@ export const canPerformAction = (user, action, resource = null, context = {}) =>
         // Restrict moves to/from < 7 Days and > 7 Days columns
         const restrictedColumns = ['less-than-7-days', 'more-than-7-days'];
         if (restrictedColumns.includes(context.fromColumn) || restrictedColumns.includes(context.toColumn)) {
-          console.log('Move restricted: Cannot move cards to/from restricted columns');
           return false;
         }
       }
@@ -213,7 +207,6 @@ export const canPerformAction = (user, action, resource = null, context = {}) =>
       return hasPermission(user, PERMISSIONS.VIEW_BOARD);
     
     default:
-      console.warn(`Unknown action: ${action}`);
       return false;
   }
 };

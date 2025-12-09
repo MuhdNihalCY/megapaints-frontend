@@ -161,7 +161,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     try {
       await createCard(cardData);
     } catch (error) {
-      console.error('Error creating card:', error);
+      // Error creating card
     }
   }, [createCard]);
 
@@ -176,7 +176,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       setIsCardModalOpen(false);
       setSelectedCard(null);
     } catch (error) {
-      console.error('Error saving card:', error);
+      // Error saving card
     }
   }, [selectedCard, updateCard, createCard]);
 
@@ -189,7 +189,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         setSelectedCard(null);
       }
     } catch (error) {
-      console.error('Error deleting card:', error);
+      // Error deleting card
     }
   }, [selectedCard, deleteCard]);
 
@@ -216,7 +216,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       
       // Check if move is allowed based on DnD rules
       if (!isMoveAllowed(fromCol, toCol, card?.subcolumnId, toSubcolumn)) {
-        console.warn('Move not allowed: Cannot move cards to/from < 7 Days or > 7 Days columns');
         return;
       }
 
@@ -228,7 +227,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       
       await moveCard(cardId, moveData);
     } catch (error) {
-      console.error('Kanban Board: Error moving card', error);
+      // Error moving card
     } finally {
       setIsMoving(false);
     }
@@ -275,7 +274,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       // Note: reorderCards function needs to be implemented in the context
       // await reorderCards(cardId, fromColumn, toColumn, newIndex);
     } catch (error) {
-      console.error('Kanban Board: Error reordering card', error);
+      // Error reordering card
     } finally {
       setIsReordering(false);
     }

@@ -73,7 +73,9 @@ const CustomerDropdown = ({
         };
         
         const response = await kanbanService.getCustomers(params);
-        setCustomers(response.customers || []);
+        // handleResponse returns { status: 'success', data: { customers: [...], ... }, message: '...' }
+        const customersList = response?.data?.customers || response?.customers || [];
+        setCustomers(customersList);
       } catch (err) {
         console.error('Failed to load customers:', err);
         const errorMessage = err.response?.data?.message || err.message || 'Failed to load customers';

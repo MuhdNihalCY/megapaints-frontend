@@ -10,10 +10,6 @@ import { Users, Plus, Calendar, Search } from 'lucide-react';
 import CustomerManagementModal from './CustomerManagementModal';
 import CustomerFollowupModal from './CustomerFollowupModal';
 
-// Configuration: Set to true to auto-show create form when "New Customer" button is clicked
-// Set to false to show full list view (manage mode) instead
-const AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER = false;
-
 const CustomerManagementButton = ({ user, className = "" }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
@@ -91,8 +87,7 @@ const CustomerManagementButton = ({ user, className = "" }) => {
         </div>
       </div>
 
-      {/* New Customer Modal - Opens in manage mode (full list view) */}
-      {/* To auto-show create form instead, change AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER to true */}
+      {/* Create Customer Modal - Using CustomerManagementModal with manage mode and auto-show create form */}
       <CustomerManagementModal
         isOpen={showCreateCustomerModal}
         onClose={() => {
@@ -100,7 +95,7 @@ const CustomerManagementButton = ({ user, className = "" }) => {
           setActiveAction(null);
         }}
         mode="manage"
-        autoShowCreateForm={AUTO_SHOW_CREATE_FORM_ON_NEW_CUSTOMER}
+        autoShowCreateForm={true}
         onCustomerCreated={(customer) => {
           // Customer created successfully - form will close but modal stays open
           // Any additional logic can be added here if needed

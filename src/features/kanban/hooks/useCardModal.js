@@ -99,7 +99,6 @@ export const useCardModal = () => {
       closeModal();
       return true;
     } catch (error) {
-      console.error('Error saving card:', error);
       return false;
     }
   }, [modalState, createCard, updateCard, closeModal]);
@@ -113,7 +112,6 @@ export const useCardModal = () => {
       closeModal();
       return true;
     } catch (error) {
-      console.error('Error deleting card:', error);
       return false;
     }
   }, [modalState.cardId, deleteCard, closeModal]);

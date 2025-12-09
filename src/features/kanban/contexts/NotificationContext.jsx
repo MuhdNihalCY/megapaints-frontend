@@ -175,11 +175,11 @@ export function NotificationProvider({ children, currentUser }) {
     if (state.soundEnabled && audioRef.current) {
       try {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(err => {
-          console.warn('Could not play notification sound:', err);
+        audioRef.current.play().catch(() => {
+          // Could not play notification sound
         });
       } catch (error) {
-        console.warn('Error playing notification sound:', error);
+        // Error playing notification sound
       }
     }
   }, [state.soundEnabled]);
@@ -193,7 +193,6 @@ export function NotificationProvider({ children, currentUser }) {
       const notifications = await kanbanService.getNotifications(currentUser.id);
       dispatch({ type: ActionTypes.SET_NOTIFICATIONS, payload: notifications || [] });
     } catch (error) {
-      console.error('Error fetching notifications:', error);
       dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
     }
   }, [currentUser]);
@@ -210,7 +209,7 @@ export function NotificationProvider({ children, currentUser }) {
       await kanbanService.markNotificationAsRead(notificationId);
       dispatch({ type: ActionTypes.MARK_AS_READ, payload: notificationId });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      // Error marking notification as read
     }
   }, []);
 
@@ -220,7 +219,7 @@ export function NotificationProvider({ children, currentUser }) {
       await kanbanService.markNotificationAsClicked(notificationId);
       dispatch({ type: ActionTypes.MARK_AS_CLICKED, payload: notificationId });
     } catch (error) {
-      console.error('Error marking notification as clicked:', error);
+      // Error marking notification as clicked
     }
   }, []);
 
@@ -232,7 +231,7 @@ export function NotificationProvider({ children, currentUser }) {
       await kanbanService.markAllNotificationsAsRead(currentUser.id);
       dispatch({ type: ActionTypes.MARK_ALL_AS_READ });
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      // Error marking all notifications as read
     }
   }, [currentUser]);
 
@@ -242,7 +241,7 @@ export function NotificationProvider({ children, currentUser }) {
       await kanbanService.deleteNotification(notificationId);
       dispatch({ type: ActionTypes.DELETE_NOTIFICATION, payload: notificationId });
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      // Error deleting notification
     }
   }, []);
 
@@ -254,7 +253,7 @@ export function NotificationProvider({ children, currentUser }) {
       await kanbanService.clearAllNotifications(currentUser.id);
       dispatch({ type: ActionTypes.CLEAR_ALL });
     } catch (error) {
-      console.error('Error clearing notifications:', error);
+      // Error clearing notifications
     }
   }, [currentUser]);
 

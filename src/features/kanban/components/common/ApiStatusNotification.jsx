@@ -26,7 +26,7 @@ const ApiStatusNotification = () => {
         setApiStatus(prev => ({ ...prev, boardManagement: 'available' }));
       }
     } catch (error) {
-      console.log('Board management API not available, using mock data');
+      // Board management API not available, using mock data
     }
 
     try {
@@ -36,7 +36,7 @@ const ApiStatusNotification = () => {
         setApiStatus(prev => ({ ...prev, labelManagement: 'available' }));
       }
     } catch (error) {
-      console.log('Label management API not available, using mock data');
+      // Label management API not available, using mock data
     }
   };
 

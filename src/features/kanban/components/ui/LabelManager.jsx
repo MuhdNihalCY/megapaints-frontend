@@ -35,8 +35,8 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
       
       // Fetch labels for this branch
       if (isOpen && branchIdStr && fetchLabelsByBranch) {
-        fetchLabelsByBranch(branchIdStr).catch(err => {
-          console.error('Failed to fetch labels:', err);
+        fetchLabelsByBranch(branchIdStr).catch(() => {
+          // Failed to fetch labels
         });
       }
     }
@@ -56,22 +56,43 @@ const LabelManager = ({ isOpen, onClose, onLabelSelect }) => {
 
     setIsSubmitting(true);
     try {
-      await createLabel({
+      const result = await createLabel({
         name: formData.name.trim(),
         color: formData.color,
         description: formData.description.trim(),
         branch_id: branchId
       });
       
-      setFormData({ name: '', color: '#3b82f6', description: '' });
-      setIsCreating(false);
-      toast.success('Label created successfully');
-      // Refresh labels
-      if (branchId) {
-        fetchLabelsByBranch(branchId);
+      if (result && result.status === 'success') {
+        setFormData({ name: '', color: '#3b82f6', description: '' });
+        setIsCreating(false);
+        toast.success('Label created successfully');
+        // Refresh labels
+        if (branchId) {
+          await fetchLabelsByBranch(branchId);
+        }
+      } else {
+        throw new Error(result?.message || 'Failed to create label');
       }
     } catch (error) {
-      toast.error('Failed to create label');
+      // Extract error message - prioritize details array, then message, then default
+      let errorMessage = 'Failed to create label';
+      if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+        errorMessage = error.details[0];
+      } else if (error.details && typeof error.details === 'string') {
+        errorMessage = error.details;
+      } else if (error.response?.data?.details) {
+        if (Array.isArray(error.response.data.details) && error.response.data.details.length > 0) {
+          errorMessage = error.response.data.details[0];
+        } else if (typeof error.response.data.details === 'string') {
+          errorMessage = error.response.data.details;
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

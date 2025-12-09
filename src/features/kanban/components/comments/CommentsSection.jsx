@@ -215,7 +215,7 @@ const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete 
       setNewComment('');
       setShowMentions(false);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      // Error adding comment
     }
   };
 
@@ -252,12 +252,10 @@ const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete 
 
     try {
       // TODO: Implement notification service
-      console.log('Sending mention notifications:', mentions);
-      
       // Show success message
       // You can add a toast notification here
     } catch (error) {
-      console.error('Error sending mention notifications:', error);
+      // Error sending mention notifications
     }
   };
 
@@ -286,7 +284,7 @@ const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete 
       setEditText('');
       setShowMentions(false);
     } catch (error) {
-      console.error('Error updating comment:', error);
+      // Error updating comment
     }
   };
 
@@ -296,7 +294,7 @@ const CommentsSection = ({ card, onCommentAdd, onCommentUpdate, onCommentDelete 
       try {
         await onCommentDelete(commentId);
       } catch (error) {
-        console.error('Error deleting comment:', error);
+        // Error deleting comment
       }
     }
   };

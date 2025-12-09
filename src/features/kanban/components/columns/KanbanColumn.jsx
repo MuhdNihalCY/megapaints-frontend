@@ -28,14 +28,6 @@ const KanbanColumn = ({
   // Check if this column allows card creation (only Sales)
   const canCreateCard = column.id === 'sales' && canPerformAction('CREATE_CARD');
   
-  // Debug logging
-  console.log('KanbanColumn Debug:', {
-    columnId: column.id,
-    columnTitle: column.title,
-    canCreateCard,
-    canPerformActionResult: canPerformAction('CREATE_CARD')
-  });
-  
   // Check if this column allows toggling (Production and Drivers)
   const canToggleColumn = (column.groupType === 'production' || column.groupType === 'drivers') && 
                          canPerformAction('MANAGE_COLUMNS');
@@ -45,7 +37,7 @@ const KanbanColumn = ({
     try {
       await toggleColumnActivation(column.id, isActive);
     } catch (error) {
-      console.error('Error toggling column:', error);
+      // Error toggling column
     }
   }, [column.id, toggleColumnActivation]);
 

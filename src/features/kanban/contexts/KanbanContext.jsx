@@ -210,13 +210,6 @@ export const KanbanProvider = ({ children, user }) => {
       userData: user
     }));
 
-    console.log('Creating columns with users:', {
-      totalUsers: users.length,
-      productionUsers: productionUsers.length,
-      driverUsers: driverUsers.length,
-      productionSubcolumns: productionSubcolumns.length,
-      driverSubcolumns: driverSubcolumns.length
-    });
 
     return [
       // Non-grouped columns
@@ -312,15 +305,12 @@ export const KanbanProvider = ({ children, user }) => {
       let users = [];
       try {
         users = await kanbanService.getUsers();
-        console.log('Fetched users from API:', users);
         
         // Ensure users is an array (handle null/undefined responses)
         if (!Array.isArray(users)) {
-          console.warn('API returned non-array users data:', users);
           users = [];
         }
       } catch (error) {
-        console.warn('Users API not available, using empty array:', error.message);
         users = [];
       }
       
@@ -337,7 +327,6 @@ export const KanbanProvider = ({ children, user }) => {
       dispatch({ type: ACTION_TYPES.MARK_INITIALIZED });
       
     } catch (error) {
-      console.error('Error loading board data:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
     }
   }, [createDefaultColumnStructure]);
@@ -347,7 +336,9 @@ export const KanbanProvider = ({ children, user }) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
-      const result = await kanbanService.createCard(cardData);
+      // Pass labels context for label transformation
+      const cardDataWithLabels = { ...cardData, _availableLabels: state.labels };
+      const result = await kanbanService.createCard(cardDataWithLabels);
       
       if (result.status === 'success') {
         const transformedCard = kanbanService.transformCardData(result.data);
@@ -362,19 +353,19 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to create card');
       }
     } catch (error) {
-      console.error('Error creating card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
-  }, [state.user]);
+  }, [state.user, state.labels]);
 
   // Update card
   const updateCard = useCallback(async (cardId, updates) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
-      // Transform updates to backend format
-      const backendUpdates = kanbanService.transformTaskToApi(updates);
+      // Transform updates to backend format (pass labels for label lookup)
+      const updatesWithLabels = { ...updates, _availableLabels: state.labels };
+      const backendUpdates = kanbanService.transformTaskToApi(updatesWithLabels);
       
       const result = await kanbanService.updateCard(cardId, backendUpdates);
       
@@ -399,7 +390,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to update card');
       }
     } catch (error) {
-      console.error('Error updating card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
       throw error;
@@ -425,7 +415,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to delete card');
       }
     } catch (error) {
-      console.error('Error deleting card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -464,7 +453,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to move card');
       }
     } catch (error) {
-      console.error('Error moving card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -498,7 +486,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to toggle column');
       }
     } catch (error) {
-      console.error('Error toggling column:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -510,7 +497,6 @@ export const KanbanProvider = ({ children, user }) => {
       const result = await kanbanService.searchCardsInColumn(columnId, query);
       return result;
     } catch (error) {
-      console.error('Error searching cards:', error);
       throw error;
     }
   }, []);
@@ -536,7 +522,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to add comment');
       }
     } catch (error) {
-      console.error('Error adding comment:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -565,7 +550,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to update comment');
       }
     } catch (error) {
-      console.error('Error updating comment:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -592,7 +576,6 @@ export const KanbanProvider = ({ children, user }) => {
         throw new Error(result.error || 'Failed to delete comment');
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -629,7 +612,6 @@ export const KanbanProvider = ({ children, user }) => {
       }
       return result;
     } catch (error) {
-      console.error('Error fetching labels by branch:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -639,14 +621,16 @@ export const KanbanProvider = ({ children, user }) => {
   const createLabel = useCallback(async (labelData) => {
     try {
       const result = await kanbanService.createLabel(labelData);
-      if (result && result.data && result.data.label) {
+      // Handle both response formats: { status: 'success', data: { label } } or { data: { label } }
+      const label = result?.data?.label || result?.label;
+      if (label) {
         // Add new label to state
-        dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [...state.labels, result.data.label] });
+        dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [...state.labels, label] });
       }
       return result;
     } catch (error) {
-      console.error('Error creating label:', error);
-      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
+      const errorMessage = error.message || error.response?.data?.message || 'Failed to create label';
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
       throw error;
     }
   }, [state.labels]);
@@ -664,7 +648,6 @@ export const KanbanProvider = ({ children, user }) => {
       }
       return result;
     } catch (error) {
-      console.error('Error updating label:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -680,7 +663,6 @@ export const KanbanProvider = ({ children, user }) => {
       );
       dispatch({ type: ACTION_TYPES.SET_LABELS, payload: updatedLabels });
     } catch (error) {
-      console.error('Error deleting label:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -729,7 +711,6 @@ export const KanbanProvider = ({ children, user }) => {
         return result;
       }
     } catch (error) {
-      console.error('Error adding attachment:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -750,7 +731,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error deleting attachment:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -771,7 +751,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error setting card cover:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -797,7 +776,6 @@ export const KanbanProvider = ({ children, user }) => {
         return result;
       }
     } catch (error) {
-      console.error('Error adding checklist:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -820,7 +798,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error updating checklist:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -841,7 +818,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error deleting checklist:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -871,7 +847,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error toggling checklist item:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -894,7 +869,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error watching card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }
@@ -915,7 +889,6 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
       }
     } catch (error) {
-      console.error('Error unwatching card:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }

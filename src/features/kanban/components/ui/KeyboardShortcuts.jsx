@@ -51,17 +51,13 @@ const KeyboardShortcuts = () => {
       if (event.altKey) modifiers.push('Alt');
       
       const keyComboString = [...modifiers, event.key.toUpperCase()].join('+');
-      console.log('Key combo:', keyComboString);
 
       // Ctrl/Cmd + S: Quick search (Search)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        console.log('Search shortcut triggered');
         const searchInput = document.querySelector('input[placeholder*="Search"], input[placeholder*="search"]');
         if (searchInput) {
           searchInput.focus();
-        } else {
-          console.log('Search input not found');
         }
         return;
       }
@@ -69,7 +65,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + T: Create new card in Sales column (Task)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 't') {
         event.preventDefault();
-        console.log('Create card shortcut triggered');
         const salesColumn = columns.find(col => col.type === 'sales');
         if (salesColumn) {
           // Try to find create button in sales column using multiple approaches
@@ -95,22 +90,14 @@ const KeyboardShortcuts = () => {
             
             if (createButton) {
               createButton.click();
-            } else {
-              console.log('Create button not found for sales column');
             }
-          } else {
-            console.log('Sales column element not found in DOM');
           }
-        } else {
-          console.log('Sales column not found');
         }
         return;
       }
 
       // Escape: Close modals, dropdowns, clear selections, etc.
       if (event.key === 'Escape') {
-        console.log('Escape shortcut triggered');
-        
         // Handle DOM elements
         const dropdowns = document.querySelectorAll('.dropdown-menu, .modal-overlay, .help-panel');
         dropdowns.forEach(dropdown => {
@@ -129,14 +116,12 @@ const KeyboardShortcuts = () => {
           }
         });
         
-        console.log(`Escape handler completed. DOM elements processed: ${dropdowns.length + modals.length}`);
         return;
       }
 
       // Arrow keys: Navigate between cards
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
-        console.log('Arrow key navigation triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           const currentColumn = selectedCard.closest('[data-column-id], .kanban-column');
@@ -165,8 +150,6 @@ const KeyboardShortcuts = () => {
               }
             }
           }
-        } else {
-          console.log('No selected card found for navigation');
         }
         return;
       }
@@ -174,19 +157,15 @@ const KeyboardShortcuts = () => {
       // Space: Open selected card (more intuitive than Enter)
       if (event.key === ' ') {
         event.preventDefault();
-        console.log('Space shortcut triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           selectedCard.click();
-        } else {
-          console.log('No selected card found to open');
         }
         return;
       }
 
       // Ctrl/Cmd + Delete: Delete selected card (with confirmation)
       if ((event.ctrlKey || event.metaKey) && (event.key === 'Delete' || event.key === 'Backspace')) {
-        console.log('Delete shortcut triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           event.preventDefault();
@@ -197,15 +176,12 @@ const KeyboardShortcuts = () => {
               setIsDeleting(false);
             });
           }
-        } else {
-          console.log('No selected card found to delete');
         }
         return;
       }
 
       // Number keys: Quick priority setting
       if (event.key >= '1' && event.key <= '4') {
-        console.log('Priority shortcut triggered:', event.key);
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           const priorities = ['low', 'medium', 'high', 'urgent'];
@@ -214,8 +190,6 @@ const KeyboardShortcuts = () => {
           if (cardId) {
             updateCard(cardId, { priority });
           }
-        } else {
-          console.log('No selected card found for priority setting');
         }
         return;
       }
@@ -223,7 +197,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + F: Toggle filters panel (Filter)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        console.log('Filters shortcut triggered');
         const filtersPanel = document.querySelector('.filters-panel, [data-testid="filters-panel"]');
         if (filtersPanel) {
           const isExpanded = filtersPanel.classList.contains('expanded');
@@ -232,8 +205,6 @@ const KeyboardShortcuts = () => {
           } else {
             filtersPanel.classList.add('expanded');
           }
-        } else {
-          console.log('Filters panel not found');
         }
         return;
       }
@@ -241,12 +212,9 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + H: Toggle help/shortcuts panel (Help)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'h') {
         event.preventDefault();
-        console.log('Help shortcut triggered');
         const helpPanel = document.querySelector('.help-panel, [data-testid="help-panel"]');
         if (helpPanel) {
           helpPanel.classList.toggle('hidden');
-        } else {
-          console.log('Help panel not found');
         }
         return;
       }
@@ -254,7 +222,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + R: Refresh board data (Refresh)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r') {
         event.preventDefault();
-        console.log('Refresh shortcut triggered');
         // Trigger a board refresh - you might want to add this to your context
         window.location.reload();
         return;
@@ -263,7 +230,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + E: Edit selected card (Edit)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'e') {
         event.preventDefault();
-        console.log('Edit shortcut triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           // Get the card ID and trigger edit mode
@@ -277,14 +243,8 @@ const KeyboardShortcuts = () => {
                 detail: { card: cardData } 
               });
               document.dispatchEvent(editEvent);
-            } else {
-              console.log('Card data not found for editing');
             }
-          } else {
-            console.log('No card ID found on selected card');
           }
-        } else {
-          console.log('No selected card found to edit');
         }
         return;
       }
@@ -292,7 +252,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + M: Move selected card to next column (Move)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
         event.preventDefault();
-        console.log('Move shortcut triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           const cardId = selectedCard.dataset.cardId;
@@ -305,8 +264,6 @@ const KeyboardShortcuts = () => {
               moveCard(cardId, targetColumnId);
             }
           }
-        } else {
-          console.log('No selected card found to move');
         }
         return;
       }
@@ -314,7 +271,6 @@ const KeyboardShortcuts = () => {
       // Ctrl/Cmd + B: Move selected card to previous column (Back)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
         event.preventDefault();
-        console.log('Back shortcut triggered');
         const selectedCard = document.querySelector('[data-card-id].selected, .kanban-card.selected, .card.selected');
         if (selectedCard) {
           const cardId = selectedCard.dataset.cardId;
@@ -327,8 +283,6 @@ const KeyboardShortcuts = () => {
               moveCard(cardId, targetColumnId);
             }
           }
-        } else {
-          console.log('No selected card found to move back');
         }
         return;
       }
@@ -348,7 +302,6 @@ const KeyboardShortcuts = () => {
     const setupCards = () => {
       // Find all cards in the DOM
       const cards = document.querySelectorAll('[data-card-id], .kanban-card, .card');
-      console.log('Found cards for keyboard navigation:', cards.length);
       
       cards.forEach((card, index) => {
         // Ensure card has proper data attributes
@@ -368,7 +321,6 @@ const KeyboardShortcuts = () => {
           document.querySelectorAll('[data-card-id], .kanban-card, .card').forEach(c => c.classList.remove('selected'));
           // Add selection to clicked card
           card.classList.add('selected');
-          console.log('Card selected:', card.dataset.cardId);
         };
         
         // Remove existing listener to prevent duplicates

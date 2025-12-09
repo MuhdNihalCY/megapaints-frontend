@@ -31,7 +31,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
   // Handle button click - reserve identifier and create card
   const handleClick = async () => {
     if (!boardId) {
-      console.error('Board ID is required for identifier reservation');
       setError('Board ID is required');
       return;
     }
@@ -43,9 +42,13 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       
       // Step 1: Reserve primary identifier
       const reservationResponse = await kanbanService.reserveIdentifier(boardId);
-      const reservedIdentifier = reservationResponse.identifier;
-      const reservationId = reservationResponse.reservation_id;
+      // handleResponse returns { status: 'success', data: { identifier, reservation_id, ... }, message: '...' }
+      const reservedIdentifier = reservationResponse?.data?.identifier || reservationResponse?.identifier;
+      const reservationId = reservationResponse?.data?.reservation_id || reservationResponse?.reservation_id;
       
+      if (!reservedIdentifier || !reservationId) {
+        throw new Error('Invalid reservation response: missing identifier or reservation_id');
+      }
       
       // Step 2: Create card with reserved identifier
       const defaultCard = createEmptyCard({
@@ -68,7 +71,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       setShowModal(true);
       
     } catch (err) {
-      console.error('❌ Failed to reserve identifier:', err);
       setError('Failed to reserve card identifier. Please try again.');
     } finally {
       setReserving(false);
@@ -119,7 +121,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
         try {
           await kanbanService.useReservation(reservation.id, createdCard.id);
         } catch (err) {
-          console.warn('⚠️ Failed to mark reservation as used:', err);
           // Don't fail the card creation if reservation marking fails
         }
       }
@@ -130,7 +131,6 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       setReservation(null);
       
     } catch (err) {
-      console.error('❌ Failed to create card:', err);
       // Keep modal open so user can retry
     }
   };
@@ -142,7 +142,7 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       try {
         await kanbanService.releaseReservation(reservation.id);
       } catch (err) {
-        console.warn('⚠️ Failed to release reservation:', err);
+        // Failed to release reservation
       }
     }
     

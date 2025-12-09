@@ -46,8 +46,6 @@ export const usePragmaticDragAndDrop = () => {
       boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
       opacity: 0.9
     });
-
-    console.log('Pragmatic DND: Started dragging card', card.title);
   }, []);
 
   // End drag operation
@@ -58,8 +56,6 @@ export const usePragmaticDragAndDrop = () => {
     setDragPreview(null);
     setDropZone(null);
     setDragOffset({ x: 0, y: 0 });
-    
-    console.log('Pragmatic DND: Ended drag operation');
   }, []);
 
   // Handle drag over
@@ -86,11 +82,9 @@ export const usePragmaticDragAndDrop = () => {
         card: card
       }),
       onDragStart: (args) => {
-        console.log('Pragmatic DND: Drag started', card.title);
         startDrag(card, args);
       },
       onDrop: (args) => {
-        console.log('Pragmatic DND: Card dropped', args);
         if (onDragEnd) {
           onDragEnd(args);
         }
@@ -116,18 +110,14 @@ export const usePragmaticDragAndDrop = () => {
         };
       },
       onDragEnter: (args) => {
-        console.log('Pragmatic DND: Drag entered column', column.title);
         handleDragOver(column);
       },
       onDragLeave: (args) => {
-        console.log('Pragmatic DND: Drag left column', column.title);
         handleDragLeave();
       },
       onDrop: (args) => {
         const { source } = args;
         if (source.data.type === 'card') {
-          console.log('Pragmatic DND: Card dropped on column', column.id, 'from', source.data.cardId);
-          
           // Handle the move operation
           if (onCardMove && source.data.card) {
             const card = source.data.card;
@@ -135,7 +125,6 @@ export const usePragmaticDragAndDrop = () => {
             const toColumn = column.id;
             
             if (fromColumn !== toColumn) {
-              console.log('Pragmatic DND: Moving card from', fromColumn, 'to', toColumn);
               onCardMove(card.id, fromColumn, toColumn);
             }
           }

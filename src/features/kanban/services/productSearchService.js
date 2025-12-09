@@ -31,7 +31,6 @@ class ProductSearchService {
       
       return [];
     } catch (error) {
-      console.error('Product search error:', error);
       throw error;
     }
   }

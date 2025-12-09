@@ -29,7 +29,6 @@ export const useDragDrop = () => {
     // Validate drag start
     const validation = validateDragStart(card, user);
     if (!validation.canDrag) {
-      console.warn('Drag not allowed:', validation.reason);
       return;
     }
 
@@ -107,11 +106,10 @@ export const useDragDrop = () => {
       try {
         await moveCard(cardId, targetColumnId, newPosition);
       } catch (error) {
-        console.error('Error moving card:', error);
         // Rollback will be handled by the context
       }
     } else {
-      console.warn('Move not allowed:', result.error);
+      // Move not allowed
     }
 
     rollbackDataRef.current = null;

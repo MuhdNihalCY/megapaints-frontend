@@ -19,16 +19,29 @@ class KanbanService {
   handleResponse(response, endpoint = 'unknown') {
     // Check if response is HTML (indicates API endpoint doesn't exist)
     if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
-      console.warn(`⚠️ [API Warning] ${endpoint}: API endpoint returned HTML instead of JSON - endpoint may not exist`);
       return null;
     }
     
+    // Handle backend response format: { status: 'success'|'error', data: {...}, message: '...' }
+    if (response.data?.status === 'error') {
+      const errorMessage = response.data?.message || response.data?.details?.[0] || 'API request failed';
+      const error = new Error(errorMessage);
+      error.response = response;
+      error.details = response.data?.details;
+      throw error;
+    }
+    
+    // Return the data object from response
+    if (response.data?.status === 'success') {
+      return response.data; // Return full response object with status, data, message
+    }
+    
+    // Fallback for other response formats (legacy support)
     if (response.data?.success !== false) {
       const result = response.data?.data || response.data;
       return result;
     }
     
-    console.error(`❌ [API Error] ${endpoint}:`, response.data?.message || 'API request failed');
     throw new Error(response.data?.message || 'API request failed');
   }
 
@@ -36,23 +49,24 @@ class KanbanService {
    * Handle API errors
    */
   handleError(error, endpoint = 'unknown') {
-    console.error(`💥 [API Error] ${endpoint}:`, {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      url: error.config?.url,
-      method: error.config?.method,
-      headers: error.config?.headers
-    });
-    
     // Preserve the original error with response data
-    if (error.response?.data?.message) {
-      const newError = new Error(error.response.data.message);
+    if (error.response?.data) {
+      // Extract error message from response
+      let errorMessage = error.response.data.message || error.message;
+      
+      // If there are details, use the first one or append them
+      if (error.response.data.details && Array.isArray(error.response.data.details) && error.response.data.details.length > 0) {
+        errorMessage = error.response.data.details[0] || errorMessage;
+      } else if (error.response.data.details && typeof error.response.data.details === 'string') {
+        errorMessage = error.response.data.details;
+      }
+      
+      const newError = new Error(errorMessage);
       // Attach original error and response for debugging
       newError.originalError = error;
       newError.response = error.response;
       newError.status = error.response.status;
+      newError.details = error.response.data.details;
       throw newError;
     }
     throw error;
@@ -190,20 +204,29 @@ class KanbanService {
     const endpoint = 'POST /api/kanban/cards';
     
     try {
-      // Transform frontend format to backend API format
+      // Use transformTaskToApi to properly transform all fields including labels
+      const transformedData = this.transformTaskToApi({
+        ...taskData,
+        _availableLabels: taskData._availableLabels || []
+      });
+      
+      // Ensure required fields are set
       const apiData = {
-        title: taskData.title,
-        description: taskData.description || '',
-        board_id: taskData.board_id || taskData.boardId || taskData.board_id,
-        column_id: taskData.column_id || taskData.columnId || taskData.listId,
-        position: taskData.position || 0,
-        priority: taskData.priority || 'medium',
-        due_date: taskData.due_date || taskData.dueDate || null,
-        start_date: taskData.start_date || taskData.startDate || null,
-        estimated_hours: taskData.estimated_hours || taskData.estimatedHours || null,
-        assignees: taskData.assignees || [],
-        labels: taskData.labels || [],
-        checklists: taskData.checklists || []
+        title: transformedData.title || taskData.title,
+        description: transformedData.description || taskData.description || '',
+        board_id: transformedData.board_id || taskData.board_id || taskData.boardId,
+        column_id: transformedData.column_id || taskData.column_id || taskData.columnId || taskData.listId,
+        position: transformedData.position || taskData.position || 0,
+        priority: transformedData.priority || taskData.priority || 'medium',
+        due_date: transformedData.due_date || null,
+        start_date: transformedData.start_date || null,
+        estimated_hours: transformedData.estimated_hours || taskData.estimated_hours || null,
+        assignees: transformedData.assignees || taskData.assignees || [],
+        labels: transformedData.labels || [],
+        checklists: transformedData.checklists || taskData.checklists || [],
+        customer_id: transformedData.customer || taskData.customer_id || taskData.customer?.id || taskData.customer?._id || null,
+        identifier: transformedData.identifier || taskData.identifier || null,
+        reservation_id: transformedData.reservation_id || taskData.reservationId || taskData.reservation_id || null
       };
       
       // Remove null/undefined values
@@ -360,7 +383,9 @@ class KanbanService {
    * @deprecated Use createTask() instead
    */
   async createCard(cardData) {
-    return this.createTask(cardData);
+    // Ensure labels are available for transformation
+    const cardDataWithLabels = { ...cardData, _availableLabels: cardData._availableLabels || [] };
+    return this.createTask(cardDataWithLabels);
   }
 
   /**
@@ -779,11 +804,13 @@ class KanbanService {
    * POST /api/kanban/labels
    */
   async createLabel(labelData) {
+    const endpoint = 'POST /api/kanban/labels';
     try {
       const response = await api.post(`${this.baseURL}/kanban/labels`, labelData);
-      return this.handleResponse(response);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
+      throw error; // Re-throw to ensure error is propagated
     }
   }
 
@@ -916,10 +943,7 @@ class KanbanService {
       const users = Array.isArray(result) ? result : [];
       return users;
     } catch (error) {
-      console.warn(`⚠️ [API Warning] ${endpoint}: Kanban users endpoint not available:`, error.message);
-      
       // Return mock users for development/testing
-      // console.log('Using mock users for development');
       // return this.getMockUsers();
       return {
         status: 'success',
@@ -1151,7 +1175,6 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/notification/user/${userId}`, { params });
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.warn(`⚠️ [API Warning] ${endpoint}: Notifications endpoint not available:`, error.message);
       return []; // Return empty array if endpoint doesn't exist yet
     }
   }
@@ -1364,7 +1387,7 @@ class KanbanService {
       labels: labelIds, // Array of label IDs
       labelObjects: (apiTask.labels || []).map(label => ({
         id: label._id || label.id || label.label_id,
-        name: label.text || label.name,
+        name: label.name || label.text || '',
         color: label.color || '#6b7280'
       })),
       members: members, // Array of member/user IDs
@@ -1398,6 +1421,8 @@ class KanbanService {
 
   /**
    * Transform frontend task data to API format
+   * @param {Object} frontendTask - Frontend task data
+   * @param {Array} frontendTask._availableLabels - Optional array of available labels for lookup
    */
   transformTaskToApi(frontendTask) {
     const apiData = {};
@@ -1452,17 +1477,68 @@ class KanbanService {
       apiData.assignees = frontendTask.assignees;
     }
     
-    // Labels - handle both IDs and objects
+    // Labels - handle both IDs and objects, ensure name and color are included
     if (frontendTask.labels !== undefined) {
+      // If availableLabels is provided, use it to look up label details
+      const availableLabels = frontendTask._availableLabels || [];
+      
       apiData.labels = (frontendTask.labels || []).map(label => {
-        if (typeof label === 'object') {
+        // Normalize label ID
+        const normalizeId = (id) => {
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id) return id.id || id._id || id.label_id;
+          return String(id);
+        };
+        
+        // If it's already an object with all required fields
+        if (typeof label === 'object' && label.label_id && label.name && label.color) {
           return {
-            label_id: label.id || label._id || label.label_id,
-            text: label.name || label.text,
+            label_id: label.label_id || label.id || label._id,
+            name: label.name,
             color: label.color
           };
         }
-        return { label_id: label };
+        
+        // If it's an object but missing fields, try to get them
+        if (typeof label === 'object') {
+          const labelId = label.id || label._id || label.label_id;
+          const foundLabel = availableLabels.find(l => {
+            const lId = l.id || l._id;
+            return normalizeId(lId) === normalizeId(labelId);
+          });
+          
+          if (foundLabel) {
+            return {
+              label_id: labelId,
+              name: foundLabel.name || label.name,
+              color: foundLabel.color || label.color || '#6b7280'
+            };
+          }
+          
+          return {
+            label_id: labelId,
+            name: label.name || label.text || '',
+            color: label.color || '#6b7280'
+          };
+        }
+        
+        // If it's just an ID, look it up in availableLabels
+        const normalizedId = normalizeId(label);
+        const foundLabel = availableLabels.find(l => {
+          const lId = l.id || l._id;
+          return normalizeId(lId) === normalizedId;
+        });
+        
+        if (foundLabel) {
+          return {
+            label_id: normalizedId,
+            name: foundLabel.name,
+            color: foundLabel.color || '#6b7280'
+          };
+        }
+        
+        // Fallback: just label_id if label not found
+        return { label_id: normalizedId };
       });
     }
     
@@ -1532,13 +1608,6 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Identifier Reservation Failed] ${endpoint}:`, {
-        boardId,
-        format,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1554,13 +1623,6 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Use Reservation Failed] ${endpoint}:`, {
-        reservationId,
-        taskId,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1575,12 +1637,6 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Release Reservation Failed] ${endpoint}:`, {
-        reservationId,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1593,12 +1649,6 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/reservations/board/${boardId}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Get Active Reservations Failed] ${endpoint}:`, {
-        boardId,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1611,12 +1661,6 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifier/${identifier}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Get Task by Identifier Failed] ${endpoint}:`, {
-        identifier,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1629,12 +1673,6 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/cards/identifiers/board/${boardId}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Get Board Identifiers Failed] ${endpoint}:`, {
-        boardId,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }
@@ -1649,13 +1687,6 @@ class KanbanService {
       });
       return this.handleResponse(response, endpoint);
     } catch (error) {
-      console.error(`❌ [Update Task Identifier Failed] ${endpoint}:`, {
-        taskId,
-        identifier,
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       this.handleError(error, endpoint);
       throw error;
     }

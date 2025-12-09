@@ -32,13 +32,14 @@ import {
   Upload,
   Link as LinkIcon,
   Edit3,
+  Edit2,
   Save,
   Hash
 } from 'lucide-react';
 import { useKanban } from '../../contexts/KanbanContext';
 import { useAuth } from '../../../../contexts/AuthContext';
-import LabelManager from '../ui/LabelManager';
 import { calculateCardBadges, addActivity } from '../../types/cardModel';
+import toast from 'react-hot-toast';
 import CommentsSection from '../comments/CommentsSection';
 import ActivityLog from '../activity/ActivityLog';
 import TrelloChecklist from './TrelloChecklist';
@@ -85,23 +86,59 @@ const TrelloCardModal = ({
     addComment: contextAddComment,
     updateComment: contextUpdateComment,
     deleteComment: contextDeleteComment,
-    fetchLabelsByBranch
+    fetchLabelsByBranch,
+    createLabel,
+    updateLabel,
+    deleteLabel
   } = useKanban();
   
+  // Initialize identifier from card/reservation props
+  const getInitialIdentifier = () => {
+    if (card?.identifier) return card.identifier;
+    if (card?._identifier) return card._identifier;
+    if (reservation?.identifier) return reservation.identifier;
+    // If title exists and looks like an identifier, use it
+    if (card?.title && /^\d{2}-\d{2}-\d{2}-\d{3}/.test(card.title)) {
+      return card.title.split('-').slice(0, 4).join('-');
+    }
+    return '';
+  };
+
   // State
-  const [formData, setFormData] = useState(card || null);
+  const [formData, setFormData] = useState(() => {
+    if (card) {
+      const identifier = getInitialIdentifier();
+      const reservationId = card.reservationId || card.reservation_id || reservation?.id;
+      return {
+        ...card,
+        identifier: identifier,
+        reservationId: reservationId,
+        reservation_id: reservationId
+      };
+    }
+    return null;
+  });
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showLabelManager, setShowLabelManager] = useState(false);
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
+  const [editingLabel, setEditingLabel] = useState(null);
+  const [labelFormData, setLabelFormData] = useState({ name: '', color: '#3b82f6', description: '' });
   
   // Card Title System State
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(card?.customer || null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [titleComponents, setTitleComponents] = useState({ identifier: '', customerName: '', customerSlug: '' });
+  const [titleComponents, setTitleComponents] = useState(() => {
+    const identifier = getInitialIdentifier();
+    return {
+      identifier: identifier,
+      customerName: '',
+      customerSlug: ''
+    };
+  });
   
   // Helper: Extract card ID
   const getCardId = () => {
@@ -174,15 +211,73 @@ const TrelloCardModal = ({
       }));
     }
     
-    // Labels - keep as array of IDs or objects
+    // Labels - transform to backend format with name and color
     if (cardData.labels !== undefined) {
       transformed.labels = (cardData.labels || []).map(labelId => {
-        // If it's already an object, use it; otherwise create object
-        if (typeof labelId === 'object') {
-          return labelId;
+        // Normalize label ID for lookup
+        const normalizeId = (id) => {
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id) return id.id || id._id || id.label_id;
+          return String(id);
+        };
+        
+        const normalizedId = normalizeId(labelId);
+        
+        // If it's already an object with all required fields, use it
+        if (typeof labelId === 'object' && labelId.label_id && labelId.name && labelId.color) {
+          return {
+            label_id: labelId.label_id || labelId.id || labelId._id,
+            name: labelId.name,
+            color: labelId.color
+          };
         }
-        return { label_id: labelId };
-      });
+        
+        // If it's an object but might be missing some fields, try to complete it
+        if (typeof labelId === 'object' && (labelId.label_id || labelId.id || labelId._id)) {
+          const labelObjId = labelId.label_id || labelId.id || labelId._id;
+          // Look up label details from labels context
+          const label = labels.find(l => {
+            const lId = l.id || l._id;
+            return normalizeId(lId) === normalizeId(labelObjId);
+          });
+          
+          if (label) {
+            return {
+              label_id: label.id || label._id,
+              name: label.name || labelId.name || '',
+              color: label.color || labelId.color || '#6b7280'
+            };
+          }
+          
+          // If label not found but we have name/color in the object, use them
+          if (labelId.name && labelId.color) {
+            return {
+              label_id: labelObjId,
+              name: labelId.name,
+              color: labelId.color
+            };
+          }
+        }
+        
+        // Look up label details from labels context (for string IDs or incomplete objects)
+        const label = labels.find(l => {
+          const lId = l.id || l._id;
+          return normalizeId(lId) === normalizedId;
+        });
+        
+        if (label) {
+          return {
+            label_id: label.id || label._id,
+            name: label.name,
+            color: label.color || '#6b7280'
+          };
+        }
+        
+        // Fallback: just label_id if label not found in context
+        // Backend will handle this, but it's better to have at least the ID
+        console.warn('Label not found in context for ID:', normalizedId, 'Available labels:', labels.length);
+        return { label_id: normalizedId };
+      }).filter(label => label && label.label_id); // Remove any null/undefined entries
     }
     
     // Customer field
@@ -240,8 +335,9 @@ const TrelloCardModal = ({
     setError(null);
     
     try {
-      // Transform updates to backend format
-      const backendUpdates = transformCardToBackendFormat(updates);
+      // Transform updates to backend format (pass labels context for label lookup)
+      const updatesWithLabels = { ...updates, _availableLabels: labels };
+      const backendUpdates = transformCardToBackendFormat(updatesWithLabels);
       
       // Call onUpdate callback (which should call contextUpdateCard)
       if (onUpdate && typeof onUpdate === 'function') {
@@ -303,28 +399,120 @@ const TrelloCardModal = ({
   const descriptionRef = useRef(null);
   const modalRef = useRef(null);
   
-  // Update form data when card changes
+  // Update form data when card changes or modal opens
   useEffect(() => {
+    // Only initialize when modal is open
+    if (!isOpen) return;
+    
     if (card) {
-      setFormData(card);
+      // Determine the identifier from multiple sources - prioritize direct sources before parsing
+      // Priority: card.identifier > card._identifier > reservation.identifier > parsed from title
+      const identifier = card.identifier || 
+                        card._identifier || 
+                        reservation?.identifier || 
+                        (card.title ? getCardTitleComponents(card.title).identifier : null);
+      
+      // Determine reservation ID
+      const reservationId = card.reservationId || 
+                           card.reservation_id || 
+                           reservation?.id;
+      
+      // Merge card data with formData to preserve any existing form state
+      const updatedFormData = {
+        ...card,
+        // Ensure identifier and reservationId are preserved
+        identifier: identifier,
+        reservationId: reservationId,
+        reservation_id: reservationId
+      };
+      
+      setFormData(updatedFormData);
       
       // Initialize customer if present
       if (card.customer) {
         setSelectedCustomer(card.customer);
+      } else {
+        // Reset customer selection if not present in card
+        setSelectedCustomer(null);
       }
       
       // Initialize card title system
-      if (card.title) {
-        const components = getCardTitleComponents(card.title);
+      // For new cards, prioritize reservation data if card data is incomplete
+      const effectiveIdentifier = identifier || reservation?.identifier || '';
+      const titleToParse = card.title || effectiveIdentifier || '';
+      
+      if (titleToParse) {
+        const components = getCardTitleComponents(titleToParse);
+        
+        // Ensure identifier is set correctly - use direct identifier if available
+        if (effectiveIdentifier) {
+          // If we have a direct identifier, use it (more reliable than parsing)
+          components.identifier = effectiveIdentifier;
+        } else if (!components.identifier && titleToParse) {
+          // If parsing didn't extract identifier but we have a title, use the title as identifier
+          // This handles the case where title is just an identifier without customer
+          components.identifier = titleToParse;
+        }
+        
+        // Ensure customerName and customerSlug are empty if not parsed
+        if (!components.customerName) {
+          components.customerName = '';
+        }
+        if (!components.customerSlug) {
+          components.customerSlug = '';
+        }
+        
         setTitleComponents(components);
         
         // If this is a new card with just an identifier, start title editing
         if (isNewCard && components.identifier && !components.customerName) {
           setIsTitleEditing(true);
         }
+      } else if (effectiveIdentifier) {
+        // If we have identifier but no title, initialize titleComponents with just identifier
+        setTitleComponents({
+          identifier: effectiveIdentifier,
+          customerName: '',
+          customerSlug: ''
+        });
       }
+      
+      // Debug logging for new cards
+      if (isNewCard) {
+        console.log('New card initialized:', {
+          card,
+          identifier: effectiveIdentifier,
+          reservationId,
+          reservation,
+          titleComponents: titleToParse ? getCardTitleComponents(titleToParse) : null,
+          parsedComponents: titleToParse ? getCardTitleComponents(titleToParse) : null
+        });
+      }
+    } else if (isNewCard && reservation) {
+      // Handle case where card is null but we have reservation data
+      const identifier = reservation.identifier || '';
+      if (identifier) {
+        setFormData({
+          identifier: identifier,
+          reservationId: reservation.id,
+          reservation_id: reservation.id,
+          title: identifier
+        });
+        setTitleComponents({
+          identifier: identifier,
+          customerName: '',
+          customerSlug: ''
+        });
+      }
+    } else if (isNewCard && !card && !reservation) {
+      // If it's a new card but no card or reservation data yet, initialize with empty state
+      setTitleComponents({
+        identifier: '',
+        customerName: '',
+        customerSlug: ''
+      });
     }
-  }, [card, isNewCard]);
+  }, [card, isNewCard, reservation, isOpen]);
   
   // Monitor activeSection changes
   useEffect(() => {
@@ -567,6 +755,36 @@ const TrelloCardModal = ({
         const lId = l.id || l._id;
         return normalizeLabelId(lId) === normalizedLabelId;
       });
+      
+      // If adding a label and it's not found in context, try to fetch labels first
+      if (!label && !isLabelApplied && labels.length === 0) {
+        // Try to fetch labels if not loaded
+        if (currentUser?.branches && currentUser.branches.length > 0 && fetchLabelsByBranch) {
+          const firstBranch = currentUser.branches[0];
+          const branchId = typeof firstBranch === 'string' 
+            ? firstBranch 
+            : (firstBranch?._id || firstBranch?.id || firstBranch);
+          if (branchId) {
+            try {
+              await fetchLabelsByBranch(branchId);
+              // Wait a bit for state to update, then retry
+              setTimeout(() => {
+                handleLabelToggle(labelId);
+              }, 100);
+              return;
+            } catch (err) {
+              console.error('Failed to fetch labels:', err);
+            }
+          }
+        }
+      }
+      
+      if (!label && !isLabelApplied) {
+        console.warn('Label not found in context:', normalizedLabelId, 'Available labels:', labels.length);
+        setError('Label not found. Please refresh and try again.');
+        return;
+      }
+      
       const action = isLabelApplied ? 'removed' : 'added';
       
       // Update local state optimistically
@@ -580,9 +798,39 @@ const TrelloCardModal = ({
         return;
       }
       
-      // Update backend
+      // Ensure labels are properly formatted with name and color before sending
+      // Transform labels to include full label objects if we have them in context
+      const formattedLabels = newLabels.map(labelIdOrObj => {
+        const normalizedId = normalizeLabelId(labelIdOrObj);
+        const foundLabel = labels.find(l => {
+          const lId = l.id || l._id;
+          return normalizeLabelId(lId) === normalizedId;
+        });
+        
+        if (foundLabel) {
+          return {
+            label_id: foundLabel.id || foundLabel._id,
+            name: foundLabel.name,
+            color: foundLabel.color || '#6b7280'
+          };
+        }
+        
+        // If label not found in context but it's an object with required fields, use it
+        if (typeof labelIdOrObj === 'object' && labelIdOrObj.label_id && labelIdOrObj.name && labelIdOrObj.color) {
+          return {
+            label_id: labelIdOrObj.label_id || labelIdOrObj.id || labelIdOrObj._id,
+            name: labelIdOrObj.name,
+            color: labelIdOrObj.color
+          };
+        }
+        
+        // If label not found in context, return as-is (will be looked up in transformCardToBackendFormat)
+        return labelIdOrObj;
+      }).filter(label => label); // Remove any null/undefined entries
+      
+      // Update backend with formatted labels
       await handleCardUpdate(
-        { labels: newLabels },
+        { labels: formattedLabels },
         {
           updateLocalState: false, // Already updated above
           logActivity: true,
@@ -767,9 +1015,22 @@ const TrelloCardModal = ({
                   <div className="flex items-center gap-2">
                     <Hash className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                      {formatIdentifierForDisplay(titleComponents.identifier)}
+                      {formatIdentifierForDisplay(
+                        titleComponents.identifier || 
+                        formData.identifier || 
+                        card?.identifier || 
+                        reservation?.identifier || 
+                        ''
+                      )}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-500">(Auto-generated)</span>
+                    {isNewCard && (formData.reservationId || reservation?.id) && (
+                      <span className="text-xs text-gray-500 dark:text-gray-500">
+                        (Reserved: {formData.reservationId || reservation?.id})
+                      </span>
+                    )}
+                    {!isNewCard && (
+                      <span className="text-xs text-gray-500 dark:text-gray-500">(Auto-generated)</span>
+                    )}
                   </div>
                   
                   {/* Customer Selection */}
@@ -1502,26 +1763,130 @@ const TrelloCardModal = ({
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Labels</h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setShowLabelManager(true);
-                        setActiveSection(null);
-                      }}
-                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                      title="Manage Labels"
-                    >
-                      Manage
-                    </button>
-                    <button onClick={() => setActiveSection(null)}>
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button onClick={() => {
+                    setActiveSection(null);
+                    setIsCreatingLabel(false);
+                    setEditingLabel(null);
+                    setLabelFormData({ name: '', color: '#3b82f6', description: '' });
+                  }}>
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
+                
+                {/* Create/Edit Label Form */}
+                {(isCreatingLabel || editingLabel) && (
+                  <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+                    <div>
+                      <input
+                        type="text"
+                        value={labelFormData.name}
+                        onChange={(e) => setLabelFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Label name"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800"
+                        maxLength={50}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={labelFormData.color}
+                        onChange={(e) => setLabelFormData(prev => ({ ...prev, color: e.target.value }))}
+                        className="w-12 h-8 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!labelFormData.name.trim()) {
+                            toast.error('Label name is required');
+                            return;
+                          }
+                          if (!currentUser?.branches?.[0]) {
+                            toast.error('Branch ID is required');
+                            return;
+                          }
+                          
+                          const branchId = typeof currentUser.branches[0] === 'string' 
+                            ? currentUser.branches[0] 
+                            : (currentUser.branches[0]?._id || currentUser.branches[0]?.id);
+                          
+                          try {
+                            if (editingLabel) {
+                              await updateLabel(editingLabel.id || editingLabel._id, {
+                                name: labelFormData.name.trim(),
+                                color: labelFormData.color,
+                                description: labelFormData.description.trim()
+                              });
+                              toast.success('Label updated successfully');
+                            } else {
+                              await createLabel({
+                                name: labelFormData.name.trim(),
+                                color: labelFormData.color,
+                                description: labelFormData.description.trim(),
+                                branch_id: branchId
+                              });
+                              toast.success('Label created successfully');
+                            }
+                            setLabelFormData({ name: '', color: '#3b82f6', description: '' });
+                            setIsCreatingLabel(false);
+                            setEditingLabel(null);
+                            if (branchId) {
+                              await fetchLabelsByBranch(branchId);
+                            }
+                          } catch (error) {
+                            console.error('Failed to save label:', error);
+                            // Extract error message with multiple fallbacks
+                            let errorMessage = 'Failed to save label';
+                            if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+                              errorMessage = error.details[0];
+                            } else if (error.details && typeof error.details === 'string') {
+                              errorMessage = error.details;
+                            } else if (error.response?.data?.details) {
+                              if (Array.isArray(error.response.data.details) && error.response.data.details.length > 0) {
+                                errorMessage = error.response.data.details[0];
+                              } else if (typeof error.response.data.details === 'string') {
+                                errorMessage = error.response.data.details;
+                              }
+                            } else if (error.response?.data?.message) {
+                              errorMessage = error.response.data.message;
+                            } else if (error.message) {
+                              errorMessage = error.message;
+                            }
+                            toast.error(errorMessage);
+                          }
+                        }}
+                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        {editingLabel ? 'Update' : 'Create'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsCreatingLabel(false);
+                          setEditingLabel(null);
+                          setLabelFormData({ name: '', color: '#3b82f6', description: '' });
+                        }}
+                        className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Create New Label Button */}
+                {!isCreatingLabel && !editingLabel && (
+                  <button
+                    onClick={() => setIsCreatingLabel(true)}
+                    className="w-full mb-3 p-2 text-xs border border-dashed border-gray-300 dark:border-gray-600 rounded text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Create Label
+                  </button>
+                )}
+                
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {labels.length === 0 ? (
+                  {labels.length === 0 && !isCreatingLabel ? (
                     <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
-                      No labels available. Click "Manage" to create labels.
+                      No labels available
                     </div>
                   ) : (
                     labels.map((label, index) => {
@@ -1530,30 +1895,83 @@ const TrelloCardModal = ({
                         const lId = typeof l === 'string' ? l : (l?.id || l?._id || l);
                         return String(lId) === String(labelId);
                       });
+                      const isEditing = editingLabel && (editingLabel.id === labelId || editingLabel._id === labelId);
                       
                       return (
-                        <label
+                        <div
                           key={labelId || `label-${index}`}
-                          className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleLabelToggle(labelId)}
                             className="w-4 h-4"
+                            onClick={(e) => e.stopPropagation()}
                           />
-                      <div
-                        className="w-full px-3 py-2 rounded font-medium"
-                        style={{
-                          backgroundColor: label.color,
-                          color: label.color === '#FFFFFF' || label.color === 'white' ? '#000' : '#FFF'
-                        }}
-                      >
-                          {label.name}
+                          <div
+                            className="flex-1 px-2 py-1 rounded text-sm font-medium cursor-pointer"
+                            style={{
+                              backgroundColor: label.color,
+                              color: label.color === '#FFFFFF' || label.color === 'white' ? '#000' : '#FFF'
+                            }}
+                            onClick={() => handleLabelToggle(labelId)}
+                          >
+                            {label.name}
+                          </div>
+                          {!isEditing && (
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => {
+                                  setEditingLabel(label);
+                                  setLabelFormData({
+                                    name: label.name,
+                                    color: label.color,
+                                    description: label.description || ''
+                                  });
+                                  setIsCreatingLabel(false);
+                                }}
+                                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                title="Edit label"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (window.confirm('Are you sure you want to delete this label?')) {
+                                    try {
+                                      await deleteLabel(labelId);
+                                      toast.success('Label deleted successfully');
+                                      const branchId = typeof currentUser?.branches?.[0] === 'string' 
+                                        ? currentUser.branches[0] 
+                                        : (currentUser?.branches?.[0]?._id || currentUser?.branches?.[0]?.id);
+                                      if (branchId) {
+                                        await fetchLabelsByBranch(branchId);
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to delete label:', error);
+                                      let errorMessage = 'Failed to delete label';
+                                      if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+                                        errorMessage = error.details[0];
+                                      } else if (error.response?.data?.message) {
+                                        errorMessage = error.response.data.message;
+                                      } else if (error.message) {
+                                        errorMessage = error.message;
+                                      }
+                                      toast.error(errorMessage);
+                                    }
+                                  }
+                                }}
+                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                title="Delete label"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </label>
-                    );
-                  })
+                      );
+                    })
                   )}
                 </div>
               </motion.div>
@@ -1732,29 +2150,6 @@ const TrelloCardModal = ({
         />
       )}
       
-      {/* Label Manager Modal */}
-      <LabelManager
-        isOpen={showLabelManager}
-        onClose={() => {
-          setShowLabelManager(false);
-          // Refresh labels after closing manager (in case new labels were created)
-          if (currentUser?.branches && currentUser.branches.length > 0 && fetchLabelsByBranch) {
-            const firstBranch = currentUser.branches[0];
-            const branchId = typeof firstBranch === 'string' 
-              ? firstBranch 
-              : (firstBranch?._id || firstBranch?.id || firstBranch);
-            if (branchId) {
-              fetchLabelsByBranch(branchId).catch(err => {
-                console.error('Failed to refresh labels:', err);
-              });
-            }
-          }
-        }}
-        onLabelSelect={(label) => {
-          handleLabelToggle(label.id || label._id);
-          setShowLabelManager(false);
-        }}
-      />
     </AnimatePresence>
   );
 };

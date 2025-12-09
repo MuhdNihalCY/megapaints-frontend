@@ -35,7 +35,6 @@ export function generateCardTitle(identifier, customer) {
   const identifierPattern = /^(\d{2})-(\d{2})-(\d{2})-(\d{3})$/;
   if (!identifierPattern.test(identifier)) {
     // If identifier doesn't match format, return as-is (shouldn't happen, but handle gracefully)
-    console.warn('Identifier does not match expected format DD-MM-YY-XXX:', identifier);
   }
   
   if (!customer) {
@@ -287,7 +286,7 @@ export function createCardTitleFromComponents(identifier, customerName) {
   // Normalize identifier format - ensure it's DD-MM-YY-XXX
   const identifierPattern = /^(\d{2})-(\d{2})-(\d{2})-(\d{3})$/;
   if (!identifierPattern.test(identifier)) {
-    console.warn('Identifier does not match expected format DD-MM-YY-XXX:', identifier);
+    // Identifier format validation
   }
   
   if (!customerName || !customerName.trim()) {
