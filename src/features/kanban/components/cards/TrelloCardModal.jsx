@@ -311,6 +311,96 @@ const TrelloCardModal = ({
   };
   
   // Helper: Handle card update with proper error handling
+  // Handle saving new card - collects all formData and calls onUpdate
+  const handleSaveNewCard = async () => {
+    console.log('🔵 handleSaveNewCard called', { 
+      formData, 
+      titleComponents, 
+      reservation, 
+      onUpdate: !!onUpdate,
+      isNewCard 
+    });
+    
+    // Get the current title from the title input or formData
+    const currentTitle = formData?.title?.trim() || titleComponents?.identifier || reservation?.identifier || '';
+    
+    console.log('🔵 Current title:', currentTitle);
+    
+    if (!currentTitle) {
+      console.log('🔴 No title found');
+      setError('Card title is required. Please enter a title.');
+      return;
+    }
+
+    console.log('🔵 Starting save process...');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Collect all card data from formData
+      const cardDataToSave = {
+        ...formData,
+        // Ensure identifier is included
+        identifier: formData.identifier || reservation?.identifier || titleComponents.identifier,
+        // Ensure reservationId is included
+        reservationId: formData.reservationId || reservation?.id,
+        reservation_id: formData.reservationId || reservation?.id,
+        // Include customer if selected
+        customer: selectedCustomer || formData.customer,
+        // Ensure title is properly formatted and not empty
+        title: currentTitle,
+        // Preserve column/list IDs from original card
+        listId: formData.listId || formData.columnId || card?.listId || card?.columnId,
+        columnId: formData.columnId || formData.listId || card?.columnId || card?.listId
+      };
+
+      console.log('🔵 About to call onUpdate', { 
+        hasOnUpdate: !!onUpdate, 
+        onUpdateType: typeof onUpdate,
+        cardDataToSave 
+      });
+      
+      // Call onUpdate with the complete card data (for new cards, onUpdate is handleSave from CreateCardButton)
+      if (onUpdate && typeof onUpdate === 'function') {
+        try {
+          console.log('🔵 Calling onUpdate function...');
+          const result = await onUpdate(cardDataToSave);
+          console.log('🔵 onUpdate completed successfully', { result });
+          // onUpdate (handleSave) will close the modal and reset state if successful
+        } catch (saveError) {
+          console.error('🔴 Error in onUpdate call', saveError);
+          // Re-throw to be caught by outer catch block
+          throw saveError;
+        }
+      } else {
+        console.error('🔴 onUpdate is not a function', { onUpdate, type: typeof onUpdate });
+        throw new Error('Save handler not available. Please refresh the page.');
+      }
+    } catch (error) {
+      // Extract detailed error message
+      let errorMessage = 'Failed to save card. ';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (Array.isArray(errorData.details)) {
+          errorMessage += errorData.details.join('. ');
+        } else if (errorData.details) {
+          errorMessage += errorData.details;
+        } else if (errorData.message) {
+          errorMessage += errorData.message;
+        }
+      } else if (error?.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Unknown error occurred.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCardUpdate = async (updates, options = {}) => {
     const cardId = getCardId();
     
@@ -923,7 +1013,17 @@ const TrelloCardModal = ({
   };
   
   const badges = calculateCardBadges(formData);
-  const currentColumn = columns?.find(col => col.id === formData.listId || col._id === formData.listId);
+  // Find current column - check multiple possible ID fields
+  const currentColumn = columns?.find(col => 
+    col.id === formData.listId || 
+    col._id === formData.listId ||
+    col.id === formData.columnId ||
+    col._id === formData.columnId ||
+    col.id === card?.listId ||
+    col._id === card?.listId ||
+    col.id === card?.columnId ||
+    col._id === card?.columnId
+  );
   const cardMembers = (formData.members || [])
     .map(id => users.find(u => u.id === id || u._id === id))
     .filter(Boolean);
@@ -1635,6 +1735,29 @@ const TrelloCardModal = ({
               <div>
                 <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">ACTIONS</h3>
                 <div className="space-y-1">
+                  {/* Save Button for New Cards - Must be first for new cards */}
+                  {isNewCard && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        console.log('🔵 Save button clicked!', { 
+                          isLoading, 
+                          formData,
+                          titleComponents,
+                          reservation,
+                          onUpdate: !!onUpdate
+                        });
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveNewCard();
+                      }}
+                      disabled={isLoading || !(formData?.title?.trim() || titleComponents?.identifier || reservation?.identifier)}
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isLoading ? 'Saving...' : 'Save Card'}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (onMove) {
@@ -1643,7 +1766,10 @@ const TrelloCardModal = ({
                         console.warn('⚠️ onMove callback not provided');
                       }
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                    disabled={isNewCard}
+                    className={`w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors ${
+                      isNewCard ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <Move className="w-4 h-4" />
                     Move
@@ -1656,7 +1782,10 @@ const TrelloCardModal = ({
                         console.warn('⚠️ onCopy callback not provided');
                       }
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                    disabled={isNewCard}
+                    className={`w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors ${
+                      isNewCard ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <Copy className="w-4 h-4" />
                     Copy
@@ -1665,7 +1794,10 @@ const TrelloCardModal = ({
                     onClick={() => {
                       handleWatch();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                    disabled={isNewCard}
+                    className={`w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors ${
+                      isNewCard ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     {isWatching ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     {isWatching ? 'Unwatch' : 'Watch'}
@@ -1674,7 +1806,10 @@ const TrelloCardModal = ({
                     onClick={() => {
                       handleArchive();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
+                    disabled={isNewCard}
+                    className={`w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors ${
+                      isNewCard ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <Archive className="w-4 h-4" />
                     {formData.closed ? 'Unarchive' : 'Archive'}

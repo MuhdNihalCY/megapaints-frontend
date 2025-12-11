@@ -13,12 +13,168 @@ import { createEmptyCard } from '../../types/cardModel';
 import { kanbanService } from '../../services/kanbanService';
 
 const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
-  const { currentUser } = useKanban();
+  const { currentUser, columns } = useKanban();
   const [showModal, setShowModal] = useState(false);
   const [newCard, setNewCard] = useState(null);
   const [reservation, setReservation] = useState(null);
   const [reserving, setReserving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Helper function to resolve column ID to MongoDB ObjectId
+  // If columnId is already a valid ObjectId, return it
+  // Otherwise, find the column by matching frontend ID to backend column name
+  const resolveColumnId = async (frontendColumnId) => {
+    // Check if it's already a valid MongoDB ObjectId (24 hex characters)
+    const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+    if (objectIdPattern.test(frontendColumnId)) {
+      return frontendColumnId;
+    }
+
+    // If not, try to find the column from context columns first
+    // Check both id and _id properties
+    console.log('🔵 Checking context columns:', { 
+      frontendColumnId, 
+      columnsCount: columns?.length,
+      columnIds: columns?.map(c => ({ id: c.id, _id: c._id, name: c.name, title: c.title, position: c.position }))
+    });
+    
+    const frontendColumn = columns?.find(col => 
+      col.id === frontendColumnId || 
+      col._id === frontendColumnId ||
+      col.id?.toString() === frontendColumnId?.toString() ||
+      col._id?.toString() === frontendColumnId?.toString() ||
+      // Also match by name/title for backend columns
+      col.name?.toLowerCase() === frontendColumnId?.toLowerCase() ||
+      col.title?.toLowerCase() === frontendColumnId?.toLowerCase()
+    );
+    
+    if (frontendColumn) {
+      // Prefer _id (backend ObjectId) over id (frontend string)
+      const columnId = frontendColumn._id?.toString() || frontendColumn.id?.toString();
+      if (columnId && objectIdPattern.test(columnId)) {
+        console.log('✅ Found column in context with backend ID:', { 
+          frontendId: frontendColumnId, 
+          backendId: columnId, 
+          name: frontendColumn.name || frontendColumn.title,
+          position: frontendColumn.position
+        });
+        return columnId;
+      } else {
+        console.log('⚠️ Column found in context but ID is not a valid ObjectId:', { columnId, column: frontendColumn });
+        // Frontend column doesn't have backend _id, will need to map it
+      }
+    } else {
+      console.log('⚠️ Column not found in context columns, will fetch from backend');
+    }
+
+    // Map frontend column IDs to backend column names
+    // Since frontend uses hardcoded columns (sales, office, etc.) but backend has different columns
+    // We need to map them appropriately
+    const frontendToBackendColumnMap = {
+      'sales': 'To Do',      // Sales is where new cards are created, map to first backend column
+      'office': 'In Progress', // Office processing maps to In Progress
+      'production': 'In Progress',
+      'ready': 'Review',
+      'drivers': 'Review',
+      'done': 'Done'
+    };
+
+    // If still not found, fetch columns from backend and find by name
+    if (boardId) {
+      try {
+        console.log('🔵 Fetching columns from backend for board:', boardId);
+        const columnsResponse = await kanbanService.getColumns(boardId);
+        console.log('🔵 Columns response:', columnsResponse);
+        
+        // Handle different response structures
+        let backendColumns = [];
+        if (columnsResponse?.status === 'success') {
+          backendColumns = columnsResponse.data?.columns || columnsResponse.data || [];
+        } else if (columnsResponse?.data?.columns) {
+          backendColumns = columnsResponse.data.columns;
+        } else if (columnsResponse?.columns) {
+          backendColumns = columnsResponse.columns;
+        } else if (Array.isArray(columnsResponse)) {
+          backendColumns = columnsResponse;
+        }
+        
+        console.log('🔵 Extracted backend columns:', backendColumns);
+        console.log('🔵 Available column names:', backendColumns.map(c => c.name));
+        console.log('🔵 Looking for column matching frontend ID:', frontendColumnId);
+        
+        // Use the mapping defined above
+        const mappedName = frontendToBackendColumnMap[frontendColumnId?.toLowerCase()];
+        const columnName = mappedName || frontendColumnId;
+        if (mappedName) {
+          console.log(`🔵 Mapped frontend column "${frontendColumnId}" to backend column "${mappedName}"`);
+        } else {
+          console.log('🔵 No mapping found, using frontend column ID as-is:', columnName);
+        }
+        
+        // Try multiple matching strategies
+        let backendColumn = null;
+        
+        // Strategy 1: Exact name match
+        backendColumn = backendColumns.find(col => col.name === columnName);
+        
+        // Strategy 2: Case-insensitive name match
+        if (!backendColumn) {
+          backendColumn = backendColumns.find(col => 
+            col.name?.toLowerCase() === frontendColumnId?.toLowerCase() ||
+            col.name?.toLowerCase() === columnName?.toLowerCase()
+          );
+        }
+        
+        // Strategy 3: Partial match (contains)
+        if (!backendColumn) {
+          backendColumn = backendColumns.find(col => 
+            col.name?.toLowerCase().includes(frontendColumnId?.toLowerCase()) ||
+            frontendColumnId?.toLowerCase().includes(col.name?.toLowerCase())
+          );
+        }
+        
+        console.log('🔵 Found backend column:', backendColumn ? { name: backendColumn.name, id: backendColumn._id || backendColumn.id } : null);
+        
+        if (backendColumn) {
+          // Columns are subdocuments, so they have _id
+          const columnId = backendColumn._id?.toString() || backendColumn.id?.toString();
+          console.log('🔵 Column ID:', columnId);
+          
+          // Validate it's a proper ObjectId
+          if (columnId && objectIdPattern.test(columnId)) {
+            console.log('✅ Resolved column ID:', columnId);
+            return columnId;
+          } else {
+            console.warn('⚠️ Column ID is not a valid ObjectId:', columnId);
+          }
+        } else {
+          const availableColumns = backendColumns.map(c => ({ name: c.name, id: c._id || c.id }));
+          console.warn('⚠️ No matching column found. Available columns:', availableColumns);
+          
+          // Fallback: Use the first available column
+          if (backendColumns.length > 0) {
+            const firstColumn = backendColumns[0];
+            const firstColumnId = firstColumn._id?.toString() || firstColumn.id?.toString();
+            if (firstColumnId && objectIdPattern.test(firstColumnId)) {
+              console.log(`⚠️ Using first available column "${firstColumn.name}" (${firstColumnId}) as fallback for "${frontendColumnId}"`);
+              return firstColumnId;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('🔴 Error fetching columns:', err);
+        // If fetching fails, we'll throw an error below
+      }
+    }
+
+    // If we couldn't resolve, throw an error with helpful message
+    const availableColumns = columns?.map(c => c.name || c.id).join(', ') || 'none';
+    throw new Error(
+      `Could not find column "${frontendColumnId}" (mapped to "${columnNameMap[frontendColumnId] || frontendColumnId}") in board. ` +
+      `Available columns in context: ${availableColumns}. ` +
+      `Please ensure the column exists in the board or create it first.`
+    );
+  };
 
   // Generate a simple identifier for fallback
   const generateFallbackIdentifier = () => {
@@ -79,11 +235,56 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
 
   // Handle card save - create the card and use reservation (if available)
   const handleSave = async (cardData) => {
+    console.log('🔵 CreateCardButton.handleSave called', { cardData, boardId, columnId });
+    
     if (!cardData.title || !cardData.title.trim()) {
-      return;
+      console.log('🔴 No title in cardData');
+      const error = new Error('Card title is required');
+      setError('Card title is required');
+      throw error;
+    }
+
+    if (!boardId) {
+      const error = new Error('Board ID is required');
+      setError('Board ID is required');
+      throw error;
     }
 
     try {
+      setError(null);
+      
+      // Validate boardId is a valid MongoDB ObjectId
+      const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+      if (!objectIdPattern.test(boardId)) {
+        const error = new Error(`No valid board found. Please ensure a board exists in the system. Current board ID: ${boardId}`);
+        setError(error.message);
+        console.error('🔴 Invalid board ID:', boardId);
+        throw error;
+      }
+      
+      // Resolve the actual MongoDB column ID from the frontend column ID
+      let resolvedColumnId;
+      try {
+        resolvedColumnId = await resolveColumnId(columnId);
+      } catch (resolveError) {
+        const error = new Error(resolveError.message || 'Could not resolve column ID. Please try again.');
+        setError(error.message);
+        throw error;
+      }
+      
+      if (!resolvedColumnId) {
+        const error = new Error('Could not resolve column ID. Please try again.');
+        setError(error.message);
+        throw error;
+      }
+      
+      // Validate resolved columnId is a valid MongoDB ObjectId
+      if (!objectIdPattern.test(resolvedColumnId)) {
+        const error = new Error(`Invalid column ID format: ${resolvedColumnId}. Column might not exist in the board.`);
+        setError(error.message);
+        throw error;
+      }
+      
       // Import card title utilities to ensure format
       const { generateCardTitle } = await import('../../utils/cardTitleUtils');
       
@@ -101,37 +302,70 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
       }
       
       // Create the card with the complete title in correct format
+      // Ensure all IDs are strings (not objects) for API
       const cardToCreate = {
         ...cardData,
-        listId: columnId,
-        columnId: columnId,
-        column_id: columnId, // Backend expects column_id
-        boardId: boardId,
-        board_id: boardId, // Backend expects board_id
+        listId: String(resolvedColumnId),
+        columnId: String(resolvedColumnId),
+        column_id: String(resolvedColumnId), // Backend expects column_id as MongoDB ObjectId string
+        boardId: String(boardId),
+        board_id: String(boardId), // Backend expects board_id as MongoDB ObjectId string
         identifier: identifier,
-        title: finalTitle // Always in format: DD-MM-YY-XXX-customername
+        title: finalTitle.trim(), // Always in format: DD-MM-YY-XXX-customername, trimmed
+        position: cardData.position || 0, // Ensure position is set
+        reservationId: reservation?.id || cardData.reservationId || null // Include reservation ID so backend can mark it as used
       };
 
+      console.log('🔵 About to call onCreateCard', { 
+        onCreateCard: typeof onCreateCard, 
+        cardToCreate 
+      });
       
       // Call the parent's onCreateCard function
-      const createdCard = await onCreateCard(cardToCreate);
-      
-      // Try to use the reservation (only if it exists and was successful)
-      if (reservation && reservation.id && createdCard) {
-        try {
-          await kanbanService.useReservation(reservation.id, createdCard.id);
-        } catch (err) {
-          // Don't fail the card creation if reservation marking fails
-        }
+      if (!onCreateCard || typeof onCreateCard !== 'function') {
+        throw new Error('onCreateCard is not available or is not a function');
       }
       
-      // Close modal and reset state
+      const createdCard = await onCreateCard(cardToCreate);
+      console.log('🔵 onCreateCard returned', { createdCard });
+      
+      if (!createdCard) {
+        throw new Error('Card creation failed: No card was returned');
+      }
+      
+      // Note: Reservation is already marked as used by the backend during card creation
+      // (if reservationId was included in cardToCreate). No need to call useReservation again.
+      
+      // Close modal and reset state only on success
       setShowModal(false);
       setNewCard(null);
       setReservation(null);
+      setError(null);
       
     } catch (err) {
-      // Keep modal open so user can retry
+      // Show error to user with detailed validation errors
+      let errorMessage = 'Failed to save card. ';
+      
+      if (err?.response?.data) {
+        const errorData = err.response.data;
+        // Handle validation errors (array of error messages)
+        if (Array.isArray(errorData.details)) {
+          errorMessage += errorData.details.join('. ');
+        } else if (errorData.details) {
+          errorMessage += errorData.details;
+        } else if (errorData.message) {
+          errorMessage += errorData.message;
+        }
+      } else if (err?.message) {
+        errorMessage += err.message;
+      } else {
+        errorMessage += 'Unknown error occurred.';
+      }
+      
+      // Re-throw the error so it can be caught by handleSaveNewCard in the modal
+      const errorWithMessage = new Error(errorMessage);
+      errorWithMessage.response = err?.response;
+      throw errorWithMessage;
     }
   };
 

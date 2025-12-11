@@ -158,10 +158,15 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Handle create card
   const handleCreateCard = useCallback(async (cardData) => {
+    console.log('🔵 KanbanBoard.handleCreateCard called', { cardData });
     try {
-      await createCard(cardData);
+      const createdCard = await createCard(cardData);
+      console.log('🔵 createCard from context returned', createdCard);
+      return createdCard;
     } catch (error) {
-      // Error creating card
+      console.error('🔴 Error in KanbanBoard.handleCreateCard', error);
+      // Re-throw error so it can be caught by CreateCardButton
+      throw error;
     }
   }, [createCard]);
 

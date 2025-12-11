@@ -311,48 +311,170 @@ export const KanbanProvider = ({ children, user }) => {
           users = [];
         }
       } catch (error) {
+        console.warn('Failed to fetch users:', error);
         users = [];
       }
       
-      // Create default column structure with dynamic subcolumns
-      const defaultColumns = createDefaultColumnStructure(users);
+      // Try to fetch boards from API and get the first one
+      let board = null;
+      try {
+        console.log('🔵 Fetching boards from API...');
+        const boardsResponse = await kanbanService.getBoards({ limit: 1 });
+        console.log('🔵 Boards response:', boardsResponse);
+        
+        // Handle different response formats
+        let boards = [];
+        if (boardsResponse?.status === 'success') {
+          // Response format: { status: 'success', data: { boards: [...], pagination: {...} } }
+          boards = boardsResponse.data?.boards || boardsResponse.data || [];
+          console.log('🔵 Extracted boards from success response:', boards);
+        } else if (Array.isArray(boardsResponse)) {
+          boards = boardsResponse;
+          console.log('🔵 Response is array:', boards);
+        } else if (boardsResponse?.data && Array.isArray(boardsResponse.data)) {
+          boards = boardsResponse.data;
+          console.log('🔵 Boards in data property:', boards);
+        } else if (boardsResponse?.boards && Array.isArray(boardsResponse.boards)) {
+          boards = boardsResponse.boards;
+          console.log('🔵 Boards in boards property:', boards);
+        } else {
+          console.warn('🔴 Unexpected boards response format:', boardsResponse);
+        }
+        
+        if (Array.isArray(boards) && boards.length > 0) {
+          board = boards[0];
+          // Transform board data to ensure we have id and _id
+          board = {
+            id: board.id || board._id,
+            _id: board._id || board.id,
+            name: board.name || 'Kanban Board',
+            ...board
+          };
+          console.log('✅ Found board:', board);
+        } else {
+          console.warn('⚠️ No boards found in response. Array length:', boards?.length || 0);
+        }
+      } catch (error) {
+        console.error('🔴 Failed to fetch boards:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+      }
+      
+      // If no board found, create a default one (but this should not happen in production)
+      if (!board) {
+        console.error('❌ No board found in database. Card creation will fail. Please create a board first.');
+        board = { id: 'default-board-id', name: 'Default Board' };
+      }
+      
+      console.log('🔵 Setting board in context:', board);
+      
+      // Fetch columns from backend for this board - ONLY use backend columns
+      let columns = [];
+      if (board && (board.id || board._id)) {
+        try {
+          console.log('🔵 Fetching columns from backend for board:', board.id || board._id);
+          const columnsResponse = await kanbanService.getColumns(board.id || board._id);
+          console.log('🔵 Columns response:', columnsResponse);
+          
+          // Handle different response structures
+          let backendColumns = [];
+          if (columnsResponse?.status === 'success') {
+            backendColumns = columnsResponse.data?.columns || columnsResponse.data || [];
+          } else if (columnsResponse?.data?.columns) {
+            backendColumns = columnsResponse.data.columns;
+          } else if (columnsResponse?.columns) {
+            backendColumns = columnsResponse.columns;
+          } else if (Array.isArray(columnsResponse)) {
+            backendColumns = columnsResponse;
+          }
+          
+          console.log('🔵 Extracted backend columns:', backendColumns);
+          console.log('🔵 Backend column names:', backendColumns.map(c => c.name));
+          
+          // Transform backend columns to frontend format - use backend data as-is
+          columns = backendColumns.map((col, index) => ({
+            id: col._id?.toString() || col.id?.toString() || `col-${index}`, // Use backend _id as id
+            _id: col._id?.toString() || col.id?.toString(), // Keep backend _id
+            title: col.name, // Backend uses 'name', frontend uses 'title'
+            name: col.name, // Also keep name for compatibility
+            color: col.color || '#007bff',
+            position: col.position ?? index,
+            isActive: col.is_active !== false,
+            is_active: col.is_active !== false,
+            type: 'static', // Default type
+            isGrouped: false,
+            cards: [],
+            settings: {}
+          }));
+          
+          console.log('✅ Using ONLY backend columns:', columns.map(c => ({ id: c.id, name: c.name, title: c.title, position: c.position })));
+        } catch (error) {
+          console.error('❌ Failed to fetch columns from backend:', error);
+          // Do NOT fall back to default columns - only use backend columns
+          columns = [];
+        }
+      } else {
+        console.error('❌ No board ID available, cannot fetch columns');
+        columns = [];
+      }
+      
+      if (columns.length === 0) {
+        console.warn('⚠️ No columns found in backend. Board may not have columns configured.');
+      }
       
       // Set default data
-      dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: defaultColumns });
+      dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: columns });
       dispatch({ type: ACTION_TYPES.SET_CARDS, payload: [] });
       dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [] });
       dispatch({ type: ACTION_TYPES.SET_USERS, payload: users });
-      dispatch({ type: ACTION_TYPES.SET_BOARD, payload: { id: 'default-board-id', name: 'Default Board' } });
+      dispatch({ type: ACTION_TYPES.SET_BOARD, payload: board });
       dispatch({ type: ACTION_TYPES.SET_LAST_UPDATED, payload: new Date().toISOString() });
       dispatch({ type: ACTION_TYPES.MARK_INITIALIZED });
       
     } catch (error) {
+      console.error('Error loading initial data:', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
     }
-  }, [createDefaultColumnStructure]);
+  }, []);
 
   // Create card
   const createCard = useCallback(async (cardData) => {
+    console.log('🔵 KanbanContext.createCard called', { cardData });
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
       // Pass labels context for label transformation
       const cardDataWithLabels = { ...cardData, _availableLabels: state.labels };
+      console.log('🔵 Calling kanbanService.createCard with', cardDataWithLabels);
       const result = await kanbanService.createCard(cardDataWithLabels);
+      console.log('🔵 kanbanService.createCard returned', result);
       
-      if (result.status === 'success') {
-        const transformedCard = kanbanService.transformCardData(result.data);
+      if (result && result.status === 'success') {
+        // Backend returns { data: { task } }, so extract the task
+        const taskData = result.data?.task || result.data;
+        const transformedCard = kanbanService.transformCardData(taskData);
+        console.log('🔵 Transformed card', transformedCard);
         dispatch({ type: ACTION_TYPES.ADD_CARD, payload: transformedCard });
         
-        // Log activity
-        const activity = logCardCreated(transformedCard, state.user);
-        await kanbanService.logActivity(activity);
+        // Log activity (non-blocking - backend already logs activity in activity_log)
+        try {
+          const activity = logCardCreated(transformedCard, state.user);
+          await kanbanService.logActivity(activity);
+        } catch (activityError) {
+          // Activity logging is optional - backend already logs activity
+          console.warn('Failed to log activity (non-critical):', activityError);
+        }
         
         return transformedCard;
       } else {
-        throw new Error(result.error || 'Failed to create card');
+        console.error('🔴 Invalid result from createCard', result);
+        throw new Error(result?.error || result?.message || 'Failed to create card');
       }
     } catch (error) {
+      console.error('🔴 Error in KanbanContext.createCard', error);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       throw error;
     }

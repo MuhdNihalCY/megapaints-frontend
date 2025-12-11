@@ -204,19 +204,21 @@ class KanbanService {
     const endpoint = 'POST /api/kanban/cards';
     
     try {
+      console.log('🔵 kanbanService.createTask called', { taskData, endpoint });
+      
       // Use transformTaskToApi to properly transform all fields including labels
       const transformedData = this.transformTaskToApi({
         ...taskData,
         _availableLabels: taskData._availableLabels || []
       });
       
-      // Ensure required fields are set
+      // Ensure required fields are set and convert to strings if needed
       const apiData = {
-        title: transformedData.title || taskData.title,
+        title: (transformedData.title || taskData.title || '').trim(),
         description: transformedData.description || taskData.description || '',
-        board_id: transformedData.board_id || taskData.board_id || taskData.boardId,
-        column_id: transformedData.column_id || taskData.column_id || taskData.columnId || taskData.listId,
-        position: transformedData.position || taskData.position || 0,
+        board_id: String(transformedData.board_id || taskData.board_id || taskData.boardId || ''),
+        column_id: String(transformedData.column_id || taskData.column_id || taskData.columnId || taskData.listId || ''),
+        position: transformedData.position !== undefined ? transformedData.position : (taskData.position !== undefined ? taskData.position : 0),
         priority: transformedData.priority || taskData.priority || 'medium',
         due_date: transformedData.due_date || null,
         start_date: transformedData.start_date || null,
@@ -236,9 +238,25 @@ class KanbanService {
         }
       });
       
+      console.log('🔵 Making POST request to /kanban/cards', { apiData, url: `${this.baseURL}/kanban/cards` });
       const response = await api.post(`${this.baseURL}/kanban/cards`, apiData);
-      return this.handleResponse(response, endpoint);
+      console.log('🔵 POST response received', response);
+      const result = this.handleResponse(response, endpoint);
+      console.log('🔵 handleResponse returned', result);
+      return result;
     } catch (error) {
+      console.error('🔴 Error in createTask', error);
+      console.error('🔴 Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
       this.handleError(error, endpoint);
     }
   }
@@ -1139,13 +1157,18 @@ class KanbanService {
 
   /**
    * Log activity
+   * Note: This is optional - backend already logs activity in Card.activity_log
+   * This method is kept for compatibility but failures are non-blocking
    */
   async logActivity(activityData) {
     try {
       const response = await api.post(`${this.baseURL}/activity`, activityData);
       return this.handleResponse(response);
     } catch (error) {
-      this.handleError(error);
+      // Activity logging is optional - don't throw errors
+      // Backend already logs activity when creating/updating cards
+      console.warn('Activity logging failed (non-critical):', error.message);
+      return { status: 'warning', message: 'Activity logging unavailable' };
     }
   }
 

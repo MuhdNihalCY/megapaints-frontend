@@ -25,8 +25,12 @@ const KanbanColumn = ({
   // Check if this is a grouped column
   const isGrouped = column.isGrouped || column.subcolumns?.length > 0;
   
-  // Check if this column allows card creation (only Sales)
-  const canCreateCard = column.id === 'sales' && canPerformAction('CREATE_CARD');
+  // Check if this column allows card creation
+  // Backend columns: allow creation in first column (typically "To Do")
+  // Frontend columns: allow creation in "Sales" column
+  const isFirstColumn = column.position === 0;
+  const isSalesColumn = column.id === 'sales' || column.name?.toLowerCase() === 'sales' || column.title?.toLowerCase() === 'sales';
+  const canCreateCard = (isFirstColumn || isSalesColumn) && canPerformAction('CREATE_CARD');
   
   // Check if this column allows toggling (Production and Drivers)
   const canToggleColumn = (column.groupType === 'production' || column.groupType === 'drivers') && 
@@ -42,14 +46,27 @@ const KanbanColumn = ({
   }, [column.id, toggleColumnActivation]);
 
   // Handle card creation
-  const handleCreateCard = useCallback((cardData) => {
+  const handleCreateCard = useCallback(async (cardData) => {
+    console.log('🔵 KanbanColumn.handleCreateCard called', { 
+      canCreateCard, 
+      hasOnCreateCard: !!onCreateCard,
+      cardData 
+    });
+    
     if (canCreateCard && onCreateCard) {
-      onCreateCard({
+      const enhancedCardData = {
         ...cardData,
         columnId: column.id,
         position: cards.length * 1000
-      });
+      };
+      console.log('🔵 Calling parent onCreateCard with', enhancedCardData);
+      const result = await onCreateCard(enhancedCardData);
+      console.log('🔵 Parent onCreateCard returned', result);
+      return result;
     }
+    
+    console.log('🔴 Cannot create card:', { canCreateCard, hasOnCreateCard: !!onCreateCard });
+    return null;
   }, [canCreateCard, onCreateCard, column.id, cards.length]);
 
   // Render subcolumns for grouped columns
