@@ -173,125 +173,6 @@ export const KanbanProvider = ({ children, user }) => {
     }
   }, [user]);
 
-  // Create default column structure according to specifications
-  const createDefaultColumnStructure = useCallback((users = []) => {
-    // Filter users by role/type for Production and Drivers
-    const productionUsers = users.filter(user => 
-      user.role === 'production' || 
-      user.type === 'production' || 
-      user.department === 'production' ||
-      user.groupType === 'production'
-    );
-    
-    const driverUsers = users.filter(user => 
-      user.role === 'driver' || 
-      user.type === 'driver' || 
-      user.department === 'drivers' ||
-      user.groupType === 'drivers'
-    );
-
-    // Create subcolumns for Production users
-    const productionSubcolumns = productionUsers.map((user, index) => ({
-      id: `production-${user.id || user._id}`,
-      title: user.name || user.username || `User ${index + 1}`,
-      position: index,
-      isActive: true,
-      userId: user.id || user._id,
-      userData: user
-    }));
-
-    // Create subcolumns for Driver users
-    const driverSubcolumns = driverUsers.map((user, index) => ({
-      id: `driver-${user.id || user._id}`,
-      title: user.name || user.username || `Driver ${index + 1}`,
-      position: index,
-      isActive: true,
-      userId: user.id || user._id,
-      userData: user
-    }));
-
-
-    return [
-      // Non-grouped columns
-      {
-        id: 'sales',
-        title: 'Sales',
-        type: 'static',
-        position: 0,
-        isActive: true,
-        isGrouped: false,
-        cards: [],
-        settings: { allowCreateCard: true }
-      },
-      {
-        id: 'office',
-        title: 'Office',
-        type: 'static',
-        position: 1,
-        isActive: true,
-        isGrouped: false,
-        cards: [],
-        settings: {}
-      },
-      // Grouped columns
-      {
-        id: 'production',
-        title: 'Production',
-        type: 'grouped',
-        position: 2,
-        isActive: true,
-        isGrouped: true,
-        groupType: 'production',
-        cards: [],
-        subcolumns: productionSubcolumns,
-        settings: { allowToggle: true }
-      },
-      {
-        id: 'ready',
-        title: 'Ready',
-        type: 'grouped',
-        position: 3,
-        isActive: true,
-        isGrouped: true,
-        groupType: 'ready',
-        cards: [],
-        subcolumns: [
-          { id: 'for-dispatch', title: 'For Dispatch', position: 0, isActive: true },
-          { id: 'for-customer-collection', title: 'For Customer Collection', position: 1, isActive: true }
-        ],
-        settings: {}
-      },
-      {
-        id: 'drivers',
-        title: 'Drivers',
-        type: 'grouped',
-        position: 4,
-        isActive: true,
-        isGrouped: true,
-        groupType: 'drivers',
-        cards: [],
-        subcolumns: driverSubcolumns,
-        settings: { allowToggle: true }
-      },
-      {
-        id: 'done',
-        title: 'Done',
-        type: 'grouped',
-        position: 5,
-        isActive: true,
-        isGrouped: true,
-        groupType: 'done',
-        cards: [],
-        subcolumns: [
-          { id: 'done-today', title: 'Done Today', position: 0, isActive: true },
-          { id: 'less-than-7-days', title: '< 7 Days', position: 1, isActive: true, restricted: true },
-          { id: 'more-than-7-days', title: '> 7 Days', position: 2, isActive: true, restricted: true, hasSearch: true }
-        ],
-        settings: {}
-      }
-    ];
-  }, []);
-
   // Load initial data
   useEffect(() => {
     loadInitialData();
@@ -425,10 +306,94 @@ export const KanbanProvider = ({ children, user }) => {
         console.warn('⚠️ No columns found in backend. Board may not have columns configured.');
       }
       
+      // Fetch cards from backend for this board
+      let cards = [];
+      if (board && (board.id || board._id)) {
+        try {
+          const boardId = board.id || board._id;
+          console.log('🔵 Fetching cards from backend for board:', boardId);
+          const cardsResponse = await kanbanService.getTasks({ board_id: boardId });
+          console.log('🔵 Cards response:', cardsResponse);
+          
+          // Handle different response structures
+          let backendCards = [];
+          if (cardsResponse?.status === 'success') {
+            backendCards = cardsResponse.data?.tasks || cardsResponse.data?.cards || cardsResponse.data || [];
+          } else if (cardsResponse?.data?.tasks) {
+            backendCards = cardsResponse.data.tasks;
+          } else if (cardsResponse?.data?.cards) {
+            backendCards = cardsResponse.data.cards;
+          } else if (cardsResponse?.tasks) {
+            backendCards = cardsResponse.tasks;
+          } else if (cardsResponse?.cards) {
+            backendCards = cardsResponse.cards;
+          } else if (Array.isArray(cardsResponse)) {
+            backendCards = cardsResponse;
+          }
+          
+          console.log('🔵 Extracted backend cards:', backendCards);
+          console.log('🔵 Backend cards count:', backendCards.length);
+          
+          // Transform backend cards to frontend format
+          if (backendCards.length > 0) {
+            cards = backendCards.map(card => {
+              try {
+                const transformed = kanbanService.transformCardData(card);
+                console.log('🔵 Transformed card:', { id: transformed.id, title: transformed.title, columnId: transformed.columnId });
+                return transformed;
+              } catch (transformError) {
+                console.error('🔴 Error transforming card:', transformError, card);
+                return null;
+              }
+            }).filter(card => card !== null); // Remove any null cards from transformation errors
+            
+            console.log('✅ Loaded and transformed cards:', cards.length);
+            console.log('🔵 Cards columnIds:', cards.map(c => ({ id: c.id, columnId: c.columnId, listId: c.listId })));
+          } else {
+            console.log('ℹ️ No cards found in backend for this board');
+          }
+        } catch (error) {
+          console.error('🔴 Failed to fetch cards from backend:', error);
+          console.error('Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            stack: error.stack
+          });
+          // Continue with empty cards array if fetch fails
+        }
+      } else {
+        console.warn('⚠️ Cannot fetch cards: No board ID available');
+      }
+      
+      // Fetch labels from backend
+      let labels = [];
+      try {
+        console.log('🔵 Fetching labels from backend...');
+        const labelsResponse = await kanbanService.getLabels();
+        console.log('🔵 Labels response:', labelsResponse);
+        
+        // Handle different response structures
+        if (labelsResponse?.status === 'success') {
+          labels = labelsResponse.data?.labels || labelsResponse.data || [];
+        } else if (labelsResponse?.data?.labels) {
+          labels = labelsResponse.data.labels;
+        } else if (labelsResponse?.labels) {
+          labels = labelsResponse.labels;
+        } else if (Array.isArray(labelsResponse)) {
+          labels = labelsResponse;
+        }
+        
+        console.log('🔵 Extracted backend labels:', labels.length);
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch labels from backend:', error);
+        // Continue with empty labels array if fetch fails
+      }
+      
       // Set default data
       dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: columns });
-      dispatch({ type: ACTION_TYPES.SET_CARDS, payload: [] });
-      dispatch({ type: ACTION_TYPES.SET_LABELS, payload: [] });
+      dispatch({ type: ACTION_TYPES.SET_CARDS, payload: cards });
+      dispatch({ type: ACTION_TYPES.SET_LABELS, payload: labels });
       dispatch({ type: ACTION_TYPES.SET_USERS, payload: users });
       dispatch({ type: ACTION_TYPES.SET_BOARD, payload: board });
       dispatch({ type: ACTION_TYPES.SET_LAST_UPDATED, payload: new Date().toISOString() });
@@ -457,6 +422,8 @@ export const KanbanProvider = ({ children, user }) => {
         const taskData = result.data?.task || result.data;
         const transformedCard = kanbanService.transformCardData(taskData);
         console.log('🔵 Transformed card', transformedCard);
+        console.log('🔵 Card columnId:', transformedCard.columnId, 'listId:', transformedCard.listId, 'column_id:', transformedCard.column_id);
+        console.log('🔵 Available columns:', state.columns.map(c => ({ id: c.id, _id: c._id, name: c.name, title: c.title })));
         dispatch({ type: ACTION_TYPES.ADD_CARD, payload: transformedCard });
         
         // Log activity (non-blocking - backend already logs activity in activity_log)

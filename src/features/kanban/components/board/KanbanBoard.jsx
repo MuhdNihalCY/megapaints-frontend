@@ -82,7 +82,20 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Get cards by column
   const getCardsByColumn = useCallback((columnId) => {
-    return cards.filter(card => card.columnId === columnId);
+    const columnCards = cards.filter(card => {
+      // Match by columnId, listId, or column_id (handle different formats)
+      const matches = 
+        card.columnId === columnId || 
+        card.listId === columnId || 
+        card.column_id === columnId ||
+        String(card.columnId) === String(columnId) ||
+        String(card.listId) === String(columnId) ||
+        String(card.column_id) === String(columnId);
+      
+      return matches;
+    });
+    
+    return columnCards;
   }, [cards]);
 
   // Get cards by subcolumn
@@ -443,7 +456,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 >
                   <KanbanColumn
                     column={column}
-                    cards={filteredCards}
+                    cards={getCardsByColumn(column.id)}
                     onCardClick={handleCardClick}
                     onCreateCard={handleCreateCard}
                     CardComponent={PragmaticKanbanCard}

@@ -36,8 +36,6 @@ const PragmaticKanbanCard = ({
 }) => {
   const cardRef = useRef(null);
   const { setupDraggable } = usePragmaticDragAndDrop();
-  const { getPriorityConfig } = usePriorityDisplay();
-  const { getLabelsConfig } = useLabelsDisplay(card.labels || []);
   
   const [isHovered, setIsHovered] = useState(false);
   const [showActions, setShowActions] = useState(false);
