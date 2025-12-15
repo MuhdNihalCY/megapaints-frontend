@@ -1,5 +1,7 @@
 import axios from 'axios';
-import { getApiUrl } from '../../../config/api';
+import { getApiUrl } from '../../../../config/api';
+import { getAuthToken } from '../../../../utils/api';
+import authService from '../../../../utils/authService';
 
 // Create axios instance for admin API
 const adminApi = axios.create({
@@ -42,6 +44,103 @@ export const adminAuth = {
   login: (credentials) => adminApi.post('/auth/admin/login', credentials),
   logout: () => adminApi.post('/auth/admin/logout'),
   getProfile: () => adminApi.get('/auth/admin/profile'),
+};
+
+// Helper function to get auth token
+const getToken = () => {
+  // Try multiple sources for the token
+  return getAuthToken() || 
+         authService.accessToken || 
+         localStorage.getItem('accessToken') || 
+         localStorage.getItem('admin_access_token') ||
+         localStorage.getItem('adminAccessToken');
+};
+
+// Column Template API (Kanban)
+export const columnTemplateApi = {
+  getAll: () => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.get(`${getApiUrl('/kanban/column-templates')}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  getDefault: () => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.get(`${getApiUrl('/kanban/column-templates/default')}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  getById: (id) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.get(`${getApiUrl(`/kanban/column-templates/${id}`)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  create: (data) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.post(`${getApiUrl('/kanban/column-templates')}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  update: (id, data) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.put(`${getApiUrl(`/kanban/column-templates/${id}`)}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  setDefault: (id) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.put(`${getApiUrl(`/kanban/column-templates/${id}/set-default`)}`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  delete: (id) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.delete(`${getApiUrl(`/kanban/column-templates/${id}`)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true
+    });
+  },
+  applyToAllBoards: (templateId) => {
+    const token = getToken();
+    if (!token) {
+      return Promise.reject(new Error('No authentication token found. Please log in.'));
+    }
+    return axios.post(`${getApiUrl('/kanban/column-templates/apply-to-all-boards')}`, 
+      { template_id: templateId },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      }
+    );
+  }
 };
 
 // Categories API

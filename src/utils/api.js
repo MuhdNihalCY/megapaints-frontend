@@ -180,6 +180,25 @@ api.interceptors.request.use(
       console.error('[API] Error reading token:', error);
       delete config.headers.Authorization;
     }
+    
+    // Don't set Content-Type for FormData - let browser set it with boundary for multipart/form-data
+    if (config.data instanceof FormData) {
+      // Remove Content-Type header completely so browser can set it with proper boundary
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+      // Override transformRequest to return FormData as-is without JSON serialization
+      config.transformRequest = [(data) => {
+        if (data instanceof FormData) {
+          return data; // Return FormData as-is
+        }
+        // For non-FormData, use default JSON stringify
+        if (typeof data === 'object') {
+          return JSON.stringify(data);
+        }
+        return data;
+      }];
+    }
+    
     return config;
   },
   (error) => {
@@ -194,6 +213,17 @@ api.interceptors.response.use(
   },
   (error) => {
     const originalRequest = error.config || {};
+
+    // Suppress console errors for expected 403s on customer endpoints
+    // These are handled gracefully in the UI (user doesn't have access to that customer)
+    const isCustomer403 = error.response?.status === 403 && 
+                          typeof originalRequest?.url === 'string' && 
+                          originalRequest.url.includes('/kanban/customers/');
+    
+    if (isCustomer403) {
+      // Silently reject - this is expected behavior, handled in UI
+      return Promise.reject(error);
+    }
 
     // If network error, bubble up
     if (error.code === 'ERR_NETWORK') {

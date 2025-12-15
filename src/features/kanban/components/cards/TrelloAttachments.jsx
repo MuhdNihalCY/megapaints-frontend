@@ -13,6 +13,50 @@ import React, { useState, useRef } from 'react';
 import { Paperclip, Upload, Link as LinkIcon, X, Download, Image as ImageIcon, File, Trash2, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Image thumbnail component with error handling
+const ImageThumbnail = ({ attachment }) => {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  if (imageError) {
+    // Fallback to file icon if image fails to load
+    return (
+      <div 
+        className="w-20 h-14 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center cursor-pointer"
+        onClick={() => window.open(attachment.url, '_blank')}
+        title={attachment.name}
+      >
+        <File className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-20 h-14 rounded bg-gray-200 dark:bg-gray-700 cursor-pointer overflow-hidden relative"
+      onClick={() => window.open(attachment.url, '_blank')}
+      title={attachment.name}
+    >
+      <img
+        src={attachment.url}
+        alt={attachment.name}
+        className={`w-full h-full object-cover ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity`}
+        onLoad={() => setImageLoaded(true)}
+        onError={(e) => {
+          console.warn('Image failed to load:', attachment.url, e);
+          setImageError(true);
+        }}
+        crossOrigin="anonymous"
+      />
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TrelloAttachments = ({ attachments = [], onAdd, onDelete, onMakeCover }) => {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
@@ -33,12 +77,13 @@ const TrelloAttachments = ({ attachments = [], onAdd, onDelete, onMakeCover }) =
         const attachment = {
           id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name: file.name,
-          url: e.target.result,
+          url: e.target.result, // DataURL for preview
           type: file.type.startsWith('image/') ? 'image' : 'file',
           size: file.size,
           dateAdded: new Date().toISOString(),
           mimeType: file.type,
-          isUploadedToCard: true
+          isUploadedToCard: true,
+          file: file // Add the actual File object for upload
         };
         
         onAdd(attachment);
@@ -259,11 +304,7 @@ const TrelloAttachments = ({ attachments = [], onAdd, onDelete, onMakeCover }) =
               {/* Thumbnail/Icon */}
               <div className="flex-shrink-0">
                 {attachment.type === 'image' ? (
-                  <div
-                    className="w-20 h-14 rounded bg-cover bg-center cursor-pointer"
-                    style={{ backgroundImage: `url(${attachment.url})` }}
-                    onClick={() => window.open(attachment.url, '_blank')}
-                  />
+                  <ImageThumbnail attachment={attachment} />
                 ) : (
                   <div className="w-20 h-14 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                     <File className="w-6 h-6 text-gray-500 dark:text-gray-400" />
@@ -277,16 +318,12 @@ const TrelloAttachments = ({ attachments = [], onAdd, onDelete, onMakeCover }) =
                   {attachment.name}
                 </h4>
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  <span>{formatDate(attachment.dateAdded)}</span>
                   {attachment.size > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{formatFileSize(attachment.size)}</span>
-                    </>
+                    <span>{formatFileSize(attachment.size)}</span>
                   )}
                   {attachment.type === 'link' && (
                     <>
-                      <span>•</span>
+                      {attachment.size > 0 && <span>•</span>}
                       <a
                         href={attachment.url}
                         target="_blank"

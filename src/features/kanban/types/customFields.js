@@ -208,6 +208,7 @@ export const formatCustomFieldValue = (fieldDefinition, value) => {
  * Get custom field value from card
  */
 export const getCustomFieldValue = (card, fieldId) => {
+  if (!card) return null;
   const customField = card.customFields?.find(cf => cf.fieldId === fieldId);
   return customField ? customField.value : null;
 };
@@ -216,6 +217,7 @@ export const getCustomFieldValue = (card, fieldId) => {
  * Update custom field value in card
  */
 export const updateCustomFieldValue = (card, fieldId, value, userId) => {
+  if (!card) return null;
   const existingFields = card.customFields || [];
   const existingFieldIndex = existingFields.findIndex(cf => cf.fieldId === fieldId);
 

@@ -54,7 +54,8 @@ import {
   parseCardTitle, 
   formatCardTitleForDisplay,
   formatIdentifierForDisplay,
-  getCardTitleComponents
+  getCardTitleComponents,
+  generateCustomerSlug
 } from '../../utils/cardTitleUtils';
 import { kanbanService } from '../../services/kanbanService';
 
@@ -74,6 +75,7 @@ const TrelloCardModal = ({
     labels, 
     columns, 
     user: currentUser,
+    cards: contextCards,
     updateCard: contextUpdateCard,
     addAttachment: contextAddAttachment,
     deleteAttachment: contextDeleteAttachment,
@@ -129,8 +131,9 @@ const TrelloCardModal = ({
   const [labelFormData, setLabelFormData] = useState({ name: '', color: '#3b82f6', description: '' });
   
   // Card Title System State
-  const [selectedCustomer, setSelectedCustomer] = useState(card?.customer || null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const customerFetchRef = useRef(false);
   const [titleComponents, setTitleComponents] = useState(() => {
     const identifier = getInitialIdentifier();
     return {
@@ -139,6 +142,11 @@ const TrelloCardModal = ({
       customerSlug: ''
     };
   });
+  
+  // Refs - MUST be called before any conditional returns
+  const titleRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const modalRef = useRef(null);
   
   // Helper: Extract card ID
   const getCardId = () => {
@@ -178,8 +186,16 @@ const TrelloCardModal = ({
   };
   
   // Helper: Transform frontend card format to backend API format
+  // Only include fields that are explicitly allowed to be updated
   const transformCardToBackendFormat = (cardData) => {
     const transformed = {};
+    
+    // List of allowed fields that can be updated
+    const allowedFields = [
+      'title', 'description', 'priority', 'due_date', 'start_date',
+      'column_id', 'assignees', 'labels', 'customer', 'ready_products',
+      'custom_fields', 'is_archived', 'estimated_hours', 'actual_hours'
+    ];
     
     // Basic fields
     if (cardData.title !== undefined) transformed.title = cardData.title;
@@ -200,9 +216,11 @@ const TrelloCardModal = ({
       transformed.start_date = cardData.start_date;
     }
     
-    // Column/List ID
+    // Column/List ID - only update if explicitly provided
     if (cardData.column_id !== undefined) transformed.column_id = cardData.column_id;
-    if (cardData.listId !== undefined) transformed.column_id = cardData.listId;
+    if (cardData.listId !== undefined && cardData.column_id === undefined) {
+      transformed.column_id = cardData.listId;
+    }
     
     // Members to Assignees conversion
     if (cardData.members !== undefined) {
@@ -275,16 +293,15 @@ const TrelloCardModal = ({
         
         // Fallback: just label_id if label not found in context
         // Backend will handle this, but it's better to have at least the ID
-        console.warn('Label not found in context for ID:', normalizedId, 'Available labels:', labels.length);
         return { label_id: normalizedId };
       }).filter(label => label && label.label_id); // Remove any null/undefined entries
     }
     
-    // Customer field
+    // Customer field - convert to ID if object
     if (cardData.customer !== undefined) {
       if (cardData.customer && typeof cardData.customer === 'object') {
         transformed.customer = cardData.customer._id || cardData.customer.id;
-      } else {
+      } else if (cardData.customer !== null) {
         transformed.customer = cardData.customer;
       }
     }
@@ -294,9 +311,9 @@ const TrelloCardModal = ({
       transformed.ready_products = cardData.readyProducts || cardData.ready_products || [];
     }
     
-    // Custom fields
-    if (cardData.customFields !== undefined) {
-      transformed.customFields = cardData.customFields;
+    // Custom fields - use custom_fields (snake_case) for backend
+    if (cardData.customFields !== undefined || cardData.custom_fields !== undefined) {
+      transformed.custom_fields = cardData.customFields || cardData.custom_fields || [];
     }
     
     // Archive status
@@ -307,32 +324,53 @@ const TrelloCardModal = ({
       transformed.is_archived = cardData.is_archived;
     }
     
-    return transformed;
+    // Estimated/Actual hours
+    if (cardData.estimated_hours !== undefined) {
+      transformed.estimated_hours = cardData.estimated_hours;
+    }
+    if (cardData.actual_hours !== undefined) {
+      transformed.actual_hours = cardData.actual_hours;
+    }
+    
+    // Filter out any fields that shouldn't be sent to backend
+    // Remove internal fields, read-only fields, and fields that aren't in the allowed list
+    const readOnlyFields = ['_id', 'id', 'created_at', 'createdAt', 'updated_at', 'updatedAt', 
+                            'created_by', 'createdBy', 'identifier', 'board_id', 'activity_log',
+                            'watchers', 'subscriptions', '_originalData', 'cardId', 'listId',
+                            'columnId', 'subcolumnId', 'assignees', 'labelObjects', 'dueDate',
+                            'startDate', 'closed', 'isArchived', 'isDeleted', 'branchId'];
+    
+    const filtered = {};
+    Object.keys(transformed).forEach(key => {
+      // Skip read-only fields
+      if (readOnlyFields.includes(key)) {
+        return;
+      }
+      // Only include fields that are explicitly allowed
+      if (allowedFields.includes(key)) {
+        // Skip null/undefined values unless they're explicitly being cleared
+        if (transformed[key] !== undefined && transformed[key] !== null) {
+          filtered[key] = transformed[key];
+        } else if (key === 'customer' || key === 'due_date' || key === 'start_date') {
+          // Allow null for these fields to clear them
+          filtered[key] = transformed[key];
+        }
+      }
+    });
+    
+    return filtered;
   };
   
   // Helper: Handle card update with proper error handling
   // Handle saving new card - collects all formData and calls onUpdate
   const handleSaveNewCard = async () => {
-    console.log('🔵 handleSaveNewCard called', { 
-      formData, 
-      titleComponents, 
-      reservation, 
-      onUpdate: !!onUpdate,
-      isNewCard 
-    });
-    
     // Get the current title from the title input or formData
     const currentTitle = formData?.title?.trim() || titleComponents?.identifier || reservation?.identifier || '';
     
-    console.log('🔵 Current title:', currentTitle);
-    
     if (!currentTitle) {
-      console.log('🔴 No title found');
       setError('Card title is required. Please enter a title.');
       return;
     }
-
-    console.log('🔵 Starting save process...');
     setIsLoading(true);
     setError(null);
 
@@ -341,31 +379,23 @@ const TrelloCardModal = ({
       const cardDataToSave = {
         ...formData,
         // Ensure identifier is included
-        identifier: formData.identifier || reservation?.identifier || titleComponents.identifier,
+        identifier: formData?.identifier || reservation?.identifier || titleComponents.identifier,
         // Ensure reservationId is included
-        reservationId: formData.reservationId || reservation?.id,
-        reservation_id: formData.reservationId || reservation?.id,
+        reservationId: formData?.reservationId || reservation?.id,
+        reservation_id: formData?.reservationId || reservation?.id,
         // Include customer if selected
-        customer: selectedCustomer || formData.customer,
+        customer: selectedCustomer || formData?.customer,
         // Ensure title is properly formatted and not empty
         title: currentTitle,
         // Preserve column/list IDs from original card
-        listId: formData.listId || formData.columnId || card?.listId || card?.columnId,
-        columnId: formData.columnId || formData.listId || card?.columnId || card?.listId
+        listId: formData?.listId || formData?.columnId || card?.listId || card?.columnId,
+        columnId: formData?.columnId || formData?.listId || card?.columnId || card?.listId
       };
 
-      console.log('🔵 About to call onUpdate', { 
-        hasOnUpdate: !!onUpdate, 
-        onUpdateType: typeof onUpdate,
-        cardDataToSave 
-      });
-      
       // Call onUpdate with the complete card data (for new cards, onUpdate is handleSave from CreateCardButton)
       if (onUpdate && typeof onUpdate === 'function') {
         try {
-          console.log('🔵 Calling onUpdate function...');
-          const result = await onUpdate(cardDataToSave);
-          console.log('🔵 onUpdate completed successfully', { result });
+          await onUpdate(cardDataToSave);
           // onUpdate (handleSave) will close the modal and reset state if successful
         } catch (saveError) {
           console.error('🔴 Error in onUpdate call', saveError);
@@ -461,7 +491,6 @@ const TrelloCardModal = ({
           };
           await kanbanService.logActivity(activity);
         } catch (activityError) {
-          console.warn('Failed to log activity:', activityError);
         }
       }
     } catch (error) {
@@ -478,16 +507,6 @@ const TrelloCardModal = ({
       setIsLoading(false);
     }
   };
-  
-  // Don't render if no card data
-  if (!isOpen || !card) {
-    return null;
-  }
-  
-  // Refs
-  const titleRef = useRef(null);
-  const descriptionRef = useRef(null);
-  const modalRef = useRef(null);
   
   // Update form data when card changes or modal opens
   useEffect(() => {
@@ -507,23 +526,252 @@ const TrelloCardModal = ({
                            card.reservation_id || 
                            reservation?.id;
       
+      // Explicitly map all fields to ensure proper initialization
+      // Extract members from assignees if needed
+      const extractedMembers = card.members || 
+        (card.assignees || []).map(assignee => {
+          if (typeof assignee === 'object' && assignee.user_id) {
+            return assignee.user_id._id || assignee.user_id.id || assignee.user_id;
+          }
+          return assignee._id || assignee.id || assignee;
+        }) || [];
+      
+      // Extract labels - handle both ID arrays and object arrays
+      const extractedLabels = card.labels || 
+        (card.labelObjects || []).map(label => label.id || label._id || label.label_id) || [];
+      
+      // Format due date properly
+      const formattedDueDate = card.dueDate || 
+        (card.due_date ? { 
+          date: card.due_date, 
+          completed: card.due_date_completed || false 
+        } : null);
+      
       // Merge card data with formData to preserve any existing form state
+      // Transform attachments from backend format to frontend format
+      const transformedAttachments = (card.attachments || []).map(att => {
+        // Backend format: _id, original_name, url, uploaded_at, mime_type, file_size
+        // Frontend format: id, name, url, dateAdded, type, size, mimeType
+        const baseURL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+        let url = att.url || '';
+        
+        // Ensure URL is properly formatted
+        if (!url.startsWith('http')) {
+          // If URL doesn't start with /, add it
+          if (!url.startsWith('/')) {
+            url = '/' + url;
+          }
+          // Construct full URL
+          url = `${baseURL}${url}`;
+        }
+        
+        // Handle date conversion - backend returns Date object or ISO string
+        let dateAdded;
+        if (att.uploaded_at) {
+          if (att.uploaded_at instanceof Date) {
+            dateAdded = att.uploaded_at.toISOString();
+          } else if (typeof att.uploaded_at === 'string') {
+            dateAdded = att.uploaded_at;
+          } else {
+            dateAdded = new Date(att.uploaded_at).toISOString();
+          }
+        } else if (att.uploadedAt) {
+          dateAdded = att.uploadedAt instanceof Date ? att.uploadedAt.toISOString() : att.uploadedAt;
+        } else if (att.dateAdded) {
+          dateAdded = att.dateAdded instanceof Date ? att.dateAdded.toISOString() : att.dateAdded;
+        } else {
+          dateAdded = new Date().toISOString();
+        }
+        
+        // Determine if it's an image based on mime_type or file extension
+        const mimeType = att.mime_type || att.mimeType || '';
+        const fileName = att.original_name || att.name || '';
+        const isImage = mimeType.startsWith('image/') || 
+                       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(fileName);
+        
+        // Debug: Log URL construction (after isImage is defined)
+        console.log('🔗 Attachment URL transformation:', {
+          original: att.url,
+          transformed: url,
+          baseURL: baseURL,
+          isImage: isImage,
+          fileName: fileName,
+          mimeType: mimeType
+        });
+        
+        return {
+          id: att._id?.toString() || att.id?.toString() || `att-${Date.now()}-${Math.random()}`,
+          name: att.original_name || att.name || 'Unknown file',
+          url: url,
+          dateAdded: dateAdded,
+          type: isImage ? 'image' : 'file',
+          size: att.file_size || att.size || 0,
+          mimeType: mimeType || 'application/octet-stream',
+          isUploadedToCard: true
+        };
+      });
+      
       const updatedFormData = {
         ...card,
         // Ensure identifier and reservationId are preserved
         identifier: identifier,
         reservationId: reservationId,
-        reservation_id: reservationId
+        reservation_id: reservationId,
+        // Explicitly ensure all fields are set
+        members: extractedMembers,
+        labels: extractedLabels,
+        dueDate: formattedDueDate,
+        attachments: transformedAttachments,
+        checklists: card.checklists || [],
+        customFields: card.customFields || card.custom_fields || [],
+        readyProducts: card.readyProducts || card.ready_products || [],
+        priority: card.priority || 'medium',
+        customer: card.customer || null
       };
       
       setFormData(updatedFormData);
       
-      // Initialize customer if present
+      // Initialize customer if present - handle both object and ID formats
+      // Reset the ref when card changes to allow fetching again
+      customerFetchRef.current = false;
+      
+      // First, try to extract customer name from title (in case we can't fetch it)
+      const titleComponents = getCardTitleComponents(card.title || '');
+      const customerNameFromTitle = titleComponents.customerName && 
+        titleComponents.customerName.trim() !== '' &&
+        titleComponents.customerName.toLowerCase() !== 'restricted' &&
+        !titleComponents.customerName.toLowerCase().includes('restricted') &&
+        titleComponents.customerName.toLowerCase() !== 'restricted access'
+        ? titleComponents.customerName
+        : null;
+      
       if (card.customer) {
-        setSelectedCustomer(card.customer);
+        // Check if customer is an object with _id/id and name
+        if (typeof card.customer === 'object' && card.customer !== null && 
+            (card.customer._id || card.customer.id) && card.customer.name) {
+          // Full customer object - use directly
+          setSelectedCustomer(card.customer);
+        } else {
+          // Just an ID (string or object with only ID) - try to fetch full customer object
+          const customerId = typeof card.customer === 'string' 
+            ? card.customer 
+            : (card.customer?._id || card.customer?.id || null);
+          
+          if (customerId) {
+            // First, set customer from title if available (for immediate display)
+            if (customerNameFromTitle) {
+              // We already have the customer name from title - no need to fetch
+              // This avoids unnecessary 403 errors when user doesn't have access
+              setSelectedCustomer({
+                _id: customerId,
+                id: customerId,
+                name: customerNameFromTitle,
+                _isRestricted: true // Mark as restricted since we can't fetch full details
+              });
+              // Keep the customer ID in formData
+              setFormData(prev => ({ 
+                ...prev, 
+                customer: customerId // Keep as ID, not object
+              }));
+              customerFetchRef.current = false;
+            } else {
+              // No name from title - try to find customer in accessible list first
+              // This avoids calling getCustomerById which might result in 403
+              setSelectedCustomer(null);
+              customerFetchRef.current = true;
+              
+              // First, try to find customer in accessible list (more efficient)
+              kanbanService.getCustomers({ limit: 100 })
+                .then(customersResponse => {
+                  const customersList = customersResponse?.data?.customers || customersResponse?.customers || [];
+                  const foundCustomer = customersList.find(c => {
+                    const cId = c._id || c.id;
+                    return cId && cId.toString() === customerId.toString();
+                  });
+                  
+                  if (foundCustomer) {
+                    // Found in accessible list - use it directly
+                    setSelectedCustomer(foundCustomer);
+                    setFormData(prev => ({ ...prev, customer: foundCustomer }));
+                    customerFetchRef.current = false;
+                  } else {
+                    // Not in accessible list - try getCustomerById as last resort
+                    // This might fail with 403, but we handle it gracefully
+                    kanbanService.getCustomerById(customerId)
+                      .then(result => {
+                        if (result && result.status === 'success') {
+                          const customerData = result.data?.customer || result.data;
+                          if (customerData) {
+                            setSelectedCustomer(customerData);
+                            setFormData(prev => ({ ...prev, customer: customerData }));
+                          } else {
+                            setSelectedCustomer(null);
+                          }
+                        } else {
+                          setSelectedCustomer(null);
+                        }
+                        customerFetchRef.current = false;
+                      })
+                      .catch(error => {
+                        // Handle 403 Forbidden (permission denied) gracefully
+                        if (error.status === 403 || error.message?.includes('assigned branches')) {
+                          // User doesn't have access - keep as null
+                          // The dropdown will show "Customer selected (not in accessible list)"
+                          setSelectedCustomer(null);
+                        } else {
+                          console.error('Failed to fetch customer details:', error);
+                          setSelectedCustomer(null);
+                        }
+                        // Keep the customer ID in formData so it can be saved if needed
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          customer: customerId // Keep as ID, not object
+                        }));
+                        customerFetchRef.current = false;
+                      });
+                  }
+                })
+                .catch(() => {
+                  // Failed to load customers list - try getCustomerById as fallback
+                  kanbanService.getCustomerById(customerId)
+                    .then(result => {
+                      if (result && result.status === 'success') {
+                        const customerData = result.data?.customer || result.data;
+                        if (customerData) {
+                          setSelectedCustomer(customerData);
+                          setFormData(prev => ({ ...prev, customer: customerData }));
+                        } else {
+                          setSelectedCustomer(null);
+                        }
+                      } else {
+                        setSelectedCustomer(null);
+                      }
+                      customerFetchRef.current = false;
+                    })
+                    .catch(error => {
+                      // Handle 403 Forbidden (permission denied) gracefully
+                      if (error.status === 403 || error.message?.includes('assigned branches')) {
+                        setSelectedCustomer(null);
+                      } else {
+                        console.error('Failed to fetch customer details:', error);
+                        setSelectedCustomer(null);
+                      }
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        customer: customerId
+                      }));
+                      customerFetchRef.current = false;
+                    });
+                });
+            }
+          } else {
+            setSelectedCustomer(null);
+          }
+        }
       } else {
         // Reset customer selection if not present in card
         setSelectedCustomer(null);
+        customerFetchRef.current = false;
       }
       
       // Initialize card title system
@@ -542,6 +790,15 @@ const TrelloCardModal = ({
           // If parsing didn't extract identifier but we have a title, use the title as identifier
           // This handles the case where title is just an identifier without customer
           components.identifier = titleToParse;
+        }
+        
+        // Remove "restricted-access" or similar from customer name/slug if present
+        if (components.customerSlug && 
+            (components.customerSlug.toLowerCase() === 'restricted-access' || 
+             components.customerSlug.toLowerCase() === 'restrictedaccess' ||
+             components.customerSlug.toLowerCase().includes('restricted'))) {
+          components.customerName = '';
+          components.customerSlug = '';
         }
         
         // Ensure customerName and customerSlug are empty if not parsed
@@ -564,18 +821,6 @@ const TrelloCardModal = ({
           identifier: effectiveIdentifier,
           customerName: '',
           customerSlug: ''
-        });
-      }
-      
-      // Debug logging for new cards
-      if (isNewCard) {
-        console.log('New card initialized:', {
-          card,
-          identifier: effectiveIdentifier,
-          reservationId,
-          reservation,
-          titleComponents: titleToParse ? getCardTitleComponents(titleToParse) : null,
-          parsedComponents: titleToParse ? getCardTitleComponents(titleToParse) : null
         });
       }
     } else if (isNewCard && reservation) {
@@ -602,6 +847,11 @@ const TrelloCardModal = ({
         customerSlug: ''
       });
     }
+    
+    // Reset customer fetch flag when card changes
+    return () => {
+      customerFetchRef.current = false;
+    };
   }, [card, isNewCard, reservation, isOpen]);
   
   // Monitor activeSection changes
@@ -642,6 +892,17 @@ const TrelloCardModal = ({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+  
+  // Don't render if modal is not open - MUST be after all hooks
+  if (!isOpen) {
+    return null;
+  }
+  
+  // For new cards, allow rendering even without card data (will be created)
+  // For existing cards, require card data
+  if (!isNewCard && !card) {
+    return null;
+  }
   
   // Handle customer selection
   const handleCustomerSelect = async (customer) => {
@@ -704,7 +965,7 @@ const TrelloCardModal = ({
     setIsTitleEditing(false);
     
     // Always enforce format: DD-MM-YY-XXX-customername
-    let finalTitle = formData.title;
+    let finalTitle = formData?.title || '';
     
     // If we have both identifier and customer, ensure format is correct
     if (selectedCustomer && titleComponents.identifier) {
@@ -749,10 +1010,10 @@ const TrelloCardModal = ({
   
   const handleDescriptionSave = async () => {
     setIsDescriptionEditing(false);
-    if (formData.description !== card.description) {
+    if (formData?.description !== card?.description) {
       try {
         await handleCardUpdate(
-          { description: formData.description },
+          { description: formData?.description },
           {
             logActivity: true,
             activityType: 'description_updated',
@@ -777,7 +1038,7 @@ const TrelloCardModal = ({
   const handleMemberToggle = async (userId) => {
     try {
       const cardId = getCardId();
-      const currentMembers = formData.members || [];
+      const currentMembers = formData?.members || [];
       const isMember = currentMembers.includes(userId);
       const user = users.find(u => u.id === userId || u._id === userId);
       const action = isMember ? 'removed' : 'added';
@@ -821,7 +1082,7 @@ const TrelloCardModal = ({
     } catch (error) {
       console.error('Failed to toggle member:', error);
       // Revert state on error
-      setFormData(prev => ({ ...prev, members: formData.members || [] }));
+      setFormData(prev => ({ ...prev, members: formData?.members || [] }));
       setError('Failed to update member: ' + (error.message || 'Unknown error'));
     }
   };
@@ -830,7 +1091,7 @@ const TrelloCardModal = ({
   const handleLabelToggle = async (labelId) => {
     try {
       const cardId = getCardId();
-      const currentLabels = formData.labels || [];
+      const currentLabels = formData?.labels || [];
       
       // Normalize label IDs for comparison (handle both string and object formats)
       const normalizeLabelId = (id) => {
@@ -870,7 +1131,6 @@ const TrelloCardModal = ({
       }
       
       if (!label && !isLabelApplied) {
-        console.warn('Label not found in context:', normalizedLabelId, 'Available labels:', labels.length);
         setError('Label not found. Please refresh and try again.');
         return;
       }
@@ -932,7 +1192,7 @@ const TrelloCardModal = ({
     } catch (error) {
       console.error('Failed to toggle label:', error);
       // Revert state
-      setFormData(prev => ({ ...prev, labels: formData.labels || [] }));
+      setFormData(prev => ({ ...prev, labels: formData?.labels || [] }));
       setError('Failed to update label: ' + (error.message || 'Unknown error'));
     }
   };
@@ -963,7 +1223,7 @@ const TrelloCardModal = ({
   // Handle archive
   const handleArchive = async () => {
     try {
-      const newClosedState = !formData.closed;
+      const newClosedState = !formData?.closed;
       
       await handleCardUpdate(
         { closed: newClosedState },
@@ -983,7 +1243,7 @@ const TrelloCardModal = ({
   
   // Handle watch/unwatch
   const handleWatch = async () => {
-    const currentSubscriptions = formData.subscriptions || formData.watchers || [];
+    const currentSubscriptions = formData?.subscriptions || formData?.watchers || [];
     const isWatching = currentSubscriptions.includes(currentUser?.id);
     
     try {
@@ -1015,20 +1275,20 @@ const TrelloCardModal = ({
   const badges = calculateCardBadges(formData);
   // Find current column - check multiple possible ID fields
   const currentColumn = columns?.find(col => 
-    col.id === formData.listId || 
-    col._id === formData.listId ||
-    col.id === formData.columnId ||
-    col._id === formData.columnId ||
+    col.id === formData?.listId || 
+    col._id === formData?.listId ||
+    col.id === formData?.columnId ||
+    col._id === formData?.columnId ||
     col.id === card?.listId ||
     col._id === card?.listId ||
     col.id === card?.columnId ||
     col._id === card?.columnId
   );
-  const cardMembers = (formData.members || [])
+  const cardMembers = (formData?.members || [])
     .map(id => users.find(u => u.id === id || u._id === id))
     .filter(Boolean);
   // Map label IDs to label objects, handling different ID formats
-  const cardLabels = (formData.labels || [])
+  const cardLabels = (formData?.labels || [])
     .map(labelId => {
       // Normalize label ID for comparison
       const normalizeId = (id) => {
@@ -1045,7 +1305,7 @@ const TrelloCardModal = ({
     })
     .filter(Boolean);
   
-  const isWatching = (formData.subscriptions || formData.watchers || []).includes(currentUser?.id);
+  const isWatching = (formData?.subscriptions || formData?.watchers || []).includes(currentUser?.id);
   
   if (!isOpen) return null;
 
@@ -1069,13 +1329,13 @@ const TrelloCardModal = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Cover Image */}
-          {formData.coverImage && (formData.coverImage.url || formData.coverImage.color) && (
+          {formData?.coverImage && (formData?.coverImage?.url || formData?.coverImage?.color) && (
             <div
               className="w-full rounded-t-lg"
               style={{
-                height: formData.coverImage.size === 'full' ? '260px' : '116px',
-                backgroundColor: formData.coverImage.color || undefined,
-                backgroundImage: formData.coverImage.url ? `url(${formData.coverImage.url})` : undefined,
+                height: formData?.coverImage?.size === 'full' ? '260px' : '116px',
+                backgroundColor: formData?.coverImage?.color || undefined,
+                backgroundImage: formData?.coverImage?.url ? `url(${formData?.coverImage?.url})` : undefined,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
@@ -1117,15 +1377,15 @@ const TrelloCardModal = ({
                     <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                       {formatIdentifierForDisplay(
                         titleComponents.identifier || 
-                        formData.identifier || 
+                        formData?.identifier || 
                         card?.identifier || 
                         reservation?.identifier || 
                         ''
                       )}
                     </span>
-                    {isNewCard && (formData.reservationId || reservation?.id) && (
+                    {isNewCard && (formData?.reservationId || reservation?.id) && (
                       <span className="text-xs text-gray-500 dark:text-gray-500">
-                        (Reserved: {formData.reservationId || reservation?.id})
+                        (Reserved: {formData?.reservationId || reservation?.id})
                       </span>
                     )}
                     {!isNewCard && (
@@ -1139,6 +1399,7 @@ const TrelloCardModal = ({
                     <div className="flex-1">
                       <CustomerDropdown
                         selectedCustomer={selectedCustomer}
+                        customerId={formData?.customer && typeof formData.customer === 'string' ? formData.customer : (formData?.customer?._id || formData?.customer?.id)}
                         onCustomerSelect={handleCustomerSelect}
                         onCustomerCreate={handleCustomerCreate}
                         onRequestCreateCustomer={() => setShowCustomerModal(true)}
@@ -1161,7 +1422,7 @@ const TrelloCardModal = ({
                       {isTitleEditing ? (
                         <textarea
                           ref={titleRef}
-                          value={formData.title}
+                          value={formData?.title || ''}
                           onChange={(e) => handleFieldUpdate('title', e.target.value)}
                           onBlur={handleTitleSave}
                           onKeyDown={(e) => {
@@ -1179,7 +1440,7 @@ const TrelloCardModal = ({
                           onClick={handleTitleEdit}
                           className="text-lg font-semibold text-gray-900 dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded -ml-2"
                         >
-                          {formatCardTitleForDisplay(formData.title, selectedCustomer)}
+                          {formatCardTitleForDisplay(formData?.title || '', selectedCustomer)}
                         </h2>
                       )}
                     </div>
@@ -1261,16 +1522,16 @@ const TrelloCardModal = ({
               )}
               
               {/* Due Date Section */}
-              {formData.dueDate && (
+              {formData?.dueDate && (
                 <div className="mb-6">
                   <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">DUE DATE</h3>
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={formData.dueDate.completed || false}
+                      checked={formData?.dueDate?.completed || false}
                       onChange={async (e) => {
                         try {
-                          const updatedDueDate = { ...formData.dueDate, completed: e.target.checked };
+                          const updatedDueDate = { ...formData?.dueDate, completed: e.target.checked };
                           await handleCardUpdate(
                             { dueDate: updatedDueDate },
                             {
@@ -1300,7 +1561,7 @@ const TrelloCardModal = ({
                           : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                       }`}
                     >
-                      {new Date(formData.dueDate.date).toLocaleDateString('en-US', {
+                      {new Date(formData?.dueDate?.date).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         hour: 'numeric',
@@ -1328,7 +1589,7 @@ const TrelloCardModal = ({
                     <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Description</h3>
                   </div>
-                  {!isDescriptionEditing && formData.description && (
+                  {!isDescriptionEditing && formData?.description && (
                     <button
                       onClick={handleDescriptionEdit}
                       className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -1342,7 +1603,7 @@ const TrelloCardModal = ({
                   <div>
                     <textarea
                       ref={descriptionRef}
-                      value={formData.description}
+                      value={formData?.description || ''}
                       onChange={(e) => handleFieldUpdate('description', e.target.value)}
                       placeholder="Add a more detailed description..."
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white min-h-[100px]"
@@ -1370,9 +1631,9 @@ const TrelloCardModal = ({
                     onClick={handleDescriptionEdit}
                     className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[60px]"
                   >
-                    {formData.description ? (
+                    {formData?.description ? (
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {formData.description}
+                        {formData?.description}
                       </p>
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400 italic">
@@ -1385,7 +1646,7 @@ const TrelloCardModal = ({
               
               {/* Attachments Section */}
               <TrelloAttachments
-                attachments={formData.attachments || []}
+                attachments={formData?.attachments || []}
                 onAdd={async (attachment) => {
                   try {
                     const cardId = getCardId();
@@ -1402,9 +1663,35 @@ const TrelloCardModal = ({
                       return;
                     }
                     
-                    // Call backend API via context
-                    await contextAddAttachment(cardId, attachment);
-                    // Update local state
+                    // Only upload file attachments (not links)
+                    if (attachment.type !== 'link' && attachment.file) {
+                      const uploadedAttachment = await contextAddAttachment(cardId, attachment);
+                      
+                      // Update local state with the uploaded attachment (has real MongoDB _id)
+                      // contextAddAttachment now returns the attachment object directly with _id
+                      if (uploadedAttachment && uploadedAttachment._id) {
+                        // Replace the temporary attachment with the real one from backend
+                        setFormData(prev => ({
+                          ...prev,
+                          attachments: [
+                            ...(prev.attachments || []).filter(a => a.id !== attachment.id), // Remove temp attachment
+                            {
+                              ...attachment,
+                              id: uploadedAttachment._id.toString(),
+                              _id: uploadedAttachment._id,
+                              url: uploadedAttachment.url || attachment.url,
+                              original_name: uploadedAttachment.original_name || attachment.name,
+                              file_size: uploadedAttachment.file_size || attachment.size,
+                              mime_type: uploadedAttachment.mime_type || attachment.mimeType,
+                              isUploadedToCard: true
+                            }
+                          ]
+                        }));
+                        return; // Exit early since we've updated state with real attachment
+                      }
+                    }
+                    
+                    // Update local state for links or if upload didn't return attachment
                     setFormData(prev => ({
                       ...prev,
                       attachments: [...(prev.attachments || []), attachment]
@@ -1460,12 +1747,61 @@ const TrelloCardModal = ({
                       return;
                     }
                     
+                    // Get the real MongoDB ObjectId for the attachment
+                    // Check if attachment.id is a valid MongoDB ObjectId (24 hex characters)
+                    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(attachment.id);
+                    
+                    let attachmentId = attachment.id;
+                    
+                    // If not a valid ObjectId, try to find the attachment by URL or _id
+                    if (!isValidObjectId) {
+                      // Try to find the attachment in the context cards
+                      const card = contextCards?.find(c => c.id === cardId);
+                      if (card && card.attachments) {
+                        const matchingAttachment = card.attachments.find(att => 
+                          att.url === attachment.url || 
+                          att._id?.toString() === attachment.id ||
+                          (att.id && att.id === attachment.id && /^[0-9a-fA-F]{24}$/.test(att.id))
+                        );
+                        if (matchingAttachment) {
+                          attachmentId = matchingAttachment._id?.toString() || matchingAttachment.id?.toString();
+                        }
+                      }
+                      
+                      // If still not valid, try to get from formData attachments
+                      if (!/^[0-9a-fA-F]{24}$/.test(attachmentId)) {
+                        const formAttachment = formData.attachments?.find(att => 
+                          att.url === attachment.url || 
+                          att._id?.toString() === attachment.id ||
+                          (att.id && att.id === attachment.id && /^[0-9a-fA-F]{24}$/.test(att.id))
+                        );
+                        if (formAttachment) {
+                          attachmentId = formAttachment._id?.toString() || formAttachment.id?.toString();
+                        }
+                      }
+                    }
+                    
+                    // Validate we have a MongoDB ObjectId
+                    if (!/^[0-9a-fA-F]{24}$/.test(attachmentId)) {
+                      throw new Error('Invalid attachment ID. The attachment may not be fully uploaded yet. Please wait a moment and try again.');
+                    }
+                    
+                    // Transform to backend format: attachment_id (snake_case) instead of attachmentId
                     const coverData = {
-                      attachmentId: attachment.id,
+                      attachment_id: attachmentId, // Backend expects snake_case and valid MongoDB ObjectId
                       url: attachment.url,
                       color: null,
                       size: 'normal'
                     };
+                    
+                    console.log('📸 Setting card cover:', {
+                      cardId: cardId,
+                      coverData: coverData,
+                      attachment: attachment,
+                      originalAttachmentId: attachment.id,
+                      resolvedAttachmentId: attachmentId
+                    });
+                    
                     // Call backend API via context
                     await contextSetCardCover(cardId, coverData);
                     // Update local state
@@ -1481,7 +1817,7 @@ const TrelloCardModal = ({
               />
               
               {/* Checklists Section */}
-              {(formData.checklists || []).map((checklist, index) => (
+              {(formData?.checklists || []).map((checklist, index) => (
                 <TrelloChecklist
                   key={checklist.id || `checklist-${index}`}
                   checklist={checklist}
@@ -1584,7 +1920,7 @@ const TrelloCardModal = ({
                 onUpdate={async (fieldId, value) => {
                   try {
                     // Update custom field value
-                    const existingFields = formData.customFields || [];
+                    const existingFields = formData?.customFields || [];
                     const existingIndex = existingFields.findIndex(cf => cf.fieldId === fieldId);
                     
                     let updatedFields;
@@ -1627,7 +1963,7 @@ const TrelloCardModal = ({
                     // Revert state on error
                     setFormData(prev => ({
                       ...prev,
-                      customFields: formData.customFields || []
+                      customFields: formData?.customFields || []
                     }));
                   }
                 }}
@@ -1654,7 +1990,7 @@ const TrelloCardModal = ({
                 
                 {/* Activity Log */}
                 {showActivityDetails && (
-                  <ActivityLog activities={formData.activityLog || []} users={users} />
+                  <ActivityLog activities={formData?.activityLog || []} users={users} />
                 )}
               </div>
             </div>
@@ -1740,13 +2076,6 @@ const TrelloCardModal = ({
                     <button
                       type="button"
                       onClick={(e) => {
-                        console.log('🔵 Save button clicked!', { 
-                          isLoading, 
-                          formData,
-                          titleComponents,
-                          reservation,
-                          onUpdate: !!onUpdate
-                        });
                         e.preventDefault();
                         e.stopPropagation();
                         handleSaveNewCard();
@@ -1762,8 +2091,6 @@ const TrelloCardModal = ({
                     onClick={() => {
                       if (onMove) {
                         onMove(formData);
-                      } else {
-                        console.warn('⚠️ onMove callback not provided');
                       }
                     }}
                     disabled={isNewCard}
@@ -1778,8 +2105,6 @@ const TrelloCardModal = ({
                     onClick={() => {
                       if (onCopy) {
                         onCopy(formData);
-                      } else {
-                        console.warn('⚠️ onCopy callback not provided');
                       }
                     }}
                     disabled={isNewCard}
@@ -1812,8 +2137,25 @@ const TrelloCardModal = ({
                     }`}
                   >
                     <Archive className="w-4 h-4" />
-                    {formData.closed ? 'Unarchive' : 'Archive'}
+                    {formData?.closed ? 'Unarchive' : 'Archive'}
                   </button>
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to permanently delete this card? This action cannot be undone.')) {
+                          onDelete(formData?.id || formData?._id);
+                          onClose(); // Close modal after deletion
+                        }
+                      }}
+                      disabled={isNewCard}
+                      className={`w-full flex items-center gap-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded text-sm text-left transition-colors ${
+                        isNewCard ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setActiveSection('share');
@@ -1823,19 +2165,6 @@ const TrelloCardModal = ({
                     <Share2 className="w-4 h-4" />
                     Share
                   </button>
-                  {formData.closed && onDelete && (
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to permanently delete this card?')) {
-                          onDelete(formData.id || formData._id);
-                        }
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded text-sm text-left transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -1868,7 +2197,7 @@ const TrelloCardModal = ({
                     >
                       <input
                         type="checkbox"
-                        checked={(formData.members || []).includes(user.id || user._id)}
+                        checked={(formData?.members || []).includes(user.id || user._id)}
                         onChange={() => handleMemberToggle(user.id || user._id)}
                         className="w-4 h-4"
                       />
@@ -2026,7 +2355,7 @@ const TrelloCardModal = ({
                   ) : (
                     labels.map((label, index) => {
                       const labelId = label.id || label._id;
-                      const isChecked = (formData.labels || []).some(l => {
+                      const isChecked = (formData?.labels || []).some(l => {
                         const lId = typeof l === 'string' ? l : (l?.id || l?._id || l);
                         return String(lId) === String(labelId);
                       });
@@ -2149,7 +2478,7 @@ const TrelloCardModal = ({
                               const newChecklist = {
                                 id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                 title,
-                                position: (formData.checklists || []).length,
+                                position: (formData?.checklists || []).length,
                                 items: []
                               };
                               setFormData(prev => ({
@@ -2256,11 +2585,11 @@ const TrelloCardModal = ({
                 </div>
                 <input
                   type="datetime-local"
-                  value={formData.dueDate?.date ? new Date(formData.dueDate.date).toISOString().slice(0, 16) : ''}
+                  value={formData?.dueDate?.date ? new Date(formData?.dueDate?.date).toISOString().slice(0, 16) : ''}
                   onChange={(e) => handleDueDateChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700"
                 />
-                {formData.dueDate && (
+                {formData?.dueDate && (
                   <button
                     onClick={() => handleDueDateChange(null)}
                     className="w-full mt-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"

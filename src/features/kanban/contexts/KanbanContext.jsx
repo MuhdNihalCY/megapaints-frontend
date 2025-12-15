@@ -116,7 +116,14 @@ const kanbanReducer = (state, action) => {
         ...state,
         cards: state.cards.map(card =>
           card.id === action.payload.cardId
-            ? { ...card, columnId: action.payload.columnId, subcolumnId: action.payload.subcolumnId }
+            ? { 
+                ...card, 
+                columnId: action.payload.columnId,
+                listId: action.payload.columnId, // Sync listId with columnId
+                column_id: action.payload.columnId, // Sync column_id with columnId
+                subcolumnId: action.payload.subcolumnId,
+                position: action.payload.position ?? card.position
+              }
             : card
         )
       };
@@ -192,34 +199,25 @@ export const KanbanProvider = ({ children, user }) => {
           users = [];
         }
       } catch (error) {
-        console.warn('Failed to fetch users:', error);
         users = [];
       }
       
       // Try to fetch boards from API and get the first one
       let board = null;
       try {
-        console.log('🔵 Fetching boards from API...');
         const boardsResponse = await kanbanService.getBoards({ limit: 1 });
-        console.log('🔵 Boards response:', boardsResponse);
         
         // Handle different response formats
         let boards = [];
         if (boardsResponse?.status === 'success') {
           // Response format: { status: 'success', data: { boards: [...], pagination: {...} } }
           boards = boardsResponse.data?.boards || boardsResponse.data || [];
-          console.log('🔵 Extracted boards from success response:', boards);
         } else if (Array.isArray(boardsResponse)) {
           boards = boardsResponse;
-          console.log('🔵 Response is array:', boards);
         } else if (boardsResponse?.data && Array.isArray(boardsResponse.data)) {
           boards = boardsResponse.data;
-          console.log('🔵 Boards in data property:', boards);
         } else if (boardsResponse?.boards && Array.isArray(boardsResponse.boards)) {
           boards = boardsResponse.boards;
-          console.log('🔵 Boards in boards property:', boards);
-        } else {
-          console.warn('🔴 Unexpected boards response format:', boardsResponse);
         }
         
         if (Array.isArray(boards) && boards.length > 0) {
@@ -231,9 +229,6 @@ export const KanbanProvider = ({ children, user }) => {
             name: board.name || 'Kanban Board',
             ...board
           };
-          console.log('✅ Found board:', board);
-        } else {
-          console.warn('⚠️ No boards found in response. Array length:', boards?.length || 0);
         }
       } catch (error) {
         console.error('🔴 Failed to fetch boards:', error);
@@ -250,15 +245,11 @@ export const KanbanProvider = ({ children, user }) => {
         board = { id: 'default-board-id', name: 'Default Board' };
       }
       
-      console.log('🔵 Setting board in context:', board);
-      
       // Fetch columns from backend for this board - ONLY use backend columns
       let columns = [];
       if (board && (board.id || board._id)) {
         try {
-          console.log('🔵 Fetching columns from backend for board:', board.id || board._id);
           const columnsResponse = await kanbanService.getColumns(board.id || board._id);
-          console.log('🔵 Columns response:', columnsResponse);
           
           // Handle different response structures
           let backendColumns = [];
@@ -272,26 +263,33 @@ export const KanbanProvider = ({ children, user }) => {
             backendColumns = columnsResponse;
           }
           
-          console.log('🔵 Extracted backend columns:', backendColumns);
-          console.log('🔵 Backend column names:', backendColumns.map(c => c.name));
-          
           // Transform backend columns to frontend format - use backend data as-is
-          columns = backendColumns.map((col, index) => ({
-            id: col._id?.toString() || col.id?.toString() || `col-${index}`, // Use backend _id as id
-            _id: col._id?.toString() || col.id?.toString(), // Keep backend _id
-            title: col.name, // Backend uses 'name', frontend uses 'title'
-            name: col.name, // Also keep name for compatibility
-            color: col.color || '#007bff',
-            position: col.position ?? index,
-            isActive: col.is_active !== false,
-            is_active: col.is_active !== false,
-            type: 'static', // Default type
-            isGrouped: false,
-            cards: [],
-            settings: {}
-          }));
-          
-          console.log('✅ Using ONLY backend columns:', columns.map(c => ({ id: c.id, name: c.name, title: c.title, position: c.position })));
+          columns = backendColumns.map((col, index) => {
+            // Ensure column has a valid MongoDB ObjectId - required for DnD operations
+            const columnId = col._id?.toString() || col.id?.toString();
+            if (!columnId) {
+              console.error(`❌ Column at index ${index} (${col.name}) is missing _id. This will cause DnD issues.`);
+              // Still create the column but log the error - the backend should always provide _id
+            }
+            
+            return {
+              id: columnId, // Use backend _id as id - MUST be MongoDB ObjectId
+              _id: columnId, // Keep backend _id
+              title: col.name, // Backend uses 'name', frontend uses 'title'
+              name: col.name, // Also keep name for compatibility
+              color: col.color || '#007bff',
+              position: col.position ?? index,
+              isActive: col.is_active !== false,
+              is_active: col.is_active !== false,
+              has_sub_columns: col.has_sub_columns || false,
+              subcolumns: col.sub_columns || [], // Include sub-columns from backend (static + dynamic merged)
+              sub_columns: col.sub_columns || [], // Also keep sub_columns for compatibility
+              type: 'static', // Default type
+              isGrouped: (col.has_sub_columns && col.sub_columns && col.sub_columns.length > 0) || false,
+              cards: [],
+              settings: {}
+            };
+          });
         } catch (error) {
           console.error('❌ Failed to fetch columns from backend:', error);
           // Do NOT fall back to default columns - only use backend columns
@@ -302,18 +300,12 @@ export const KanbanProvider = ({ children, user }) => {
         columns = [];
       }
       
-      if (columns.length === 0) {
-        console.warn('⚠️ No columns found in backend. Board may not have columns configured.');
-      }
-      
       // Fetch cards from backend for this board
       let cards = [];
       if (board && (board.id || board._id)) {
         try {
           const boardId = board.id || board._id;
-          console.log('🔵 Fetching cards from backend for board:', boardId);
           const cardsResponse = await kanbanService.getTasks({ board_id: boardId });
-          console.log('🔵 Cards response:', cardsResponse);
           
           // Handle different response structures
           let backendCards = [];
@@ -331,15 +323,11 @@ export const KanbanProvider = ({ children, user }) => {
             backendCards = cardsResponse;
           }
           
-          console.log('🔵 Extracted backend cards:', backendCards);
-          console.log('🔵 Backend cards count:', backendCards.length);
-          
           // Transform backend cards to frontend format
           if (backendCards.length > 0) {
             cards = backendCards.map(card => {
               try {
                 const transformed = kanbanService.transformCardData(card);
-                console.log('🔵 Transformed card:', { id: transformed.id, title: transformed.title, columnId: transformed.columnId });
                 return transformed;
               } catch (transformError) {
                 console.error('🔴 Error transforming card:', transformError, card);
@@ -347,10 +335,6 @@ export const KanbanProvider = ({ children, user }) => {
               }
             }).filter(card => card !== null); // Remove any null cards from transformation errors
             
-            console.log('✅ Loaded and transformed cards:', cards.length);
-            console.log('🔵 Cards columnIds:', cards.map(c => ({ id: c.id, columnId: c.columnId, listId: c.listId })));
-          } else {
-            console.log('ℹ️ No cards found in backend for this board');
           }
         } catch (error) {
           console.error('🔴 Failed to fetch cards from backend:', error);
@@ -363,15 +347,12 @@ export const KanbanProvider = ({ children, user }) => {
           // Continue with empty cards array if fetch fails
         }
       } else {
-        console.warn('⚠️ Cannot fetch cards: No board ID available');
       }
       
       // Fetch labels from backend
       let labels = [];
       try {
-        console.log('🔵 Fetching labels from backend...');
         const labelsResponse = await kanbanService.getLabels();
-        console.log('🔵 Labels response:', labelsResponse);
         
         // Handle different response structures
         if (labelsResponse?.status === 'success') {
@@ -384,9 +365,7 @@ export const KanbanProvider = ({ children, user }) => {
           labels = labelsResponse;
         }
         
-        console.log('🔵 Extracted backend labels:', labels.length);
       } catch (error) {
-        console.warn('⚠️ Failed to fetch labels from backend:', error);
         // Continue with empty labels array if fetch fails
       }
       
@@ -407,23 +386,17 @@ export const KanbanProvider = ({ children, user }) => {
 
   // Create card
   const createCard = useCallback(async (cardData) => {
-    console.log('🔵 KanbanContext.createCard called', { cardData });
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
       // Pass labels context for label transformation
       const cardDataWithLabels = { ...cardData, _availableLabels: state.labels };
-      console.log('🔵 Calling kanbanService.createCard with', cardDataWithLabels);
       const result = await kanbanService.createCard(cardDataWithLabels);
-      console.log('🔵 kanbanService.createCard returned', result);
       
       if (result && result.status === 'success') {
         // Backend returns { data: { task } }, so extract the task
         const taskData = result.data?.task || result.data;
         const transformedCard = kanbanService.transformCardData(taskData);
-        console.log('🔵 Transformed card', transformedCard);
-        console.log('🔵 Card columnId:', transformedCard.columnId, 'listId:', transformedCard.listId, 'column_id:', transformedCard.column_id);
-        console.log('🔵 Available columns:', state.columns.map(c => ({ id: c.id, _id: c._id, name: c.name, title: c.title })));
         dispatch({ type: ACTION_TYPES.ADD_CARD, payload: transformedCard });
         
         // Log activity (non-blocking - backend already logs activity in activity_log)
@@ -432,7 +405,6 @@ export const KanbanProvider = ({ children, user }) => {
           await kanbanService.logActivity(activity);
         } catch (activityError) {
           // Activity logging is optional - backend already logs activity
-          console.warn('Failed to log activity (non-critical):', activityError);
         }
         
         return transformedCard;
@@ -469,9 +441,7 @@ export const KanbanProvider = ({ children, user }) => {
         
         dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: transformedCard });
         
-        // Log activity (activity logging is now handled in TrelloCardModal)
-        // const activity = logCardUpdated(transformedCard, state.user, updates);
-        // await kanbanService.logActivity(activity);
+        // Note: Activity logging is handled in TrelloCardModal
         
         dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
         return transformedCard;
@@ -509,6 +479,17 @@ export const KanbanProvider = ({ children, user }) => {
     }
   }, [state.user]);
 
+  // Optimistically update card positions (for immediate UI feedback during reordering)
+  const updateCardPositionsOptimistic = useCallback((positionUpdates) => {
+    // Update all cards' positions immediately without API calls
+    positionUpdates.forEach(update => {
+      dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: {
+        id: update.cardId,
+        position: update.position
+      }});
+    });
+  }, []);
+
   // Move card with DnD rules enforcement
   const moveCard = useCallback(async (cardId, moveData) => {
     try {
@@ -530,7 +511,8 @@ export const KanbanProvider = ({ children, user }) => {
         dispatch({ type: ACTION_TYPES.MOVE_CARD, payload: {
           cardId,
           columnId: moveData.toColumnId,
-          subcolumnId: moveData.toSubColumnId
+          subcolumnId: moveData.toSubColumnId,
+          position: moveData.position ?? transformedCard.position ?? 0
         }});
         
         // Log activity
@@ -788,16 +770,21 @@ export const KanbanProvider = ({ children, user }) => {
       const result = await kanbanService.addAttachment(cardId, attachmentData);
       
       if (result) {
+        // Extract the attachment object from the response
+        // Backend returns: { status: 'success', data: { attachment: {...} } }
+        const uploadedAttachment = result.data?.attachment || result.attachment || result;
+        
         // Optimistically update card with new attachment
         const card = state.cards.find(c => c.id === cardId);
         if (card) {
           const updatedCard = {
             ...card,
-            attachments: [...(card.attachments || []), result]
+            attachments: [...(card.attachments || []), uploadedAttachment]
           };
           dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: updatedCard });
         }
-        return result;
+        // Return the actual attachment object (with MongoDB _id)
+        return uploadedAttachment;
       }
     } catch (error) {
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
@@ -992,6 +979,7 @@ export const KanbanProvider = ({ children, user }) => {
     updateCard,
     deleteCard,
     moveCard,
+    updateCardPositionsOptimistic,
     toggleColumnActivation,
     searchCardsInColumn,
     addComment,

@@ -305,7 +305,6 @@ function formatDueDate(date) {
 export function addActivity(card, type, authorId, data, text) {
   // Return null if card is null or undefined
   if (!card) {
-    console.warn('addActivity called with null or undefined card');
     return null;
   }
   

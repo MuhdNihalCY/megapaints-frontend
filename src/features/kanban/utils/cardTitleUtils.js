@@ -121,6 +121,13 @@ export function formatCardTitleForDisplay(cardTitle, customer = null) {
   
   const { identifier, customerSlug } = parseCardTitle(cardTitle);
   
+  // Ignore "restricted-access" or "restrictedaccess" slugs - these are placeholders
+  if (customerSlug && (customerSlug.toLowerCase() === 'restricted-access' || 
+                       customerSlug.toLowerCase() === 'restrictedaccess' ||
+                       customerSlug.toLowerCase().includes('restricted'))) {
+    return identifier; // Return just the identifier without the restricted access part
+  }
+  
   if (!customerSlug) {
     return identifier;
   }

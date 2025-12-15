@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import apiServiceFactory from '../../../services/ApiServiceFactory.js';
+import { DESIGNATIONS } from '../utils/designations';
 import {
   X,
   User,
@@ -470,16 +471,21 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                   <Briefcase className="w-4 h-4 mr-2 text-gray-500" />
                   Designation *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                     validationErrors.designation ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300'
                   }`}
-                  placeholder="Enter designation"
-                />
+                >
+                  <option value="">Select designation</option>
+                  {DESIGNATIONS.map((designation) => (
+                    <option key={designation} value={designation}>
+                      {designation}
+                    </option>
+                  ))}
+                </select>
                 {validationErrors.designation && (
                   <p className="mt-1.5 text-sm text-red-600 dark:text-red-400 flex items-center">
                     <AlertCircle className="w-4 h-4 mr-1" />

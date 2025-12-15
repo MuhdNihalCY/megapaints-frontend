@@ -19,7 +19,8 @@ const CustomerDropdown = ({
   onRequestCreateCustomer,
   placeholder = "Select customer...",
   disabled = false,
-  className = ""
+  className = "",
+  customerId = null // Optional: customer ID when customer object is not available (e.g., 403 error)
 }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -32,10 +33,12 @@ const CustomerDropdown = ({
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Load customers on mount and when search changes
+  // Load customers when dropdown opens OR when customerId is provided (to find customer)
   useEffect(() => {
     const loadCustomers = async () => {
-      if (!isOpen) return;
+      // Load if dropdown is open OR if we have a customerId but no selectedCustomer (need to find it)
+      const shouldLoad = isOpen || (customerId && !selectedCustomer);
+      if (!shouldLoad) return;
       
       setLoading(true);
       setError(null);
@@ -90,9 +93,9 @@ const CustomerDropdown = ({
       }
     };
 
-    const debounceTimer = setTimeout(loadCustomers, 300);
+    const debounceTimer = setTimeout(loadCustomers, isOpen ? 300 : 0); // Load immediately if customerId provided
     return () => clearTimeout(debounceTimer);
-  }, [isOpen, searchQuery, user]);
+  }, [isOpen, searchQuery, user, customerId, selectedCustomer]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -113,6 +116,25 @@ const CustomerDropdown = ({
       searchRef.current.focus();
     }
   }, [isOpen]);
+
+  // Auto-select customer if customerId matches a customer in the list
+  // This handles the case where we got a 403 error but the customer is actually in the accessible list
+  useEffect(() => {
+    if (customerId && customers.length > 0 && onCustomerSelect) {
+      const foundCustomer = customers.find(c => {
+        const cId = c._id || c.id;
+        return cId && cId.toString() === customerId.toString();
+      });
+      // Only auto-select if we found the customer and it's not already selected
+      if (foundCustomer && (!selectedCustomer || selectedCustomer._id?.toString() !== customerId.toString())) {
+        // Auto-select the customer if found in the accessible list
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          onCustomerSelect(foundCustomer);
+        }, 0);
+      }
+    }
+  }, [customerId, selectedCustomer, customers, onCustomerSelect]);
 
   const handleCustomerSelect = (customer) => {
     onCustomerSelect(customer);
@@ -144,10 +166,11 @@ const CustomerDropdown = ({
   };
 
   const getCustomerDisplayName = (customer) => {
-    if (customer.company && customer.name !== customer.company) {
+    if (!customer) return 'Unknown Customer';
+    if (customer.company && customer.name && customer.name !== customer.company) {
       return `${customer.name} (${customer.company})`;
     }
-    return customer.name;
+    return customer.name || customer.company || customer._id || customer.id || 'Unknown Customer';
   };
 
   return (
@@ -162,16 +185,54 @@ const CustomerDropdown = ({
         }`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {selectedCustomer ? (
+          {selectedCustomer && (selectedCustomer.name || selectedCustomer._id || selectedCustomer.id) ? (
             <>
               {getCustomerIcon(selectedCustomer)}
               <span className="truncate text-gray-900 dark:text-white">
                 {getCustomerDisplayName(selectedCustomer)}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                {selectedCustomer.status}
-              </span>
+              {selectedCustomer.status && !selectedCustomer._isRestricted && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                  {selectedCustomer.status}
+                </span>
+              )}
+              {selectedCustomer._isRestricted && (
+                <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded italic">
+                  Limited access
+                </span>
+              )}
             </>
+          ) : customerId && customers.length > 0 ? (
+            // Check if customer is in the accessible list
+            (() => {
+              const foundCustomer = customers.find(c => {
+                const cId = c._id || c.id;
+                return cId && cId.toString() === customerId.toString();
+              });
+              if (foundCustomer) {
+                // Customer is in list but not selected - this shouldn't happen due to auto-select
+                // But show it anyway as fallback
+                return (
+                  <>
+                    {getCustomerIcon(foundCustomer)}
+                    <span className="truncate text-gray-900 dark:text-white">
+                      {getCustomerDisplayName(foundCustomer)}
+                    </span>
+                    {foundCustomer.status && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                        {foundCustomer.status}
+                      </span>
+                    )}
+                  </>
+                );
+              }
+              // Customer not in accessible list
+              return (
+                <span className="text-gray-500 dark:text-gray-400 italic">
+                  Customer selected (not in accessible list)
+                </span>
+              );
+            })()
           ) : (
             <span className="text-gray-500 dark:text-gray-400">{placeholder}</span>
           )}
@@ -240,36 +301,51 @@ const CustomerDropdown = ({
                   {searchQuery ? 'No customers found matching your search.' : 'No customers available.'}
                 </div>
               ) : (
-                customers.map((customer) => (
-                  <button
-                    key={customer._id}
-                    type="button"
-                    onClick={() => handleCustomerSelect(customer)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                      selectedCustomer?._id === customer._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
-                  >
-                    {getCustomerIcon(customer)}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {getCustomerDisplayName(customer)}
+                <>
+                  {/* Show message if customerId is provided but not in list (403 scenario) */}
+                  {customerId && !selectedCustomer && !customers.find(c => (c._id || c.id)?.toString() === customerId?.toString()) && (
+                    <div className="p-3 mx-2 mb-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="text-xs text-yellow-800 dark:text-yellow-200">
+                        <strong>Note:</strong> A customer is assigned to this card, but you don't have access to view their details.
                       </div>
-                      {customer.email && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {customer.email}
+                    </div>
+                  )}
+                  {customers.map((customer) => {
+                    const isSelected = selectedCustomer?._id === customer._id || 
+                                      selectedCustomer?.id === customer._id ||
+                                      (!selectedCustomer && customerId && (customer._id || customer.id)?.toString() === customerId?.toString());
+                    return (
+                      <button
+                        key={customer._id}
+                        type="button"
+                        onClick={() => handleCustomerSelect(customer)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                          isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        {getCustomerIcon(customer)}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {getCustomerDisplayName(customer)}
+                          </div>
+                          {customer.email && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {customer.email}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {customer.status}
-                      </span>
-                      {selectedCustomer?._id === customer._id && (
-                        <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      )}
-                    </div>
-                  </button>
-                ))
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                            {customer.status}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
               )}
             </div>
           </motion.div>

@@ -39,15 +39,51 @@ const TrelloCardFront = ({
     .map(memberId => users.find(u => u.id === memberId || u._id === memberId))
     .filter(Boolean);
   
-  // Cover image/color
-  const hasCover = card.coverImage && (card.coverImage.url || card.coverImage.color);
-  const coverStyle = card.coverImage?.color 
-    ? { backgroundColor: card.coverImage.color }
-    : card.coverImage?.url 
-    ? { backgroundImage: `url(${card.coverImage.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  // Cover image/color - use coverImage if set, otherwise use first image attachment (Trello behavior)
+  let coverImage = card.coverImage;
+  
+  // If no explicit cover, use first image attachment
+  if (!coverImage || (!coverImage.url && !coverImage.color)) {
+    const attachments = card.attachments || [];
+    const firstImageAttachment = attachments.find(att => {
+      // Check if attachment is an image
+      const mimeType = att.mime_type || att.mimeType || '';
+      const fileName = att.original_name || att.name || '';
+      const type = att.type || '';
+      return type === 'image' || 
+             mimeType.startsWith('image/') || 
+             /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(fileName);
+    });
+    
+    if (firstImageAttachment) {
+      const baseURL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      let imageUrl = firstImageAttachment.url || '';
+      
+      // Construct full URL if needed
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        if (!imageUrl.startsWith('/')) {
+          imageUrl = '/' + imageUrl;
+        }
+        imageUrl = `${baseURL}${imageUrl}`;
+      }
+      
+      coverImage = {
+        attachment_id: firstImageAttachment.id || firstImageAttachment._id || null,
+        url: imageUrl,
+        color: null,
+        size: 'normal'
+      };
+    }
+  }
+  
+  const hasCover = coverImage && (coverImage.url || coverImage.color);
+  const coverStyle = coverImage?.color 
+    ? { backgroundColor: coverImage.color }
+    : coverImage?.url 
+    ? { backgroundImage: `url(${coverImage.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : {};
   
-  const coverHeight = card.coverImage?.size === 'full' ? '260px' : '32px';
+  const coverHeight = coverImage?.size === 'full' ? '260px' : '32px';
   
   // Due date colors
   const getDueDateColor = () => {

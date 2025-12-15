@@ -25,6 +25,11 @@ const CustomFieldsManager = ({ card, customFieldDefinitions = [], onUpdate, curr
     return null;
   }
 
+  // Return null if card is not available yet
+  if (!card) {
+    return null;
+  }
+
   // Handle start editing
   const handleStartEdit = (fieldDef) => {
     const currentValue = getCustomFieldValue(card, fieldDef.id);

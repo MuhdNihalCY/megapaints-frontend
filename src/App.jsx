@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { MuiThemeProviderWrapper } from './theme/MuiThemeProvider';
 import Login from './features/user/Login';
 import Register from './features/user/Register';
 import AdminLogin from './features/admin/Login';
@@ -25,6 +26,7 @@ import OrdersAdmin from './features/admin/inventory/Orders';
 import Inventory from './features/admin/inventory/Inventory';
 import InventorySummary from './features/admin/inventory/InventorySummary';
 import AdminLayout from './features/admin/components/AdminLayout';
+import KanbanColumns from './features/admin/new/KanbanColumns';
 import UserProtectedRoute from './components/UserProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import CreateFormula from './features/user/CreateFormula';
@@ -48,8 +50,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <Router>
-          <div className="App">
+          <MuiThemeProviderWrapper>
+            <Router>
+            <div className="App">
             {/* Temporary CORS Debugger - Remove after testing */}
             {/* <CORSDebugger /> */}
             {/* Temporary Registration Test - Remove after testing */}
@@ -131,6 +134,7 @@ function App() {
                 <Route path="orders" element={<OrdersAdmin />} />
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="inventory/summary" element={<InventorySummary />} />
+                <Route path="kanban-columns" element={<KanbanColumns />} />
               </Route>
               
               {/* Default redirect */}
@@ -139,6 +143,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+          </MuiThemeProviderWrapper>
       </ThemeProvider>
     </AuthProvider>
     

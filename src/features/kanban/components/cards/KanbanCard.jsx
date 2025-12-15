@@ -4,8 +4,6 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import TrelloCardFront from './TrelloCardFront';
 import TrelloCardModal from './TrelloCardModal';
 import { usePermissions } from '../../contexts/PermissionContext';
@@ -22,24 +20,6 @@ const KanbanCard = ({
   const { user } = usePermissions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({
-    id: card._id || card.id,
-    disabled: !canPerformAction(user, 'EDIT_CARD', card)
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.7 : 1
-  };
 
   // Check permissions
   const canEdit = canPerformAction(user, 'EDIT_CARD', card);
@@ -67,9 +47,6 @@ const KanbanCard = ({
   return (
     <>
       <div
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
         data-testid="kanban-card"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -78,10 +55,10 @@ const KanbanCard = ({
           card={card}
           users={users}
           labels={labels}
-          isDragging={isDragging}
+          isDragging={false}
           isHovered={isHovered}
           onClick={handleCardClick}
-          dragHandleProps={listeners}
+          dragHandleProps={{}}
         />
       </div>
       

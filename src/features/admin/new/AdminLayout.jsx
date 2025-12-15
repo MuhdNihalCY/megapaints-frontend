@@ -38,6 +38,7 @@ import {
   Settings as SettingsIcon,
   Layers as LayersIcon,
   LocalShipping as LocalShippingIcon,
+  ViewColumn as ViewColumnIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTheme as useAppTheme } from '../../../contexts/ThemeContext';
@@ -49,6 +50,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     flexGrow: 1,
     padding: theme.spacing(3),
+    backgroundColor: theme.palette.background.default,
+    minHeight: '100vh',
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
@@ -122,6 +125,7 @@ const SidebarBottom = styled(Box)(({ theme }) => ({
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
   { text: 'Categories', icon: <CategoryIcon />, path: '/admin/categories' },
+  { text: 'Kanban Columns', icon: <ViewColumnIcon />, path: '/admin/kanban-columns' },
   { text: 'Sub-Categories', icon: <LayersIcon />, path: '/admin/sub-categories' },
   { text: 'Products', icon: <InventoryIcon />, path: '/admin/products' },
   { text: 'Additives', icon: <ScienceIcon />, path: '/admin/additives' },

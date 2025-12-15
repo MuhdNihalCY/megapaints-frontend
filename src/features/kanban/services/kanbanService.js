@@ -204,7 +204,6 @@ class KanbanService {
     const endpoint = 'POST /api/kanban/cards';
     
     try {
-      console.log('🔵 kanbanService.createTask called', { taskData, endpoint });
       
       // Use transformTaskToApi to properly transform all fields including labels
       const transformedData = this.transformTaskToApi({
@@ -238,11 +237,8 @@ class KanbanService {
         }
       });
       
-      console.log('🔵 Making POST request to /kanban/cards', { apiData, url: `${this.baseURL}/kanban/cards` });
       const response = await api.post(`${this.baseURL}/kanban/cards`, apiData);
-      console.log('🔵 POST response received', response);
       const result = this.handleResponse(response, endpoint);
-      console.log('🔵 handleResponse returned', result);
       return result;
     } catch (error) {
       console.error('🔴 Error in createTask', error);
@@ -299,7 +295,9 @@ class KanbanService {
     const endpoint = `POST /api/kanban/tasks/${taskId}/move`;
     
     try {
-      const response = await api.post(`${this.baseURL}/kanban/cards/${taskId}/move`, moveData);
+      // Transform moveData from frontend format to backend format
+      const transformedData = this.transformMoveData(moveData);
+      const response = await api.post(`${this.baseURL}/kanban/cards/${taskId}/move`, transformedData);
       return this.handleResponse(response, endpoint);
     } catch (error) {
       this.handleError(error, endpoint);
@@ -535,11 +533,58 @@ class KanbanService {
    * POST /api/kanban/tasks/:taskId/attachments
    */
   async addAttachment(taskId, attachmentData) {
+    const endpoint = `POST /api/kanban/cards/${taskId}/attachments`;
     try {
-      const response = await api.post(`${this.baseURL}/kanban/cards/${taskId}/attachments`, attachmentData);
-      return this.handleResponse(response);
+      let requestData;
+      let config = {};
+      
+      // If attachmentData contains a File object, use FormData
+      if (attachmentData.file && attachmentData.file instanceof File) {
+        const formData = new FormData();
+        // Append file with explicit filename
+        formData.append('file', attachmentData.file, attachmentData.file.name);
+        
+        // Add optional description if provided
+        if (attachmentData.description) {
+          formData.append('description', attachmentData.description);
+        }
+        
+        // Debug: Log FormData contents
+        console.log('📎 FormData created:', {
+          hasFile: formData.has('file'),
+          fileName: attachmentData.file.name,
+          fileSize: attachmentData.file.size,
+          fileType: attachmentData.file.type,
+          fileLastModified: attachmentData.file.lastModified
+        });
+        
+        requestData = formData;
+        // Configure axios to properly handle FormData
+        // Don't set transformRequest - let axios handle FormData natively
+        // The interceptor will remove Content-Type so browser sets it with boundary
+        config = {
+          headers: {}
+        };
+      } else {
+        // For link attachments or other non-file data, send as JSON
+        requestData = attachmentData;
+      }
+      
+      console.log('📤 Sending request:', {
+        url: `${this.baseURL}/kanban/cards/${taskId}/attachments`,
+        method: 'POST',
+        isFormData: requestData instanceof FormData,
+        config: config
+      });
+      
+      const response = await api.post(
+        `${this.baseURL}/kanban/cards/${taskId}/attachments`, 
+        requestData,
+        config
+      );
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -574,11 +619,12 @@ class KanbanService {
    * POST /api/kanban/tasks/:id/cover
    */
   async setCardCover(taskId, coverData) {
+    const endpoint = `POST /api/kanban/cards/${taskId}/attachments/cover`;
     try {
-      const response = await api.post(`${this.baseURL}/kanban/cards/${taskId}/cover`, coverData);
-      return this.handleResponse(response);
+      const response = await api.post(`${this.baseURL}/kanban/cards/${taskId}/attachments/cover`, coverData);
+      return this.handleResponse(response, endpoint);
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, endpoint);
     }
   }
 
@@ -1157,19 +1203,13 @@ class KanbanService {
 
   /**
    * Log activity
-   * Note: This is optional - backend already logs activity in Card.activity_log
-   * This method is kept for compatibility but failures are non-blocking
+   * Note: Activity logging is handled automatically by the backend when cards are created/updated
+   * This method is kept for compatibility but does nothing (no API call needed)
    */
   async logActivity(activityData) {
-    try {
-      const response = await api.post(`${this.baseURL}/activity`, activityData);
-      return this.handleResponse(response);
-    } catch (error) {
-      // Activity logging is optional - don't throw errors
-      // Backend already logs activity when creating/updating cards
-      console.warn('Activity logging failed (non-critical):', error.message);
-      return { status: 'warning', message: 'Activity logging unavailable' };
-    }
+    // Activity logging is handled by backend automatically via Card.logActivity()
+    // No separate API endpoint needed - return success immediately
+    return { status: 'success', message: 'Activity will be logged by backend' };
   }
 
   /**
@@ -1405,6 +1445,7 @@ class KanbanService {
       cardId: apiTask.cardId || apiTask._id || apiTask.id,
       columnId: apiTask.column_id || apiTask.columnId,
       listId: apiTask.column_id || apiTask.columnId, // Alias for compatibility
+      column_id: apiTask.column_id || apiTask.columnId, // Keep original field name for consistency
       subcolumnId: apiTask.subcolumn_id || apiTask.subcolumnId || null,
       priority: apiTask.priority || 'medium',
       labels: labelIds, // Array of label IDs
@@ -1437,6 +1478,60 @@ class KanbanService {
       branchId: apiTask.branch_id || apiTask.branchId,
       watchers: apiTask.watchers || [],
       subscriptions: apiTask.watchers || [], // Alias for compatibility
+      // Cover image transformation
+      coverImage: (() => {
+        // If cover_image exists, use it
+        if (apiTask.cover_image) {
+          const baseURL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+          let coverUrl = apiTask.cover_image.url;
+          
+          // Construct full URL if needed
+          if (coverUrl && !coverUrl.startsWith('http')) {
+            if (!coverUrl.startsWith('/')) {
+              coverUrl = '/' + coverUrl;
+            }
+            coverUrl = `${baseURL}${coverUrl}`;
+          }
+          
+          return {
+            attachment_id: apiTask.cover_image.attachment_id || null,
+            url: coverUrl || null,
+            color: apiTask.cover_image.color || null,
+            size: apiTask.cover_image.size || 'normal'
+          };
+        }
+        
+        // If no cover_image, use first image attachment (Trello behavior)
+        const attachments = apiTask.attachments || [];
+        const firstImageAttachment = attachments.find(att => {
+          const mimeType = att.mime_type || att.mimeType || '';
+          const fileName = att.original_name || att.name || '';
+          return mimeType.startsWith('image/') || 
+                 /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(fileName);
+        });
+        
+        if (firstImageAttachment) {
+          const baseURL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+          let imageUrl = firstImageAttachment.url || '';
+          
+          // Construct full URL if needed
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            if (!imageUrl.startsWith('/')) {
+              imageUrl = '/' + imageUrl;
+            }
+            imageUrl = `${baseURL}${imageUrl}`;
+          }
+          
+          return {
+            attachment_id: firstImageAttachment._id?.toString() || firstImageAttachment.id?.toString() || null,
+            url: imageUrl,
+            color: null,
+            size: 'normal'
+          };
+        }
+        
+        return null;
+      })(),
       // Keep original data for debugging
       _originalData: apiTask
     };
@@ -1594,12 +1689,44 @@ class KanbanService {
 
   /**
    * Transform move data for API
+   * Validates column_id is a valid MongoDB ObjectId and maps frontend format to backend format
    */
   transformMoveData(moveData) {
-    return {
-      column_id: moveData.toColumnId || moveData.columnId,
-      position: moveData.position || 0
+    // MongoDB ObjectId validation regex (24 hex characters)
+    const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+    
+    // Get column_id from moveData
+    const columnId = moveData.toColumnId || moveData.columnId;
+    
+    // Validate column_id is a valid MongoDB ObjectId
+    if (!columnId) {
+      throw new Error('Column ID is required for card movement');
+    }
+    
+    if (!objectIdRegex.test(columnId)) {
+      throw new Error(`Invalid column ID format: "${columnId}". Must be a valid MongoDB ObjectId (24 hex characters)`);
+    }
+    
+    // Ensure position is a number
+    const position = typeof moveData.position === 'number' ? moveData.position : parseInt(moveData.position, 10) || 0;
+    if (isNaN(position) || position < 0) {
+      throw new Error(`Invalid position: ${moveData.position}. Must be a non-negative integer`);
+    }
+    
+    const result = {
+      column_id: columnId,
+      position: position
     };
+    
+    // Include subcolumn_id if provided (can be null/empty to clear it)
+    const subColumnId = moveData.toSubColumnId || moveData.subcolumnId;
+    if (subColumnId !== undefined && subColumnId !== null) {
+      // If it's a string, trim it; if it's empty string, send empty string to clear
+      result.subcolumn_id = typeof subColumnId === 'string' ? subColumnId.trim() : subColumnId;
+    }
+    // If undefined, don't include it in the request (backend won't update it)
+    
+    return result;
   }
 
   /**
@@ -1636,24 +1763,8 @@ class KanbanService {
     }
   }
 
-  async useReservation(reservationId, taskId) {
-    const endpoint = 'POST /api/kanban/cards/use-reservation';
-    // API Call reservationId, taskId });
-    try {
-      const response = await api.post(`${this.baseURL}/kanban/cards/use-reservation`, {
-        reservation_id: reservationId,
-        task_id: taskId
-      });
-      return this.handleResponse(response, endpoint);
-    } catch (error) {
-      this.handleError(error, endpoint);
-      throw error;
-    }
-  }
-
   async releaseReservation(reservationId) {
     const endpoint = 'DELETE /api/kanban/cards/release-reservation';
-    // API Call reservationId });
     try {
       const response = await api.delete(`${this.baseURL}/kanban/cards/release-reservation`, {
         data: { reservation_id: reservationId }
@@ -1728,6 +1839,64 @@ class KanbanService {
     }
   }
 
+  // ==================== USER MANAGEMENT FOR SUB-COLUMNS ====================
+
+  /**
+   * Get users by designation and branch
+   * GET /api/kanban/users/by-designation
+   */
+  async getUsersByDesignation(branchId, designations) {
+    const endpoint = 'GET /api/kanban/users/by-designation';
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/users/by-designation`, {
+        params: {
+          branch_id: branchId,
+          designations: Array.isArray(designations) ? designations.join(',') : designations
+        }
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  /**
+   * Get sub-column user statuses for a board
+   * GET /api/kanban/boards/:boardId/subcolumn-users
+   */
+  async getSubColumnUsers(boardId) {
+    const endpoint = `GET /api/kanban/boards/${boardId}/subcolumn-users`;
+    
+    try {
+      const response = await api.get(`${this.baseURL}/kanban/boards/${boardId}/subcolumn-users`);
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle sub-column user enabled/disabled status
+   * PUT /api/kanban/boards/:boardId/subcolumn-users/:userId/toggle
+   */
+  async toggleSubColumnUser(boardId, userId, columnId, enabled) {
+    const endpoint = `PUT /api/kanban/boards/${boardId}/subcolumn-users/${userId}/toggle`;
+    
+    try {
+      const response = await api.put(`${this.baseURL}/kanban/boards/${boardId}/subcolumn-users/${userId}/toggle`, {
+        column_id: columnId,
+        enabled: enabled
+      });
+      return this.handleResponse(response, endpoint);
+    } catch (error) {
+      this.handleError(error, endpoint);
+      throw error;
+    }
+  }
+
   async getCustomerById(customerId) {
     const endpoint = `GET /api/kanban/customers/${customerId}`;
     // API Call customerId });
@@ -1735,6 +1904,15 @@ class KanbanService {
       const response = await api.get(`${this.baseURL}/kanban/customers/${customerId}`);
       return this.handleResponse(response, endpoint);
     } catch (error) {
+      // Handle 403 Forbidden gracefully - this is expected when user doesn't have access
+      // Don't log it as an error since it's handled in the UI
+      if (error.response?.status === 403) {
+        const permissionError = new Error(error.response?.data?.message || 'You can only access customers from your assigned branches');
+        permissionError.status = 403;
+        permissionError.response = error.response;
+        throw permissionError;
+      }
+      // For other errors, use standard error handling
       this.handleError(error, endpoint);
       throw error;
     }

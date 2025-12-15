@@ -119,7 +119,7 @@ const BoardHeader = ({
 
           {/* Settings Button */}
           <button
-            onClick={() => console.log('Settings clicked')}
+            onClick={() => {}}
             className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             title="Board settings"
           >

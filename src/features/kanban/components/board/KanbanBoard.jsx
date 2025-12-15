@@ -8,14 +8,16 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Filter, HelpCircle, Settings } from 'lucide-react';
 
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useKanban } from '../../contexts/KanbanContext';
-import { usePragmaticDragAndDrop, useDragMonitor } from '../../hooks/usePragmaticDragAndDrop';
 import PragmaticKanbanCard from '../cards/PragmaticKanbanCard';
 import KanbanColumn from '../columns/KanbanColumn';
 import FiltersPanel from '../ui/FiltersPanel';
 import HelpPanel from '../ui/HelpPanel';
 import KeyboardShortcuts from '../ui/KeyboardShortcuts';
 import TrelloCardModal from '../cards/TrelloCardModal';
+import { kanbanService } from '../../services/kanbanService';
+import toast from 'react-hot-toast';
 
 import { LoadingOverlay, CustomerManagementButton } from '../../../../components';
 
@@ -34,6 +36,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     createCard,
     updateCard,
     deleteCard,
+    updateCardPositionsOptimistic,
     searchTerm,
     setSearchTerm,
     filters,
@@ -43,21 +46,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
   // Use board ID from context; avoid invalid fallbacks that break API validation
   const boardId = board?.id || board?._id || null;
-
-  const {
-    draggedCard,
-    isDragging,
-    dragOver,
-    dragPreview,
-    dropZone,
-    isMultiSelect,
-    selectedCards,
-    setupDraggable,
-    setupDropTarget,
-    cleanup
-  } = usePragmaticDragAndDrop();
-
-  const dragData = useDragMonitor();
 
   // UI State
   const [showFilters, setShowFilters] = useState(false);
@@ -83,24 +71,38 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
   // Get cards by column
   const getCardsByColumn = useCallback((columnId) => {
     const columnCards = cards.filter(card => {
-      // Match by columnId, listId, or column_id (handle different formats)
-      const matches = 
-        card.columnId === columnId || 
-        card.listId === columnId || 
-        card.column_id === columnId ||
-        String(card.columnId) === String(columnId) ||
-        String(card.listId) === String(columnId) ||
-        String(card.column_id) === String(columnId);
-      
-      return matches;
+      // Prioritize columnId (primary field), but check others for compatibility
+      // This ensures cards only match one column even if fields are temporarily out of sync
+      const cardColumnId = card.columnId || card.listId || card.column_id;
+      return String(cardColumnId) === String(columnId);
     });
     
-    return columnCards;
+    // Sort by position, then by creation date as fallback
+    return columnCards.sort((a, b) => {
+      const posA = a.position ?? 0;
+      const posB = b.position ?? 0;
+      if (posA !== posB) return posA - posB;
+      // Fallback to creation date if positions are equal
+      const dateA = new Date(a.createdAt || a.created_at || 0);
+      const dateB = new Date(b.createdAt || b.created_at || 0);
+      return dateA - dateB;
+    });
   }, [cards]);
 
   // Get cards by subcolumn
   const getCardsBySubcolumn = useCallback((columnId, subcolumnId) => {
-    return cards.filter(card => card.columnId === columnId && card.subcolumnId === subcolumnId);
+    const subcolumnCards = cards.filter(card => card.columnId === columnId && card.subcolumnId === subcolumnId);
+    
+    // Sort by position, then by creation date as fallback
+    return subcolumnCards.sort((a, b) => {
+      const posA = a.position ?? 0;
+      const posB = b.position ?? 0;
+      if (posA !== posB) return posA - posB;
+      // Fallback to creation date if positions are equal
+      const dateA = new Date(a.createdAt || a.created_at || 0);
+      const dateB = new Date(b.createdAt || b.created_at || 0);
+      return dateA - dateB;
+    });
   }, [cards]);
 
   // Get filtered cards
@@ -162,19 +164,34 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     return { width: `${totalWidth}px` };
   }, []);
 
-  // Handle card click
-  const handleCardClick = useCallback((card) => {
-    setSelectedCard(card);
-    setIsEditingCard(false);
-    setIsCardModalOpen(true);
+  // Handle card click - fetch full card data if needed
+  const handleCardClick = useCallback(async (card) => {
+    try {
+      // If card has minimal data, fetch full card details
+      let fullCard = card;
+      if (card && (card.id || card._id)) {
+        // Always fetch fresh card data to ensure we have latest comments, attachments, etc.
+        const result = await kanbanService.getTask(card.id || card._id);
+        if (result && result.status === 'success') {
+          const taskData = result.data?.task || result.data;
+          fullCard = kanbanService.transformCardData(taskData);
+        }
+      }
+      setSelectedCard(fullCard);
+      setIsEditingCard(false);
+      setIsCardModalOpen(true);
+    } catch (error) {
+      console.error('Error loading card details:', error);
+      // Still open modal with available card data
+      setSelectedCard(card);
+      setIsCardModalOpen(true);
+    }
   }, []);
 
   // Handle create card
   const handleCreateCard = useCallback(async (cardData) => {
-    console.log('🔵 KanbanBoard.handleCreateCard called', { cardData });
     try {
       const createdCard = await createCard(cardData);
-      console.log('🔵 createCard from context returned', createdCard);
       return createdCard;
     } catch (error) {
       console.error('🔴 Error in KanbanBoard.handleCreateCard', error);
@@ -183,20 +200,30 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     }
   }, [createCard]);
 
-  // Handle save card
-  const handleSaveCard = useCallback(async (cardData) => {
+  // Handle save card - supports both new cards and updates
+  const handleSaveCard = useCallback(async (cardIdOrData, updates) => {
     try {
-      if (selectedCard) {
-        await updateCard(selectedCard.id, cardData);
-      } else {
-        await createCard(cardData);
+      // If two arguments, it's (cardId, updates) for existing cards
+      if (updates !== undefined) {
+        await updateCard(cardIdOrData, updates);
+      } 
+      // If one argument, check if it's a new card or full card data
+      else if (cardIdOrData) {
+        const cardData = cardIdOrData;
+        // Check if it's an existing card (has id/_id) or new card
+        if (cardData.id || cardData._id) {
+          await updateCard(cardData.id || cardData._id, cardData);
+        } else {
+          await createCard(cardData);
+        }
       }
-      setIsCardModalOpen(false);
-      setSelectedCard(null);
+      // Don't close modal automatically - let the modal handle it
+      // The modal will close itself after successful save
     } catch (error) {
-      // Error saving card
+      console.error('Error saving card:', error);
+      throw error; // Re-throw so modal can handle the error
     }
-  }, [selectedCard, updateCard, createCard]);
+  }, [updateCard, createCard]);
 
   // Handle delete card
   const handleDeleteCard = useCallback(async () => {
@@ -251,76 +278,170 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     }
   };
 
-  // Setup drop targets for columns
-  useEffect(() => {
-    const cleanupFunctions = [];
+  // Handle card reorder
+  const handleCardReorder = async (cardId, fromColumn, toColumn, toSubColumnId, newIndex) => {
+    setIsReordering(true);
     
-    activeColumns.forEach(column => {
-      const element = columnRefs.current.get(column.id);
-      if (element) {
-        const cleanup = setupDropTarget(element, column, handleCardMove);
-        if (cleanup) {
-          cleanupFunctions.push(cleanup);
+    try {
+      const card = cards.find(c => c.id === cardId);
+      if (!card) {
+        console.error('Card not found:', cardId);
+        return;
+      }
+      
+      // Get all cards in the target column/subcolumn, sorted by position
+      let columnCards;
+      if (toSubColumnId) {
+        columnCards = getCardsBySubcolumn(toColumn, toSubColumnId);
+      } else {
+        columnCards = getCardsByColumn(toColumn);
+      }
+      
+      const reorderedCards = Array.from(columnCards);
+      
+      // Remove card from current position
+      const currentIndex = reorderedCards.findIndex(c => c.id === cardId);
+      if (currentIndex === -1) {
+        console.error('Card not found in column:', cardId, toColumn);
+        return;
+      }
+      
+      const [movedCard] = reorderedCards.splice(currentIndex, 1);
+      
+      // Insert at new position
+      reorderedCards.splice(newIndex, 0, movedCard);
+      
+      // Calculate new positions for ALL cards in the column
+      // This ensures positions are always sequential (0, 1000, 2000, etc.)
+      // and fixes the glitch where only some cards were updated
+      const updates = [];
+      for (let i = 0; i < reorderedCards.length; i++) {
+        const cardToUpdate = reorderedCards[i];
+        const newPosition = i * 1000;
+        
+        // Only update if position actually changed
+        if (cardToUpdate.position !== newPosition) {
+          updates.push({
+            cardId: cardToUpdate.id,
+            position: newPosition
+          });
         }
       }
-    });
-
-    return () => {
-      cleanupFunctions.forEach(cleanup => cleanup());
-    };
-  }, [activeColumns, setupDropTarget, handleCardMove]);
-
-  // Handle drag end with proper move logic
-  const handleDragEnd = useCallback((source, destination) => {
-    if (!source || !destination) {
-      return;
-    }
-
-    const cardId = source.data.cardId;
-    const fromColumn = source.data.card?.columnId;
-    const toColumn = destination.data.columnId;
-
-    if (cardId && fromColumn && toColumn && fromColumn !== toColumn) {
-      handleCardMove(cardId, fromColumn, toColumn);
-    }
-  }, [handleCardMove]);
-
-  // Handle card reorder
-  const handleCardReorder = async (cardId, fromColumn, toColumn, newIndex) => {
-    setIsReordering(true);
-    try {
-      // Note: reorderCards function needs to be implemented in the context
-      // await reorderCards(cardId, fromColumn, toColumn, newIndex);
+      
+      // OPTIMISTIC UPDATE: Update state immediately for instant UI feedback
+      // This prevents the visual glitch where cards snap back or don't update immediately
+      if (updates.length > 0 && updateCardPositionsOptimistic) {
+        updateCardPositionsOptimistic(updates);
+      }
+      
+      // SYNC WITH BACKEND: Update sequentially to avoid race conditions
+      // Sequential updates ensure state consistency and prevent glitches
+      for (const update of updates) {
+        try {
+          await moveCard(update.cardId, {
+            toColumnId: toColumn,
+            toSubColumnId: toSubColumnId,
+            position: update.position
+          });
+        } catch (error) {
+          console.error(`Failed to update card ${update.cardId} position:`, error);
+          // Continue with other updates even if one fails
+        }
+      }
     } catch (error) {
-      // Error reordering card
+      console.error('Error reordering card:', error);
+      toast.error('Failed to reorder card');
     } finally {
       setIsReordering(false);
     }
   };
 
-  // Get drag styles for cards
-  const getDragStyles = (cardId) => {
-    if (isDragging && draggedCard?.id === cardId) {
-      return {
-        transform: 'rotate(5deg)',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-        zIndex: 1000
-      };
-    }
-    return {};
-  };
+  // Handle drag end with @hello-pangea/dnd
+  const handleDragEnd = useCallback((result) => {
+    const { destination, source, draggableId } = result;
 
-  // Get drop zone styles
-  const getDropZoneStyles = (cardId) => {
-    if (dragOver === cardId) {
-      return {
-        backgroundColor: '#f0f9ff',
-        borderColor: '#3b82f6',
-        borderStyle: 'dashed'
-      };
+    // If no destination, do nothing
+    if (!destination) {
+      return;
     }
-    return {};
-  };
+
+    // If dropped in the same position, do nothing
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    // MongoDB ObjectId validation regex (24 hex characters)
+    const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+
+    // Parse droppableId to determine target column/sub-column
+    // Format: "column-{columnId}" or "subcolumn-{subcolumnId}"
+    const isSubColumn = destination.droppableId.startsWith('subcolumn-');
+    const isColumn = destination.droppableId.startsWith('column-');
+    
+    let toColumnId = null;
+    let toSubColumnId = null;
+
+    if (isSubColumn) {
+      toSubColumnId = destination.droppableId.replace('subcolumn-', '');
+      // Find which column this sub-column belongs to
+      const targetColumn = activeColumns.find(col => 
+        col.subcolumns?.some(sub => sub.id === toSubColumnId)
+      );
+      if (targetColumn) {
+        toColumnId = targetColumn.id;
+      }
+    } else if (isColumn) {
+      toColumnId = destination.droppableId.replace('column-', '');
+    }
+
+    // Parse source to get from column/sub-column
+    const sourceIsSubColumn = source.droppableId.startsWith('subcolumn-');
+    const sourceIsColumn = source.droppableId.startsWith('column-');
+    
+    let fromColumnId = null;
+    if (sourceIsSubColumn) {
+      const subColumnId = source.droppableId.replace('subcolumn-', '');
+      const sourceColumn = activeColumns.find(col => 
+        col.subcolumns?.some(sub => sub.id === subColumnId)
+      );
+      if (sourceColumn) {
+        fromColumnId = sourceColumn.id;
+      }
+    } else if (sourceIsColumn) {
+      fromColumnId = source.droppableId.replace('column-', '');
+    }
+
+    // Validate column IDs are valid MongoDB ObjectIds before attempting move
+    if (toColumnId && !objectIdRegex.test(toColumnId)) {
+      console.error('❌ Invalid target column ID format:', toColumnId);
+      toast.error('Cannot move card: Invalid column ID. Please refresh the page.');
+      return;
+    }
+
+    if (fromColumnId && !objectIdRegex.test(fromColumnId)) {
+      console.error('❌ Invalid source column ID format:', fromColumnId);
+      // Still allow move if source is invalid (might be from a deleted column)
+    }
+
+    // Handle reordering within same column/subcolumn
+    if (destination.droppableId === source.droppableId && toColumnId && draggableId) {
+      // Same column/subcolumn, just reordering
+      handleCardReorder(draggableId, fromColumnId, toColumnId, toSubColumnId, destination.index);
+      return;
+    }
+
+    // Move the card between different columns/subcolumns
+    if (toColumnId && draggableId) {
+      handleCardMove(draggableId, fromColumnId, toColumnId, toSubColumnId, destination.index);
+    } else {
+      console.error('❌ Cannot move card: Missing required column ID');
+      toast.error('Cannot move card: Column information is missing.');
+    }
+  }, [handleCardMove, handleCardReorder, activeColumns, getCardsByColumn, getCardsBySubcolumn, cards, moveCard]);
+
 
   // Handle card select
   const handleCardSelect = (cardId, isMultiSelect) => {
@@ -334,11 +455,6 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       setSelectedCards([cardId]);
     }
   };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
 
   if (loading) {
     return <LoadingOverlay message="Loading Kanban Board..." />;
@@ -429,10 +545,11 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
       </div>
 
       {/* Board Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-x-auto">
-          <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full ">
-            {activeColumns.map((column) => {
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full ">
+              {activeColumns.map((column) => {
               const columnCards = getCardsByColumn(column.id);
               const filteredCards = getFilteredCards(columnCards);
               const hasSubcolumns = column.subcolumns && column.subcolumns.length > 0;
@@ -465,37 +582,12 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                   />
                 </motion.div>
               );
-            })}
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      </DragDropContext>
 
-      {/* Drag Preview */}
-      <AnimatePresence>
-        {isDragging && draggedCard && (
-          <motion.div
-            className="fixed pointer-events-none z-50"
-            style={{
-              left: dragPreview?.x || 0,
-              top: dragPreview?.y || 0,
-              transform: 'rotate(5deg)',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-              opacity: 0.9
-            }}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.9, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-          >
-            <PragmaticKanbanCard
-              card={draggedCard}
-              isDragging={true}
-              getDragStyles={() => ({})}
-              getDropZoneStyles={() => ({})}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Filters Panel */}
       <AnimatePresence>
@@ -562,6 +654,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         onDelete={handleDeleteCard}
         onMove={(card) => {}}
         onCopy={(card) => {}}
+        isNewCard={false}
       />
     </div>
     </>

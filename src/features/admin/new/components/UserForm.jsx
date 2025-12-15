@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import apiServiceFactory from '../../../services/ApiServiceFactory.js';
+import { DESIGNATIONS } from '../../utils/designations';
 
 const UserForm = ({ user = null, onClose, onSuccess }) => {
   const { apiRequest } = useAuth();
@@ -400,16 +401,21 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Designation *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                     validationErrors.designation ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter designation"
-                />
+                >
+                  <option value="">Select designation</option>
+                  {DESIGNATIONS.map((designation) => (
+                    <option key={designation} value={designation}>
+                      {designation}
+                    </option>
+                  ))}
+                </select>
                 {validationErrors.designation && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.designation}</p>
                 )}

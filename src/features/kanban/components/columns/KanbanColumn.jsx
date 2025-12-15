@@ -4,10 +4,12 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 import KanbanCard from '../cards/KanbanCard';
 import ColumnHeader from './ColumnHeader';
 import CreateCardButton from '../ui/CreateCardButton';
 import ColumnSearch from '../search/ColumnSearch';
+import SubColumnUserToggle from './SubColumnUserToggle';
 import { useKanban } from '../../contexts/KanbanContext';
 
 const KanbanColumn = ({
@@ -19,11 +21,13 @@ const KanbanColumn = ({
   onDragEnd,
   boardId
 }) => {
-  const { toggleColumnActivation, canPerformAction } = useKanban();
+  const { toggleColumnActivation, canPerformAction, user: currentUser } = useKanban();
   const [isHovered, setIsHovered] = useState(false);
 
-  // Check if this is a grouped column
-  const isGrouped = column.isGrouped || column.subcolumns?.length > 0;
+  // Check if this is a grouped column (has sub-columns)
+  // Support both subcolumns (frontend format) and sub_columns (backend format)
+  const subColumns = column.subcolumns || column.sub_columns || [];
+  const isGrouped = column.isGrouped || column.has_sub_columns || subColumns.length > 0;
   
   // Check if this column allows card creation
   // Backend columns: allow creation in first column (typically "To Do")
@@ -47,11 +51,6 @@ const KanbanColumn = ({
 
   // Handle card creation
   const handleCreateCard = useCallback(async (cardData) => {
-    console.log('🔵 KanbanColumn.handleCreateCard called', { 
-      canCreateCard, 
-      hasOnCreateCard: !!onCreateCard,
-      cardData 
-    });
     
     if (canCreateCard && onCreateCard) {
       const enhancedCardData = {
@@ -59,36 +58,65 @@ const KanbanColumn = ({
         columnId: column.id,
         position: cards.length * 1000
       };
-      console.log('🔵 Calling parent onCreateCard with', enhancedCardData);
       const result = await onCreateCard(enhancedCardData);
-      console.log('🔵 Parent onCreateCard returned', result);
       return result;
     }
     
-    console.log('🔴 Cannot create card:', { canCreateCard, hasOnCreateCard: !!onCreateCard });
     return null;
   }, [canCreateCard, onCreateCard, column.id, cards.length]);
 
   // Render subcolumns for grouped columns
   const renderSubcolumns = () => {
-    if (!isGrouped || !column.subcolumns?.length) return null;
+    if (!isGrouped || subColumns.length === 0) return null;
+
+    // Determine if current user is Office or Sales (can see disabled users)
+    const isOfficeOrSales = currentUser && (
+      currentUser.designation === 'Office' || 
+      currentUser.designation === 'Sales' ||
+      (currentUser.roles && (currentUser.roles.includes('admin') || currentUser.roles.includes('super_admin')))
+    );
 
     return (
       <div className="flex gap-6">
-        {column.subcolumns.map((subcolumn) => {
+        {subColumns.map((subcolumn) => {
+          // Check if this sub-column is disabled (for user-based sub-columns)
+          const isDisabled = subcolumn.is_disabled || subcolumn.is_enabled === false;
+          const isUserBased = subcolumn.is_user_based || subcolumn.user_id;
+          
+          // Filter logic: hide disabled users from non-Office/Sales users
+          if (isDisabled && !isOfficeOrSales && isUserBased) {
+            return null; // Don't render disabled user sub-columns for non-Office/Sales
+          }
+
           const subcolumnCards = cards.filter(card => card.subcolumnId === subcolumn.id);
           
           return (
             <div
               key={subcolumn.id}
-              className="flex flex-col w-80"
+              className={`flex flex-col w-80 ${isDisabled && isOfficeOrSales ? 'opacity-50' : ''}`}
             >
               {/* Subcolumn Header */}
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900 dark:text-white text-sm">
-                    {subcolumn.title}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                      {subcolumn.name || subcolumn.title}
+                    </h3>
+                    {isUserBased && (
+                      <SubColumnUserToggle
+                        boardId={boardId}
+                        userId={subcolumn.user_id}
+                        columnId={column.id}
+                        isEnabled={!isDisabled}
+                        userDesignation={subcolumn.designation}
+                        currentUserDesignation={currentUser?.designation}
+                        onToggle={(userId, colId, enabled) => {
+                          // Refresh the board/columns to update sub-column visibility
+                          // This will be handled by the parent component or context
+                        }}
+                      />
+                    )}
+                  </div>
                   {subcolumn.hasSearch && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       Search enabled
@@ -110,25 +138,48 @@ const KanbanColumn = ({
                 )}
               </div>
 
-              {/* Subcolumn Cards */}
-              <div className="space-y-3 min-h-[200px]">
-                {subcolumnCards.map((card, index) => (
-                  <CardComponent
-                    key={card.id}
-                    card={card}
-                    onClick={() => onCardClick?.(card)}
-                    onDragEnd={onDragEnd}
-                    index={index}
-                  />
-                ))}
-                
-                {/* Empty state */}
-                {subcolumnCards.length === 0 && (
-                  <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
-                    No cards
+              {/* Subcolumn Cards - Droppable for sub-column */}
+              <Droppable droppableId={`subcolumn-${subcolumn.id}`}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`space-y-3 min-h-[200px] ${snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                  >
+                    {subcolumnCards.map((card, index) => (
+                      <Draggable key={card.id} draggableId={card.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            style={{
+                              ...provided.draggableProps.style,
+                              opacity: snapshot.isDragging ? 0.5 : 1
+                            }}
+                          >
+                            <CardComponent
+                              card={card}
+                              onCardClick={onCardClick}
+                              onClick={() => onCardClick?.(card)}
+                              onDragEnd={onDragEnd}
+                              index={index}
+                            />
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                    
+                    {/* Empty state */}
+                    {subcolumnCards.length === 0 && (
+                      <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
+                        No cards
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </Droppable>
             </div>
           );
         })}
@@ -136,27 +187,50 @@ const KanbanColumn = ({
     );
   };
 
-  // Render simple column (non-grouped)
+  // Render simple column (non-grouped) - Droppable for column
   const renderSimpleColumn = () => {
     return (
-      <div className="space-y-3 min-h-[200px]">
-        {cards.map((card, index) => (
-          <CardComponent
-            key={card.id}
-            card={card}
-            onClick={() => onCardClick?.(card)}
-            onDragEnd={onDragEnd}
-            index={index}
-          />
-        ))}
-        
-        {/* Empty state */}
-        {cards.length === 0 && (
-          <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
-            No cards
+      <Droppable droppableId={`column-${column.id}`}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`space-y-3 min-h-[200px] ${snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+          >
+            {cards.map((card, index) => (
+              <Draggable key={card.id} draggableId={card.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    style={{
+                      ...provided.draggableProps.style,
+                      opacity: snapshot.isDragging ? 0.5 : 1
+                    }}
+                  >
+                    <CardComponent
+                      card={card}
+                      onCardClick={onCardClick}
+                      onClick={() => onCardClick?.(card)}
+                      onDragEnd={onDragEnd}
+                      index={index}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+            
+            {/* Empty state */}
+            {cards.length === 0 && (
+              <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
+                No cards
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </Droppable>
     );
   };
 

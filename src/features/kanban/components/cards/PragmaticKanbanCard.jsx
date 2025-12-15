@@ -3,13 +3,12 @@
  * Enhanced card component using Pragmatic DND for better drag experience
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   Clock, 
   User, 
-  MoreHorizontal, 
   CheckCircle2,
   AlertCircle,
   Circle,
@@ -18,11 +17,11 @@ import {
   Tag
 } from 'lucide-react';
 
-import { usePragmaticDragAndDrop } from '../../hooks/usePragmaticDragAndDrop';
 import { usePriorityDisplay, useLabelsDisplay } from '../../hooks/useKanban';
 
 /**
  * Pragmatic Drag and Drop Kanban Card Component
+ * Note: Drag functionality is now handled by @hello-pangea/dnd Draggable wrapper in KanbanColumn
  */
 const PragmaticKanbanCard = ({ 
   card, 
@@ -35,28 +34,60 @@ const PragmaticKanbanCard = ({
   onDragEnd = null
 }) => {
   const cardRef = useRef(null);
-  const { setupDraggable } = usePragmaticDragAndDrop();
   
   const [isHovered, setIsHovered] = useState(false);
-  const [showActions, setShowActions] = useState(false);
-
-  // Setup draggable when card changes
-  useEffect(() => {
-    if (cardRef.current && card) {
-      console.log('Setting up draggable for card:', card.title);
-      const cleanup = setupDraggable(cardRef.current, card, onDragEnd);
-      return () => {
-        console.log('Cleaning up draggable for card:', card.title);
-        if (cleanup) cleanup();
-      };
-    }
-  }, [card, setupDraggable, onDragEnd]);
 
   // Get priority configuration
   const priorityConfig = usePriorityDisplay(card.priority);
   
   // Get label configurations
   const labelConfigs = useLabelsDisplay(card.labels || []);
+
+  // Cover image/color - use coverImage if set, otherwise use first image attachment (Trello behavior)
+  let coverImage = card.coverImage;
+  
+  // If no explicit cover, use first image attachment
+  if (!coverImage || (!coverImage.url && !coverImage.color)) {
+    const attachments = card.attachments || [];
+    const firstImageAttachment = attachments.find(att => {
+      // Check if attachment is an image
+      const mimeType = att.mime_type || att.mimeType || '';
+      const fileName = att.original_name || att.name || '';
+      const type = att.type || '';
+      return type === 'image' || 
+             mimeType.startsWith('image/') || 
+             /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(fileName);
+    });
+    
+    if (firstImageAttachment) {
+      const baseURL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      let imageUrl = firstImageAttachment.url || '';
+      
+      // Construct full URL if needed
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        if (!imageUrl.startsWith('/')) {
+          imageUrl = '/' + imageUrl;
+        }
+        imageUrl = `${baseURL}${imageUrl}`;
+      }
+      
+      coverImage = {
+        attachment_id: firstImageAttachment.id || firstImageAttachment._id || null,
+        url: imageUrl,
+        color: null,
+        size: 'normal'
+      };
+    }
+  }
+  
+  const hasCover = coverImage && (coverImage.url || coverImage.color);
+  const coverStyle = coverImage?.color 
+    ? { backgroundColor: coverImage.color }
+    : coverImage?.url 
+    ? { backgroundImage: `url(${coverImage.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : {};
+  
+  const coverHeight = coverImage?.size === 'full' ? '260px' : '116px'; // Standard card cover height
 
   // Handle card click
   const handleCardClick = (e) => {
@@ -82,13 +113,6 @@ const PragmaticKanbanCard = ({
   // Handle mouse leave
   const handleMouseLeave = () => {
     setIsHovered(false);
-    setShowActions(false);
-  };
-
-  // Handle actions toggle
-  const handleActionsToggle = (e) => {
-    e.stopPropagation();
-    setShowActions(!showActions);
   };
 
   // Get drag styles
@@ -105,6 +129,7 @@ const PragmaticKanbanCard = ({
         ${isDragging ? 'opacity-50 scale-95' : ''}
         ${isSelected ? 'ring-2 ring-blue-400 ring-opacity-50 dark:ring-blue-500' : ''}
         ${isHovered ? 'shadow-lg shadow-blue-100 dark:shadow-gray-800' : ''}
+        overflow-hidden
       `}
       style={{
         ...dragStyles,
@@ -124,23 +149,26 @@ const PragmaticKanbanCard = ({
       }}
       layout
     >
+      {/* Cover Image/Color - Display above title */}
+      {hasCover && (
+        <div 
+          className="w-full"
+          style={{ 
+            ...coverStyle, 
+            height: coverHeight, 
+            minHeight: coverHeight,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center'
+          }}
+        />
+      )}
+      
       {/* Card Header */}
       <div className="p-4 pb-3">
         <div className="flex items-start justify-between mb-2">
           <h3 className="text-sm font-medium text-gray-800 dark:text-white line-clamp-2 flex-1">
             {card.title}
           </h3>
-          
-          {/* Actions Button */}
-          <button
-            className={`
-              ml-2 p-1 rounded hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors
-              ${showActions ? 'bg-blue-50 dark:bg-gray-600' : ''}
-            `}
-            onClick={handleActionsToggle}
-          >
-            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          </button>
         </div>
 
         {/* Description */}
