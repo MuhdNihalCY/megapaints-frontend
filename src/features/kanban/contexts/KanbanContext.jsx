@@ -272,6 +272,25 @@ export const KanbanProvider = ({ children, user }) => {
               // Still create the column but log the error - the backend should always provide _id
             }
             
+            const subColumns = col.sub_columns || [];
+            const isGrouped = (col.has_sub_columns && subColumns.length > 0) || false;
+            
+            console.log('[SUB-COL] Transforming column from backend', {
+              columnIndex: index,
+              columnId: columnId,
+              columnName: col.name,
+              hasSubColumns: col.has_sub_columns,
+              subColumnsFromBackend: subColumns,
+              subColumnsCount: subColumns.length,
+              subColumnDetails: subColumns.map(sc => ({
+                id: sc.id,
+                name: sc.name,
+                is_user_based: sc.is_user_based,
+                user_id: sc.user_id
+              })),
+              isGrouped: isGrouped
+            });
+            
             return {
               id: columnId, // Use backend _id as id - MUST be MongoDB ObjectId
               _id: columnId, // Keep backend _id
@@ -282,13 +301,25 @@ export const KanbanProvider = ({ children, user }) => {
               isActive: col.is_active !== false,
               is_active: col.is_active !== false,
               has_sub_columns: col.has_sub_columns || false,
-              subcolumns: col.sub_columns || [], // Include sub-columns from backend (static + dynamic merged)
-              sub_columns: col.sub_columns || [], // Also keep sub_columns for compatibility
+              subcolumns: subColumns, // Include sub-columns from backend (static + dynamic merged)
+              sub_columns: subColumns, // Also keep sub_columns for compatibility
               type: 'static', // Default type
-              isGrouped: (col.has_sub_columns && col.sub_columns && col.sub_columns.length > 0) || false,
+              isGrouped: isGrouped,
               cards: [],
               settings: {}
             };
+          });
+          
+          console.log('[SUB-COL] All columns transformed', {
+            totalColumns: columns.length,
+            columnsWithSubColumns: columns
+              .filter(c => c.subcolumns && c.subcolumns.length > 0)
+              .map(c => ({
+                id: c.id,
+                name: c.name,
+                subColumnsCount: c.subcolumns.length,
+                subColumnNames: c.subcolumns.map(sc => sc.name)
+              }))
           });
         } catch (error) {
           console.error('❌ Failed to fetch columns from backend:', error);

@@ -1,22 +1,24 @@
 /**
- * ReadyProductsManager Component
- * Manage ready products on Trello-style cards
+ * ProductionItemsManager Component
+ * Manage production items on Trello-style cards with checklist functionality
  * Horizontal form layout: Product Name | Quantity | Unit | Add Button
+ * Each item has a checkbox for completion tracking
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, X, Plus, Trash2, Edit2, ChevronDown } from 'lucide-react';
+import { Check, Trash2, Edit2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import productSearchService from '../../services/productSearchService';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { format } from 'date-fns';
 
 const UNITS = ['kg', 'g', 'L', 'mL', 'Liter', 'piece', 'set', 'box', 'unit'];
 
-const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
+const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
   const { user } = useAuth();
-  const [products, setProducts] = useState(() => {
-    const readyProducts = card?.readyProducts || card?.ready_products || [];
-    return Array.isArray(readyProducts) ? readyProducts : [];
+  const [items, setItems] = useState(() => {
+    const productionItems = card?.productionItems || card?.production_items || [];
+    return Array.isArray(productionItems) ? productionItems : [];
   });
   
   // Form state
@@ -39,11 +41,11 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
 
-  // Sync products when card changes
+  // Sync items when card changes
   useEffect(() => {
-    const readyProducts = card?.readyProducts || card?.ready_products || [];
-    if (Array.isArray(readyProducts)) {
-      setProducts(readyProducts);
+    const productionItems = card?.productionItems || card?.production_items || [];
+    if (Array.isArray(productionItems)) {
+      setItems(productionItems);
     }
   }, [card]);
 
@@ -63,7 +65,6 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
     if (!productName.trim()) {
       setSearchResults([]);
       setSelectedProduct(null);
-      // Don't hide dropdown if input is focused - let user see it's ready for input
       return;
     }
 
@@ -77,7 +78,6 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
       } catch (error) {
         console.error('Product search error:', error);
         setSearchResults([]);
-        // Keep dropdown visible if input is focused
         if (isInputFocused) {
           setShowDropdown(true);
         }
@@ -99,16 +99,16 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
     setSearchResults([]);
   };
 
-  // Handle add product
-  const handleAddProduct = () => {
+  // Handle add item
+  const handleAddItem = () => {
     if (!selectedProduct) {
       alert('Please select a product from the dropdown');
       return;
     }
 
     // Check if product is already added
-    const isAlreadyAdded = products.some(p => 
-      (p.product_id || p._id) === selectedProduct._id
+    const isAlreadyAdded = items.some(item => 
+      (item.product_id || item._id) === selectedProduct._id
     );
     
     if (isAlreadyAdded) {
@@ -122,19 +122,20 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
       return;
     }
 
-    const newProduct = {
+    const newItem = {
       product_id: selectedProduct._id,
       product_name: selectedProduct.name,
       product_code: selectedProduct.code,
       quantity: qty,
       unit: unit,
+      is_completed: false,
       added_at: new Date().toISOString(),
       added_by: currentUser?.id || currentUser?._id
     };
 
-    const updatedProducts = [...products, newProduct];
-    setProducts(updatedProducts);
-    onUpdate(updatedProducts);
+    const updatedItems = [...items, newItem];
+    setItems(updatedItems);
+    onUpdate(updatedItems);
     
     // Reset form
     setProductName('');
@@ -143,19 +144,36 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
     setSelectedProduct(null);
   };
 
-  // Handle remove product
-  const handleRemoveProduct = (index) => {
-    const updatedProducts = products.filter((_, i) => i !== index);
-    setProducts(updatedProducts);
-    onUpdate(updatedProducts);
+  // Handle toggle completion
+  const handleToggleCompletion = (index) => {
+    const updatedItems = [...items];
+    const item = updatedItems[index];
+    const isCompleted = !item.is_completed;
+    
+    updatedItems[index] = {
+      ...item,
+      is_completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null,
+      completed_by: isCompleted ? (currentUser?.id || currentUser?._id) : null
+    };
+
+    setItems(updatedItems);
+    onUpdate(updatedItems);
+  };
+
+  // Handle remove item
+  const handleRemoveItem = (index) => {
+    const updatedItems = items.filter((_, i) => i !== index);
+    setItems(updatedItems);
+    onUpdate(updatedItems);
   };
 
   // Handle start edit
   const handleStartEdit = (index) => {
-    const product = products[index];
+    const item = items[index];
     setEditingIndex(index);
-    setEditQuantity(product.quantity.toString());
-    setEditUnit(product.unit);
+    setEditQuantity(item.quantity.toString());
+    setEditUnit(item.unit);
   };
 
   // Handle save edit
@@ -173,15 +191,15 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
       return;
     }
 
-    const updatedProducts = [...products];
-    updatedProducts[editingIndex] = {
-      ...updatedProducts[editingIndex],
+    const updatedItems = [...items];
+    updatedItems[editingIndex] = {
+      ...updatedItems[editingIndex],
       quantity: qty,
       unit: editUnit.trim()
     };
 
-    setProducts(updatedProducts);
-    onUpdate(updatedProducts);
+    setItems(updatedItems);
+    onUpdate(updatedItems);
     setEditingIndex(null);
     setEditQuantity('');
     setEditUnit('');
@@ -203,7 +221,6 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
   // Handle input blur
   const handleInputBlur = () => {
     setIsInputFocused(false);
-    // Delay closing dropdown to allow clicking on dropdown items
     setTimeout(() => {
       if (!isInputFocused) {
         setShowDropdown(false);
@@ -232,7 +249,7 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
   return (
     <div className="mb-6">
       {/* Title */}
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Ready Products</h3>
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Production Items</h3>
       
       {/* Horizontal Form */}
       <div className="flex items-center gap-2 mb-4" ref={searchRef}>
@@ -272,7 +289,7 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
                     <button
                       key={product._id}
                       onClick={() => handleProductSelect(product)}
-                      onMouseDown={(e) => e.preventDefault()} // Prevent input blur when clicking
+                      onMouseDown={(e) => e.preventDefault()}
                       className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
                       <div className="font-medium text-sm text-gray-900 dark:text-white">
@@ -320,24 +337,31 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
 
         {/* Add Button */}
         <button
-          onClick={handleAddProduct}
+          onClick={handleAddItem}
           className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
         >
           Add
         </button>
       </div>
 
-      {/* Products List */}
-      {products.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400 italic">No products added yet</p>
+      {/* Items List */}
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 italic">No production items added yet</p>
       ) : (
         <div className="space-y-2">
-          {products.map((product, index) => {
-            const productKey = product.product_id || product._id || `product-${index}`;
+          {items.map((item, index) => {
+            const itemKey = item.product_id || item._id || `item-${index}`;
+            const isCompleted = item.is_completed || false;
+            const completedDate = item.completed_at ? new Date(item.completed_at) : null;
+            
             return (
               <div
-                key={productKey}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                key={itemKey}
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  isCompleted 
+                    ? 'bg-gray-100 dark:bg-gray-800/50 opacity-75' 
+                    : 'bg-gray-50 dark:bg-gray-800'
+                }`}
               >
                 {editingIndex === index ? (
                   <div className="flex-1 flex items-center gap-2">
@@ -379,14 +403,45 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {product.product_name || product.name || 'Unknown Product'}
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => handleToggleCompletion(index)}
+                      className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        isCompleted
+                          ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 bg-white dark:bg-gray-700'
+                      }`}
+                      title={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+                    >
+                      {isCompleted && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
+                    </button>
+                    
+                    {/* Item Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium ${
+                        isCompleted
+                          ? 'line-through text-gray-500 dark:text-gray-400'
+                          : 'text-gray-900 dark:text-white'
+                      }`}>
+                        {item.product_name || item.name || 'Unknown Product'}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {product.product_code || product.code || 'N/A'} • {product.quantity || 0} {product.unit || 'unit'}
+                      <div className={`text-xs ${
+                        isCompleted
+                          ? 'text-gray-400 dark:text-gray-500'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {item.product_code || item.code || 'N/A'} • {item.quantity || 0} {item.unit || 'unit'}
+                        {completedDate && (
+                          <span className="ml-2">
+                            • Completed {format(completedDate, 'MMM d, yyyy')}
+                          </span>
+                        )}
                       </div>
                     </div>
+                    
+                    {/* Action Buttons */}
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleStartEdit(index)}
@@ -396,7 +451,7 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleRemoveProduct(index)}
+                        onClick={() => handleRemoveItem(index)}
                         className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                         title="Remove"
                       >
@@ -414,4 +469,4 @@ const ReadyProductsManager = ({ card, onUpdate, currentUser }) => {
   );
 };
 
-export default ReadyProductsManager;
+export default ProductionItemsManager;

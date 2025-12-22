@@ -46,6 +46,7 @@ import TrelloChecklist from './TrelloChecklist';
 import TrelloAttachments from './TrelloAttachments';
 import CustomFieldsManager from './CustomFieldsManager';
 import ReadyProductsManager from './ReadyProductsManager';
+import ProductionItemsManager from './ProductionItemsManager';
 import { DEFAULT_CUSTOM_FIELDS } from '../../types/customFields';
 import CustomerDropdown from '../../../../components/customer/CustomerDropdown';
 import CustomerManagementModal from '../../../../components/customer/CustomerManagementModal';
@@ -389,7 +390,9 @@ const TrelloCardModal = ({
         title: currentTitle,
         // Preserve column/list IDs from original card
         listId: formData?.listId || formData?.columnId || card?.listId || card?.columnId,
-        columnId: formData?.columnId || formData?.listId || card?.columnId || card?.listId
+        columnId: formData?.columnId || formData?.listId || card?.columnId || card?.listId,
+        // Ensure production_items is included for new cards
+        production_items: formData?.production_items || formData?.productionItems || []
       };
 
       // Call onUpdate with the complete card data (for new cards, onUpdate is handleSave from CreateCardButton)
@@ -589,15 +592,6 @@ const TrelloCardModal = ({
         const isImage = mimeType.startsWith('image/') || 
                        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(fileName);
         
-        // Debug: Log URL construction (after isImage is defined)
-        console.log('🔗 Attachment URL transformation:', {
-          original: att.url,
-          transformed: url,
-          baseURL: baseURL,
-          isImage: isImage,
-          fileName: fileName,
-          mimeType: mimeType
-        });
         
         return {
           id: att._id?.toString() || att.id?.toString() || `att-${Date.now()}-${Math.random()}`,
@@ -1794,14 +1788,6 @@ const TrelloCardModal = ({
                       size: 'normal'
                     };
                     
-                    console.log('📸 Setting card cover:', {
-                      cardId: cardId,
-                      coverData: coverData,
-                      attachment: attachment,
-                      originalAttachmentId: attachment.id,
-                      resolvedAttachmentId: attachmentId
-                    });
-                    
                     // Call backend API via context
                     await contextSetCardCover(cardId, coverData);
                     // Update local state
@@ -1908,6 +1894,41 @@ const TrelloCardModal = ({
                   } catch (error) {
                     console.error('Failed to update ready products:', error);
                     setError('Failed to update ready products: ' + (error.message || 'Unknown error'));
+                  }
+                }}
+                currentUser={currentUser}
+              />
+              
+              {/* Production Items Section */}
+              <ProductionItemsManager
+                card={formData}
+                onUpdate={async (productionItems) => {
+                  try {
+                    // Update local state optimistically
+                    setFormData(prev => ({
+                      ...prev,
+                      productionItems,
+                      production_items: productionItems // Also set backend format
+                    }));
+                    
+                    // Update backend
+                    const cardId = getCardId();
+                    if (cardId) {
+                      await handleCardUpdate(
+                        { production_items: productionItems },
+                        {
+                          updateLocalState: false, // Already updated above
+                          logActivity: true,
+                          activityType: 'production_items_updated',
+                          activityDescription: `updated production items`,
+                          activityMetadata: { count: productionItems.length }
+                        }
+                      );
+                    }
+                    // For new cards, productionItems will be saved when card is created
+                  } catch (error) {
+                    console.error('Failed to update production items:', error);
+                    setError('Failed to update production items: ' + (error.message || 'Unknown error'));
                   }
                 }}
                 currentUser={currentUser}

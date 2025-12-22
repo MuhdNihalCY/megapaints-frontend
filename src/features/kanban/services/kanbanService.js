@@ -549,15 +549,6 @@ class KanbanService {
           formData.append('description', attachmentData.description);
         }
         
-        // Debug: Log FormData contents
-        console.log('📎 FormData created:', {
-          hasFile: formData.has('file'),
-          fileName: attachmentData.file.name,
-          fileSize: attachmentData.file.size,
-          fileType: attachmentData.file.type,
-          fileLastModified: attachmentData.file.lastModified
-        });
-        
         requestData = formData;
         // Configure axios to properly handle FormData
         // Don't set transformRequest - let axios handle FormData natively
@@ -569,13 +560,6 @@ class KanbanService {
         // For link attachments or other non-file data, send as JSON
         requestData = attachmentData;
       }
-      
-      console.log('📤 Sending request:', {
-        url: `${this.baseURL}/kanban/cards/${taskId}/attachments`,
-        method: 'POST',
-        isFormData: requestData instanceof FormData,
-        config: config
-      });
       
       const response = await api.post(
         `${this.baseURL}/kanban/cards/${taskId}/attachments`, 
@@ -1471,6 +1455,7 @@ class KanbanService {
       customFields: apiTask.customFields || apiTask.custom_fields || [],
       contacts: apiTask.contacts || [],
       readyProducts: apiTask.ready_products || apiTask.readyProducts || [],
+      productionItems: apiTask.production_items || apiTask.productionItems || [],
       isDeleted: apiTask.isDeleted || apiTask.is_deleted || false,
       isArchived: apiTask.isArchived || apiTask.is_archived || false,
       closed: apiTask.is_archived || apiTask.isArchived || false,

@@ -3,7 +3,7 @@
  * Individual column in the Kanban board with proper structure according to specifications
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import KanbanCard from '../cards/KanbanCard';
 import ColumnHeader from './ColumnHeader';
@@ -28,6 +28,21 @@ const KanbanColumn = ({
   // Support both subcolumns (frontend format) and sub_columns (backend format)
   const subColumns = column.subcolumns || column.sub_columns || [];
   const isGrouped = column.isGrouped || column.has_sub_columns || subColumns.length > 0;
+  
+  // Debug logging for sub-columns
+  useEffect(() => {
+    console.log('[SUB-COL] KanbanColumn received column data', {
+      columnId: column.id,
+      columnName: column.name || column.title,
+      hasSubColumns: column.has_sub_columns,
+      isGrouped: column.isGrouped,
+      subcolumns: column.subcolumns,
+      sub_columns: column.sub_columns,
+      extractedSubColumns: subColumns,
+      extractedSubColumnsCount: subColumns.length,
+      isGroupedResult: isGrouped
+    });
+  }, [column.id, column.name, column.has_sub_columns, column.subcolumns, column.sub_columns, subColumns.length, isGrouped]);
   
   // Check if this column allows card creation
   // Backend columns: allow creation in first column (typically "To Do")
@@ -67,7 +82,31 @@ const KanbanColumn = ({
 
   // Render subcolumns for grouped columns
   const renderSubcolumns = () => {
-    if (!isGrouped || subColumns.length === 0) return null;
+    console.log('[SUB-COL] renderSubcolumns called', {
+      columnId: column.id,
+      columnName: column.name || column.title,
+      isGrouped: isGrouped,
+      subColumnsCount: subColumns.length,
+      subColumns: subColumns.map(sc => ({
+        id: sc.id,
+        name: sc.name,
+        is_user_based: sc.is_user_based,
+        user_id: sc.user_id,
+        is_disabled: sc.is_disabled,
+        is_enabled: sc.is_enabled
+      }))
+    });
+    
+    if (!isGrouped || subColumns.length === 0) {
+      console.log('[SUB-COL] Not rendering sub-columns', {
+        columnId: column.id,
+        columnName: column.name || column.title,
+        reason: !isGrouped ? 'not grouped' : 'no sub-columns',
+        isGrouped: isGrouped,
+        subColumnsCount: subColumns.length
+      });
+      return null;
+    }
 
     // Determine if current user is Office or Sales (can see disabled users)
     const isOfficeOrSales = currentUser && (
@@ -76,6 +115,16 @@ const KanbanColumn = ({
       (currentUser.roles && (currentUser.roles.includes('admin') || currentUser.roles.includes('super_admin')))
     );
 
+    console.log('[SUB-COL] Current user permissions', {
+      columnId: column.id,
+      columnName: column.name || column.title,
+      currentUserDesignation: currentUser?.designation,
+      currentUserRoles: currentUser?.roles,
+      isOfficeOrSales: !!isOfficeOrSales
+    });
+
+    const renderedSubColumns = [];
+    
     return (
       <div className="flex gap-6">
         {subColumns.map((subcolumn) => {
@@ -85,10 +134,29 @@ const KanbanColumn = ({
           
           // Filter logic: hide disabled users from non-Office/Sales users
           if (isDisabled && !isOfficeOrSales && isUserBased) {
+            console.log('[SUB-COL] Filtering out disabled sub-column', {
+              columnId: column.id,
+              columnName: column.name || column.title,
+              subColumnId: subcolumn.id,
+              subColumnName: subcolumn.name,
+              isDisabled: true,
+              isUserBased: true,
+              isOfficeOrSales: false
+            });
             return null; // Don't render disabled user sub-columns for non-Office/Sales
           }
 
           const subcolumnCards = cards.filter(card => card.subcolumnId === subcolumn.id);
+          
+          console.log('[SUB-COL] Rendering sub-column', {
+            columnId: column.id,
+            columnName: column.name || column.title,
+            subColumnId: subcolumn.id,
+            subColumnName: subcolumn.name,
+            isUserBased: isUserBased,
+            isDisabled: isDisabled,
+            cardsCount: subcolumnCards.length
+          });
           
           return (
             <div
