@@ -78,14 +78,17 @@ function formulaFileFormat(fileNo, subcategoryID, gloss, additiveID, additivePer
 
   // Add subcategory suffix if available
   if (subcategoryID && subcategories) {
-    const subcategory = subcategories.find(sub => 
-      sub._id === subcategoryID || 
-      sub.SubCategory_Id === subcategoryID ||
-      sub.Subcategory_Id === subcategoryID
-    );
+    const subcategory = subcategories.find(sub => {
+      const subId = sub.id || sub._id || sub.SubCategory_Id || sub.Subcategory_Id || sub.SubCategoryId || '';
+      return String(subId) === String(subcategoryID);
+    });
     
-    if (subcategory && subcategory.Suffix) {
-      result = `${result}-${subcategory.Suffix}`;
+    // Check for suffix in various possible locations
+    if (subcategory) {
+      const suffix = subcategory.Suffix || subcategory.suffix || subcategory.Suffix || '';
+      if (suffix) {
+        result = `${result}-${suffix}`;
+      }
     }
   }
 

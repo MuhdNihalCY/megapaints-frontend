@@ -429,9 +429,22 @@ const CreateFormula = () => {
         
         // ===== EXTRACT AND VALIDATE MASTER DATA =====
         
-        // Parse categories (handle both string arrays and object arrays)
+        // Parse categories as objects with id and name (handle both object arrays and legacy string arrays)
         const cats = Array.isArray(data?.categories)
-          ? data.categories.map((c) => (typeof c === 'string' ? c : (c?.name || c?.label || ''))).filter(Boolean)
+          ? data.categories.map((c) => {
+              if (typeof c === 'string') {
+                // Legacy format: "id - name" or just name
+                const parts = c.split(' - ');
+                return parts.length > 1 
+                  ? { id: parts[0], name: parts.slice(1).join(' - ') }
+                  : { id: c, name: c };
+              }
+              // New format: object with id and name
+              return {
+                id: c?.id || c?._id || c?.Category_Id || '',
+                name: c?.name || c?.Category || c?.Category_Name || c?.label || ''
+              };
+            }).filter(c => c.id && c.name)
           : [];
         
         // Extract subcategory mappings and default values
@@ -452,9 +465,12 @@ const CreateFormula = () => {
 
         // ===== BUILD DEFAULT VALUES =====
         // Construct default values object with fallbacks for all required fields
+        const defaultCategoryId = data?.defaultCategory || cats[0]?.id || '100';
+        const defaultSubCategoryId = data?.defaultSubCategory || (subByCat[defaultCategoryId]?.[0]?.id) || '';
+        
         const defaults = {
-          category: data?.defaultCategory || cats[0] || '100 - Paints',
-          subCategory: data?.defaultSubCategory || (subByCat[cats[0]]?.[0]) || 'Rosner_Acrylic',
+          category: defaultCategoryId,
+          subCategory: defaultSubCategoryId,
           gloss: glossDefault,
           tints: normalizeTints(data?.defaultTints),
           binders: Array.isArray(data?.defaultBinders) ? data.defaultBinders.map((b) => ({
@@ -474,16 +490,24 @@ const CreateFormula = () => {
 
         if (!cancelled) {
           // ===== UPDATE OPTIONS AND CONFIGURATIONS =====
-          // Set available categories and subcategories
-          setCategoryOptions(cats.length ? cats : ['100 - Paints', '200 - Primers']);
+          // Set available categories as objects with id and name
+          const fallbackCategories = [
+            { id: '100', name: 'Paints' },
+            { id: '200', name: 'Primers' }
+          ];
+          setCategoryOptions(cats.length ? cats : fallbackCategories);
           setSubCategoriesByCategory(subByCat);
           setProductsBySubCategory(productsBySub);
           
           // Dynamic data loaded and configured
           
-          // Set subcategory options for the selected category
-          const initialSubs = subByCat[defaults.category];
-          setSubCategoryOptions(Array.isArray(initialSubs) && initialSubs.length ? initialSubs : ['Rosner_Acrylic', 'Rosner_PU']);
+          // Set subcategory options for the selected category (as objects)
+          const initialSubs = subByCat[defaults.category] || [];
+          const fallbackSubs = [
+            { id: 'rosner_acrylic', name: 'Rosner_Acrylic' },
+            { id: 'rosner_pu', name: 'Rosner_PU' }
+          ];
+          setSubCategoryOptions(Array.isArray(initialSubs) && initialSubs.length ? initialSubs : fallbackSubs);
           
           // Set product and binder configurations
           setProducts(prods);
@@ -521,10 +545,16 @@ const CreateFormula = () => {
           setMastersError('Failed to load data.');
           
           // Set fallback sensible defaults when server data fails to load
-          setCategoryOptions(['100 - Paints', '200 - Primers']);
-          setSubCategoryOptions(['Rosner_Acrylic', 'Rosner_PU']);
-          setCategory('100 - Paints');
-          setSubCategory('Rosner_Acrylic');
+          setCategoryOptions([
+            { id: '100', name: 'Paints' },
+            { id: '200', name: 'Primers' }
+          ]);
+          setSubCategoryOptions([
+            { id: 'rosner_acrylic', name: 'Rosner_Acrylic' },
+            { id: 'rosner_pu', name: 'Rosner_PU' }
+          ]);
+          setCategory('100');
+          setSubCategory('rosner_acrylic');
           setGloss(0);
           setGlossInput('');
           setTints(normalizeTints([createEmptyTint(1)]));
@@ -549,8 +579,12 @@ const CreateFormula = () => {
     setSubCategoryOptions(nextOptions);
     
     // Reset subcategory if current selection is no longer valid
-    if (!nextOptions.includes(subCategory)) {
-      setSubCategory(nextOptions[0] || '');
+    // Check if current subCategory ID exists in the new options
+    const currentSubExists = nextOptions.some(sub => sub.id === subCategory || sub._id === subCategory);
+    if (!currentSubExists && nextOptions.length > 0) {
+      setSubCategory(nextOptions[0].id || nextOptions[0]._id || '');
+    } else if (!currentSubExists) {
+      setSubCategory('');
     }
     
     // Debug: Dynamic data flow - Category change
@@ -559,7 +593,7 @@ const CreateFormula = () => {
         category, 
         subcategoryOptions: nextOptions.length,
         currentSubCategory: subCategory,
-        willReset: !nextOptions.includes(subCategory)
+        willReset: !currentSubExists
       });
     }
   }, [category, subCategoriesByCategory, subCategory]);
@@ -584,7 +618,7 @@ const CreateFormula = () => {
       setProductSearchInput({});
       setShowProductList({});
       
-      // Auto-select binders for the new subcategory
+      // Auto-select binders for the new subcategory (using subcategory ID)
       autoSelectBindersForSubcategory(subCategory);
       
       // Debug: Dynamic data flow - Subcategory change
@@ -1056,19 +1090,22 @@ const CreateFormula = () => {
 
   /**
    * Auto-selects binders based on subcategory configuration
-   * @param {string} subCategoryName - Name of the selected subcategory
+   * @param {string} subCategoryId - ID of the selected subcategory
    */
-  const autoSelectBindersForSubcategory = (subCategoryName) => {
-    if (!subCategoryName) {
+  const autoSelectBindersForSubcategory = (subCategoryId) => {
+    if (!subCategoryId) {
       setSelectedBinder1Id('');
       setSelectedBinder2Id('');
       return;
     }
     
-    // Find the subcategory configuration
-    const subcategoryConfig = Object.values(binderConfigBySubCategory).find(
-      config => config.SubCategory === subCategoryName || config.name === subCategoryName
-    );
+    // Find the subcategory configuration using subcategory ID as key
+    const subcategoryConfig = binderConfigBySubCategory[subCategoryId] || 
+      Object.values(binderConfigBySubCategory).find(
+        config => config.SubCategoryId === subCategoryId || 
+                  config.SubCategory_Id === subCategoryId ||
+                  config._id === subCategoryId
+      );
     
     if (subcategoryConfig) {
       // Extract binder IDs from the configuration
@@ -1082,7 +1119,7 @@ const CreateFormula = () => {
       // Debug: Dynamic data flow - Auto binder selection
       if (process.env.NODE_ENV === 'development') {
         console.log('[Dynamic Data] Auto-selected binders for subcategory:', { 
-          subCategoryName,
+          subCategoryId,
           binder1Id,
           binder2Id,
           availableBinders: rawBinders.length,
@@ -1095,7 +1132,7 @@ const CreateFormula = () => {
       
       // Debug: Dynamic data flow - No binder config found
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Dynamic Data] No binder configuration found for subcategory:', subCategoryName);
+        console.log('[Dynamic Data] No binder configuration found for subcategory:', subCategoryId);
       }
     }
   };
@@ -1775,9 +1812,13 @@ const CreateFormula = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
-                    {categoryOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
+                    {categoryOptions.map((opt) => {
+                      const optId = opt.id || opt._id || opt.Category_Id || '';
+                      const optName = opt.name || opt.Category || opt.Category_Name || opt.label || '';
+                      return (
+                        <option key={optId} value={optId}>{optName}</option>
+                      );
+                    })}
                   </select>
                 </div>
                 
@@ -1789,9 +1830,13 @@ const CreateFormula = () => {
                     onChange={(e) => setSubCategory(e.target.value)}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                   >
-                    {subCategoryOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
+                    {subCategoryOptions.map((opt) => {
+                      const optId = opt.id || opt._id || opt.SubCategory_Id || '';
+                      const optName = opt.name || opt.SubCategory || opt.Subcategory_Name || opt.label || '';
+                      return (
+                        <option key={optId} value={optId}>{optName}</option>
+                      );
+                    })}
                   </select>
                 </div>
                 

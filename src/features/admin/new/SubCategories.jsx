@@ -23,97 +23,307 @@ const SubCategories = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
 
+  // Helper function to normalize MongoDB ObjectId to string
+  const normalizeId = (id) => {
+    if (!id) return null;
+    
+    // If already a string, clean it and return
+    if (typeof id === 'string') {
+      // Remove any suffix after colon (like :1) that might be added by ObjectId conversion
+      const cleaned = id.split(':')[0].trim();
+      // Validate it's a valid MongoDB ObjectId format (24 hex characters)
+      if (/^[0-9a-fA-F]{24}$/.test(cleaned)) {
+        return cleaned;
+      }
+      return id.trim();
+    }
+    
+    // Handle ObjectId objects
+    if (id && typeof id === 'object') {
+      // Try toHexString() first (most reliable for ObjectId)
+      if (id.toHexString && typeof id.toHexString === 'function') {
+        try {
+          const hexStr = id.toHexString();
+          if (hexStr && typeof hexStr === 'string' && hexStr.length > 0) {
+            return hexStr.trim();
+          }
+        } catch (e) {
+          // Continue to other methods
+        }
+      }
+      
+      // Try valueOf() method
+      if (id.valueOf && typeof id.valueOf === 'function') {
+        try {
+          const value = id.valueOf();
+          if (typeof value === 'string') {
+            const cleaned = value.split(':')[0].trim();
+            return cleaned;
+          }
+          if (typeof value === 'object' && value.toHexString) {
+            try {
+              return value.toHexString().trim();
+            } catch (e) {
+              // Continue
+            }
+          }
+        } catch (e) {
+          // Continue to other methods
+        }
+      }
+      
+      // Try toString() method
+      if (id.toString && typeof id.toString === 'function') {
+        try {
+          const str = id.toString();
+          // Remove any suffix after colon
+          const cleaned = str.split(':')[0].trim();
+          // Check if it's a valid ObjectId format
+          if (cleaned && cleaned !== '[object Object]' && /^[0-9a-fA-F]{24}$/.test(cleaned)) {
+            return cleaned;
+          }
+        } catch (e) {
+          // Continue to other methods
+        }
+      }
+      
+      // Try accessing _id property
+      if (id._id) {
+        const nestedId = normalizeId(id._id);
+        if (nestedId) return nestedId;
+      }
+      
+      // Try accessing id property
+      if (id.id) {
+        const nestedId = normalizeId(id.id);
+        if (nestedId) return nestedId;
+      }
+    }
+    
+    // Last resort - convert to string and clean
+    const str = String(id);
+    if (str && str !== '[object Object]' && str !== 'undefined' && str !== 'null') {
+      // Remove any suffix after colon
+      const cleaned = str.split(':')[0].trim();
+      // Validate ObjectId format
+      if (/^[0-9a-fA-F]{24}$/.test(cleaned)) {
+        return cleaned;
+      }
+      return cleaned;
+    }
+    
+    return null;
+  };
+
+  // Log state changes
   useEffect(() => {
+    console.log('[SubCategories] State change - loading:', loading);
+  }, [loading]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - error:', error);
+  }, [error]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - subCategories count:', subCategories.length);
+  }, [subCategories.length]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - categories count:', categories.length);
+  }, [categories.length]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - showForm:', showForm);
+  }, [showForm]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - editingCategory:', editingCategory ? { id: editingCategory._id, name: editingCategory.name } : null);
+  }, [editingCategory]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - sortField:', sortField, 'sortDirection:', sortDirection);
+  }, [sortField, sortDirection]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - searchTerm:', searchTerm, 'filterCategory:', filterCategory, 'filterStatus:', filterStatus);
+  }, [searchTerm, filterCategory, filterStatus]);
+
+  useEffect(() => {
+    console.log('[SubCategories] State change - showAdvancedSearch:', showAdvancedSearch);
+  }, [showAdvancedSearch]);
+
+  useEffect(() => {
+    console.log('[SubCategories] Component mounted');
     fetchSubCategories();
     fetchCategories();
+    
+    return () => {
+      console.log('[SubCategories] Component unmounting');
+    };
   }, []);
 
   const fetchSubCategories = async () => {
+    console.log('[SubCategories] fetchSubCategories - Starting API call');
     try {
       setLoading(true);
       setError('');
       const adminServices = getAdminServices();
       // Fetch sub-categories (categories with parent_id)
-      const response = await adminServices.productCatalog.getCategories({
+      const requestParams = {
         parent_id: 'not_null', // This will fetch all categories with a parent
         limit: 100
-      });
+      };
+      console.log('[SubCategories] fetchSubCategories - Request params:', requestParams);
+      
+      const response = await adminServices.productCatalog.getCategories(requestParams);
+      console.log('[SubCategories] fetchSubCategories - API Response:', response);
       
       if (response.status === 'success') {
         // Filter to only show sub-categories (those with parent_id)
         const subCats = response.data.categories.filter(cat => cat.parent_id);
+        console.log('[SubCategories] fetchSubCategories - Filtered sub-categories:', subCats.length, subCats);
         setSubCategories(subCats);
+        console.log('[SubCategories] fetchSubCategories - State updated with', subCats.length, 'sub-categories');
       } else {
+        console.error('[SubCategories] fetchSubCategories - API returned error:', response.message);
         setError(response.message || 'Failed to fetch sub-categories');
       }
     } catch (err) {
-      console.error('Failed to fetch sub-categories:', err);
+      console.error('[SubCategories] fetchSubCategories - Exception caught:', err);
+      console.error('[SubCategories] fetchSubCategories - Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
       setError(err.message || 'Failed to fetch sub-categories');
     } finally {
       setLoading(false);
+      console.log('[SubCategories] fetchSubCategories - Loading set to false');
     }
   };
 
   const fetchCategories = async () => {
+    console.log('[SubCategories] fetchCategories - Starting API call');
     try {
       const adminServices = getAdminServices();
       // Fetch all root categories (no parent) to use as parent options
-      const response = await adminServices.productCatalog.getRootCategories({
+      const requestParams = {
         limit: 100
-      });
+      };
+      console.log('[SubCategories] fetchCategories - Request params:', requestParams);
+      
+      const response = await adminServices.productCatalog.getRootCategories(requestParams);
+      console.log('[SubCategories] fetchCategories - API Response:', response);
       
       if (response.status === 'success') {
-        setCategories(response.data.categories || []);
+        const categoriesList = response.data.categories || [];
+        console.log('[SubCategories] fetchCategories - Fetched', categoriesList.length, 'categories:', categoriesList);
+        setCategories(categoriesList);
+        console.log('[SubCategories] fetchCategories - State updated with', categoriesList.length, 'categories');
+      } else {
+        console.error('[SubCategories] fetchCategories - API returned error:', response.message);
       }
     } catch (err) {
-      console.error('Failed to fetch categories:', err);
+      console.error('[SubCategories] fetchCategories - Exception caught:', err);
+      console.error('[SubCategories] fetchCategories - Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
     }
   };
 
   const handleAdd = () => {
+    console.log('[SubCategories] handleAdd - User clicked Add Sub-Category button');
     setEditingCategory(null);
     setParentCategory(null);
     setShowForm(true);
+    console.log('[SubCategories] handleAdd - Form state updated: showForm=true, editingCategory=null, parentCategory=null');
   };
 
   const handleEdit = (subCategory) => {
+    console.log('[SubCategories] handleEdit - User clicked Edit button for sub-category:', {
+      id: subCategory._id,
+      name: subCategory.name,
+      parent_id: subCategory.parent_id
+    });
     setEditingCategory(subCategory);
     setParentCategory(subCategory.parent_id);
     setShowForm(true);
+    console.log('[SubCategories] handleEdit - Form state updated: showForm=true, editingCategory set, parentCategory set');
   };
 
   const handleDelete = async (subCategoryId) => {
+    console.log('[SubCategories] handleDelete - User clicked Delete button for sub-category:', subCategoryId);
+    console.log('[SubCategories] handleDelete - ID type:', typeof subCategoryId, 'ID value:', subCategoryId);
+    
+    // Normalize the ID to ensure it's a clean string
+    const normalizedId = normalizeId(subCategoryId);
+    
+    if (!normalizedId) {
+      console.error('[SubCategories] handleDelete - Failed to normalize ID:', subCategoryId);
+      alert('Invalid sub-category ID. Please try again.');
+      return;
+    }
+    
+    // Validate the normalized ID is a valid MongoDB ObjectId format
+    const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+    if (!objectIdPattern.test(normalizedId)) {
+      console.error('[SubCategories] handleDelete - Invalid ObjectId format:', normalizedId);
+      alert('Invalid sub-category ID format. Please try again.');
+      return;
+    }
+    
+    console.log('[SubCategories] handleDelete - Normalized ID:', normalizedId, '(original:', subCategoryId, ')');
+    
     if (!window.confirm('Are you sure you want to delete this sub-category?')) {
+      console.log('[SubCategories] handleDelete - User cancelled deletion');
       return;
     }
 
+    console.log('[SubCategories] handleDelete - User confirmed deletion, starting API call');
     try {
       const adminServices = getAdminServices();
-      const response = await adminServices.productCatalog.deleteCategory(subCategoryId);
+      console.log('[SubCategories] handleDelete - Calling deleteCategory API with normalized ID:', normalizedId);
+      
+      const response = await adminServices.productCatalog.deleteCategory(normalizedId);
+      console.log('[SubCategories] handleDelete - API Response:', response);
       
       if (response.status === 'success') {
+        console.log('[SubCategories] handleDelete - Deletion successful, refreshing sub-categories list');
         await fetchSubCategories();
+        console.log('[SubCategories] handleDelete - Sub-categories list refreshed');
       } else {
+        console.error('[SubCategories] handleDelete - API returned error:', response.message);
         alert(response.message || 'Failed to delete sub-category');
       }
     } catch (err) {
-      console.error('Failed to delete sub-category:', err);
+      console.error('[SubCategories] handleDelete - Exception caught:', err);
+      console.error('[SubCategories] handleDelete - Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
       alert(err.message || 'Failed to delete sub-category');
     }
   };
 
   const handleFormSuccess = () => {
+    console.log('[SubCategories] handleFormSuccess - Form submission successful');
     setShowForm(false);
     setEditingCategory(null);
     setParentCategory(null);
+    console.log('[SubCategories] handleFormSuccess - Form state reset, refreshing data');
     fetchSubCategories();
     fetchCategories();
   };
 
   const handleFormClose = () => {
+    console.log('[SubCategories] handleFormClose - User closed the form');
     setShowForm(false);
     setEditingCategory(null);
     setParentCategory(null);
+    console.log('[SubCategories] handleFormClose - Form state reset');
   };
 
   const getCategoryName = (parentId) => {
@@ -124,33 +334,64 @@ const SubCategories = () => {
 
   // Filter and search logic
   const filteredAndSortedSubCategories = useMemo(() => {
+    console.log('[SubCategories] filteredAndSortedSubCategories - Recomputing filtered/sorted list');
+    console.log('[SubCategories] filteredAndSortedSubCategories - Input data:', {
+      totalSubCategories: subCategories.length,
+      searchTerm,
+      filterCategory,
+      filterStatus,
+      sortField,
+      sortDirection
+    });
+    
     let filtered = [...subCategories];
+    const initialCount = filtered.length;
     
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
+      const beforeCount = filtered.length;
       filtered = filtered.filter(subCat => 
         subCat.name?.toLowerCase().includes(searchLower) ||
         getCategoryName(subCat.parent_id)?.toLowerCase().includes(searchLower) ||
         subCat.description?.toLowerCase().includes(searchLower)
       );
+      console.log('[SubCategories] filteredAndSortedSubCategories - After search filter:', {
+        before: beforeCount,
+        after: filtered.length,
+        searchTerm: searchLower
+      });
     }
     
     // Apply category filter
     if (filterCategory) {
+      const beforeCount = filtered.length;
       filtered = filtered.filter(subCat => {
         const parentId = subCat.parent_id?._id || subCat.parent_id;
         return parentId === filterCategory || parentId?.toString() === filterCategory;
+      });
+      console.log('[SubCategories] filteredAndSortedSubCategories - After category filter:', {
+        before: beforeCount,
+        after: filtered.length,
+        filterCategory
       });
     }
     
     // Apply status filter
     if (filterStatus !== '') {
+      const beforeCount = filtered.length;
       const isActive = filterStatus === 'active';
       filtered = filtered.filter(subCat => subCat.is_active === isActive);
+      console.log('[SubCategories] filteredAndSortedSubCategories - After status filter:', {
+        before: beforeCount,
+        after: filtered.length,
+        filterStatus,
+        isActive
+      });
     }
     
     // Apply sorting
+    const beforeSort = [...filtered];
     filtered.sort((a, b) => {
       let aValue, bValue;
       
@@ -180,14 +421,29 @@ const SubCategories = () => {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
+    console.log('[SubCategories] filteredAndSortedSubCategories - After sorting:', {
+      sortField,
+      sortDirection,
+      resultCount: filtered.length
+    });
+    
+    console.log('[SubCategories] filteredAndSortedSubCategories - Final result:', {
+      initial: initialCount,
+      final: filtered.length,
+      filtered: filtered.length < initialCount
+    });
     
     return filtered;
   }, [subCategories, sortField, sortDirection, categories, searchTerm, filterCategory, filterStatus]);
 
   const handleSort = (field) => {
+    console.log('[SubCategories] handleSort - User clicked sort on field:', field);
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      const newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      console.log('[SubCategories] handleSort - Toggling sort direction from', sortDirection, 'to', newDirection);
+      setSortDirection(newDirection);
     } else {
+      console.log('[SubCategories] handleSort - Changing sort field from', sortField, 'to', field, 'with direction: asc');
       setSortField(field);
       setSortDirection('asc');
     }
@@ -203,33 +459,48 @@ const SubCategories = () => {
   };
 
   const handleAddProduct = (subCategory, e) => {
+    console.log('[SubCategories] handleAddProduct - User clicked Add Product button for sub-category:', {
+      id: subCategory._id,
+      name: subCategory.name
+    });
     e?.preventDefault();
     e?.stopPropagation();
     // Navigate to products page with sub-category pre-selected
-    navigate('/admin/products', { 
-      state: { 
-        subCategoryId: subCategory._id,
-        categoryId: subCategory.parent_id?._id || subCategory.parent_id
-      } 
-    });
+    const navigationState = { 
+      subCategoryId: subCategory._id,
+      categoryId: subCategory.parent_id?._id || subCategory.parent_id
+    };
+    console.log('[SubCategories] handleAddProduct - Navigating to /admin/products with state:', navigationState);
+    navigate('/admin/products', { state: navigationState });
   };
 
   const handleViewProducts = (subCategory, e) => {
+    console.log('[SubCategories] handleViewProducts - User clicked View Products button for sub-category:', {
+      id: subCategory._id,
+      name: subCategory.name
+    });
     e?.preventDefault();
     e?.stopPropagation();
     // Navigate to products page filtered by sub-category
-    navigate('/admin/products', { 
-      state: { 
-        filterSubCategoryId: subCategory._id,
-        categoryId: subCategory.parent_id?._id || subCategory.parent_id
-      } 
-    });
+    const navigationState = { 
+      filterSubCategoryId: subCategory._id,
+      categoryId: subCategory.parent_id?._id || subCategory.parent_id
+    };
+    console.log('[SubCategories] handleViewProducts - Navigating to /admin/products with state:', navigationState);
+    navigate('/admin/products', { state: navigationState });
   };
 
   const handleClearFilters = () => {
+    console.log('[SubCategories] handleClearFilters - User clicked Clear Filters button');
+    console.log('[SubCategories] handleClearFilters - Current filter values:', {
+      searchTerm,
+      filterCategory,
+      filterStatus
+    });
     setSearchTerm('');
     setFilterCategory('');
     setFilterStatus('');
+    console.log('[SubCategories] handleClearFilters - All filters cleared');
   };
 
   const hasActiveFilters = searchTerm || filterCategory || filterStatus !== '';
@@ -263,12 +534,27 @@ const SubCategories = () => {
               type="text"
               placeholder="Search sub-categories by name, category, or description..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                console.log('[SubCategories] Search input changed:', {
+                  previous: searchTerm,
+                  new: newValue,
+                  length: newValue.length
+                });
+                setSearchTerm(newValue);
+              }}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
             />
           </div>
           <button
-            onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+            onClick={() => {
+              const newValue = !showAdvancedSearch;
+              console.log('[SubCategories] Advanced search toggle clicked:', {
+                previous: showAdvancedSearch,
+                new: newValue
+              });
+              setShowAdvancedSearch(newValue);
+            }}
             className={`inline-flex items-center px-4 py-2.5 border rounded-lg transition-colors ${
               showAdvancedSearch
                 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-400'
@@ -305,7 +591,15 @@ const SubCategories = () => {
                 </label>
                 <select
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    console.log('[SubCategories] Category filter changed:', {
+                      previous: filterCategory,
+                      new: newValue,
+                      categoryName: categories.find(c => c._id === newValue)?.name || 'N/A'
+                    });
+                    setFilterCategory(newValue);
+                  }}
                   className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                 >
                   <option value="">All Categories</option>
@@ -324,7 +618,14 @@ const SubCategories = () => {
                 </label>
                 <select
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    console.log('[SubCategories] Status filter changed:', {
+                      previous: filterStatus,
+                      new: newValue
+                    });
+                    setFilterStatus(newValue);
+                  }}
                   className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
                 >
                   <option value="">All Status</option>
