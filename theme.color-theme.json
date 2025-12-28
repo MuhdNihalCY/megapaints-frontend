@@ -188,19 +188,13 @@
             }
         },
         {
-            "scope": [
-                "comment",
-                "punctuation.definition.comment"
-            ],
+            "scope": ["comment", "punctuation.definition.comment"],
             "settings": {
                 "foreground": "#787878"
             }
         },
         {
-            "scope": [
-                "string",
-                "punctuation.definition.string"
-            ],
+            "scope": ["string", "punctuation.definition.string"],
             "settings": {
                 "foreground": "#2755a0"
             }
@@ -212,10 +206,7 @@
             }
         },
         {
-            "scope": [
-                "keyword",
-                "constant.language.import-export-all"
-            ],
+            "scope": ["keyword", "constant.language.import-export-all"],
             "settings": {
                 "foreground": "#7DBFEF"
             }
@@ -277,10 +268,7 @@
             }
         },
         {
-            "scope": [
-                "constant.numeric",
-                "constant.language"
-            ],
+            "scope": ["constant.numeric", "constant.language"],
             "settings": {
                 "foreground": "#FFCE6B"
             }
@@ -297,10 +285,7 @@
             }
         },
         {
-            "scope": [
-                "punctuation",
-                "meta.brace"
-            ],
+            "scope": ["punctuation", "meta.brace"],
             "settings": {
                 "foreground": "#a6a6a6"
             }
@@ -369,10 +354,7 @@
             }
         },
         {
-            "scope": [
-                "entity.name.section.markdown",
-                "markup.heading.setext"
-            ],
+            "scope": ["entity.name.section.markdown", "markup.heading.setext"],
             "settings": {
                 "foreground": "#7DBFEF"
             }
@@ -433,10 +415,7 @@
             }
         },
         {
-            "scope": [
-                "entity.name.tag.css",
-                "entity.name.tag.wildcard"
-            ],
+            "scope": ["entity.name.tag.css", "entity.name.tag.wildcard"],
             "settings": {
                 "foreground": "#2755a0"
             }
@@ -480,10 +459,7 @@
             }
         },
         {
-            "scope": [
-                "meta.property-name",
-                "support.type.property-name"
-            ],
+            "scope": ["meta.property-name", "support.type.property-name"],
             "settings": {
                 "foreground": "#FFCE6B"
             }

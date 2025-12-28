@@ -1,4 +1,8 @@
-export { default as LoadingOverlay } from './LoadingOverlay';
+export { default as LoadingOverlay } from "./LoadingOverlay";
 
 // Customer Management Components
-export { CustomerManagementButton, CustomerManagementModal, CustomerFollowupModal } from './customer';
+export {
+    CustomerManagementButton,
+    CustomerManagementModal,
+    CustomerFollowupModal,
+} from "./customer";

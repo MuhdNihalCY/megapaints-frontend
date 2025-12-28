@@ -3,205 +3,211 @@
  * Using Atlassian's Pragmatic Drag and Drop for better DND experience
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { 
-  draggable, 
-  dropTargetForElements,
-  monitorForElements
-} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { useEffect, useRef, useState, useCallback } from "react";
+import {
+    draggable,
+    dropTargetForElements,
+    monitorForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 /**
  * Pragmatic Drag and Drop Hook
  * Provides natural, fluid drag and drop with better performance
  */
 export const usePragmaticDragAndDrop = () => {
-  const [draggedCard, setDraggedCard] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOver, setDragOver] = useState(null);
-  const [dragPreview, setDragPreview] = useState(null);
-  const [dropZone, setDropZone] = useState(null);
-  const [isMultiSelect, setIsMultiSelect] = useState(false);
-  const [selectedCards, setSelectedCards] = useState([]);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  
-  const dragStartTime = useRef(null);
-  const dragElementRef = useRef(null);
-  const cardRefs = useRef(new Map());
-  const columnRefs = useRef(new Map());
+    const [draggedCard, setDraggedCard] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOver, setDragOver] = useState(null);
+    const [dragPreview, setDragPreview] = useState(null);
+    const [dropZone, setDropZone] = useState(null);
+    const [isMultiSelect, setIsMultiSelect] = useState(false);
+    const [selectedCards, setSelectedCards] = useState([]);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Start drag operation
-  const startDrag = useCallback((card, event = null) => {
-    setDraggedCard(card);
-    setIsDragging(true);
-    setDragStartTime(Date.now());
-    
-    // Set up drag preview
-    setDragPreview({
-      ...card,
-      isDragging: true,
-      position: 'fixed',
-      zIndex: 1000,
-      pointerEvents: 'none',
-      transform: 'rotate(5deg)',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-      opacity: 0.9
-    });
-  }, []);
+    const dragStartTime = useRef(null);
+    const dragElementRef = useRef(null);
+    const cardRefs = useRef(new Map());
+    const columnRefs = useRef(new Map());
 
-  // End drag operation
-  const endDrag = useCallback(() => {
-    setDraggedCard(null);
-    setIsDragging(false);
-    setDragOver(null);
-    setDragPreview(null);
-    setDropZone(null);
-    setDragOffset({ x: 0, y: 0 });
-  }, []);
+    // Start drag operation
+    const startDrag = useCallback((card, event = null) => {
+        setDraggedCard(card);
+        setIsDragging(true);
+        setDragStartTime(Date.now());
 
-  // Handle drag over
-  const handleDragOver = useCallback((target) => {
-    setDragOver(target);
-    setDropZone(target);
-  }, []);
+        // Set up drag preview
+        setDragPreview({
+            ...card,
+            isDragging: true,
+            position: "fixed",
+            zIndex: 1000,
+            pointerEvents: "none",
+            transform: "rotate(5deg)",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+            opacity: 0.9,
+        });
+    }, []);
 
-  // Handle drag leave
-  const handleDragLeave = useCallback(() => {
-    setDragOver(null);
-    setDropZone(null);
-  }, []);
+    // End drag operation
+    const endDrag = useCallback(() => {
+        setDraggedCard(null);
+        setIsDragging(false);
+        setDragOver(null);
+        setDragPreview(null);
+        setDropZone(null);
+        setDragOffset({ x: 0, y: 0 });
+    }, []);
 
-  // Setup draggable element
-  const setupDraggable = useCallback((element, card, onDragEnd) => {
-    if (!element) return;
+    // Handle drag over
+    const handleDragOver = useCallback((target) => {
+        setDragOver(target);
+        setDropZone(target);
+    }, []);
 
-    const cleanup = draggable({
-      element,
-      getInitialData: () => ({
-        type: 'card',
-        cardId: card.id,
-        card: card
-      }),
-      onDragStart: (args) => {
-        startDrag(card, args);
-      },
-      onDrop: (args) => {
-        if (onDragEnd) {
-          onDragEnd(args);
-        }
-        endDrag();
-      }
-    });
+    // Handle drag leave
+    const handleDragLeave = useCallback(() => {
+        setDragOver(null);
+        setDropZone(null);
+    }, []);
 
-    cardRefs.current.set(card.id, { element, cleanup });
-    return cleanup;
-  }, [startDrag, endDrag]);
+    // Setup draggable element
+    const setupDraggable = useCallback(
+        (element, card, onDragEnd) => {
+            if (!element) return;
 
-  // Setup drop target
-  const setupDropTarget = useCallback((element, column, onCardMove) => {
-    if (!element) return;
+            const cleanup = draggable({
+                element,
+                getInitialData: () => ({
+                    type: "card",
+                    cardId: card.id,
+                    card: card,
+                }),
+                onDragStart: (args) => {
+                    startDrag(card, args);
+                },
+                onDrop: (args) => {
+                    if (onDragEnd) {
+                        onDragEnd(args);
+                    }
+                    endDrag();
+                },
+            });
 
-    const cleanup = dropTargetForElements({
-      element,
-      getData: ({ input, element }) => {
-        return {
-          type: 'column',
-          columnId: column.id,
-          column: column
-        };
-      },
-      onDragEnter: (args) => {
-        handleDragOver(column);
-      },
-      onDragLeave: (args) => {
-        handleDragLeave();
-      },
-      onDrop: (args) => {
-        const { source } = args;
-        if (source.data.type === 'card') {
-          // Handle the move operation
-          if (onCardMove && source.data.card) {
-            const card = source.data.card;
-            const fromColumn = card.columnId;
-            const toColumn = column.id;
-            
-            if (fromColumn !== toColumn) {
-              onCardMove(card.id, fromColumn, toColumn);
-            }
-          }
-          
-          endDrag();
-        }
-      }
-    });
+            cardRefs.current.set(card.id, { element, cleanup });
+            return cleanup;
+        },
+        [startDrag, endDrag],
+    );
 
-    columnRefs.current.set(column.id, { element, cleanup });
-    return cleanup;
-  }, [handleDragOver, handleDragLeave, endDrag]);
+    // Setup drop target
+    const setupDropTarget = useCallback(
+        (element, column, onCardMove) => {
+            if (!element) return;
 
-  // Cleanup function
-  const cleanup = useCallback(() => {
-    // Cleanup all card draggables
-    cardRefs.current.forEach(({ cleanup }) => {
-      if (cleanup) cleanup();
-    });
-    cardRefs.current.clear();
+            const cleanup = dropTargetForElements({
+                element,
+                getData: ({ input, element }) => {
+                    return {
+                        type: "column",
+                        columnId: column.id,
+                        column: column,
+                    };
+                },
+                onDragEnter: (args) => {
+                    handleDragOver(column);
+                },
+                onDragLeave: (args) => {
+                    handleDragLeave();
+                },
+                onDrop: (args) => {
+                    const { source } = args;
+                    if (source.data.type === "card") {
+                        // Handle the move operation
+                        if (onCardMove && source.data.card) {
+                            const card = source.data.card;
+                            const fromColumn = card.columnId;
+                            const toColumn = column.id;
 
-    // Cleanup all column drop targets
-    columnRefs.current.forEach(({ cleanup }) => {
-      if (cleanup) cleanup();
-    });
-    columnRefs.current.clear();
-  }, []);
+                            if (fromColumn !== toColumn) {
+                                onCardMove(card.id, fromColumn, toColumn);
+                            }
+                        }
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+                        endDrag();
+                    }
+                },
+            });
 
-  return {
-    // State
-    draggedCard,
-    isDragging,
-    dragOver,
-    dragPreview,
-    dropZone,
-    isMultiSelect,
-    selectedCards,
-    dragOffset,
-    
-    // Actions
-    startDrag,
-    endDrag,
-    handleDragOver,
-    handleDragLeave,
-    setupDraggable,
-    setupDropTarget,
-    cleanup,
-    
-    // Refs
-    cardRefs: cardRefs.current,
-    columnRefs: columnRefs.current
-  };
+            columnRefs.current.set(column.id, { element, cleanup });
+            return cleanup;
+        },
+        [handleDragOver, handleDragLeave, endDrag],
+    );
+
+    // Cleanup function
+    const cleanup = useCallback(() => {
+        // Cleanup all card draggables
+        cardRefs.current.forEach(({ cleanup }) => {
+            if (cleanup) cleanup();
+        });
+        cardRefs.current.clear();
+
+        // Cleanup all column drop targets
+        columnRefs.current.forEach(({ cleanup }) => {
+            if (cleanup) cleanup();
+        });
+        columnRefs.current.clear();
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return cleanup;
+    }, [cleanup]);
+
+    return {
+        // State
+        draggedCard,
+        isDragging,
+        dragOver,
+        dragPreview,
+        dropZone,
+        isMultiSelect,
+        selectedCards,
+        dragOffset,
+
+        // Actions
+        startDrag,
+        endDrag,
+        handleDragOver,
+        handleDragLeave,
+        setupDraggable,
+        setupDropTarget,
+        cleanup,
+
+        // Refs
+        cardRefs: cardRefs.current,
+        columnRefs: columnRefs.current,
+    };
 };
 
 /**
  * Hook for monitoring drag operations
  */
 export const useDragMonitor = () => {
-  const [dragData, setDragData] = useState(null);
+    const [dragData, setDragData] = useState(null);
 
-  useEffect(() => {
-    const cleanup = monitorForElements({
-      onDragStart: (args) => {
-        setDragData(args.source.data);
-      },
-      onDrop: (args) => {
-        setDragData(null);
-      }
-    });
+    useEffect(() => {
+        const cleanup = monitorForElements({
+            onDragStart: (args) => {
+                setDragData(args.source.data);
+            },
+            onDrop: (args) => {
+                setDragData(null);
+            },
+        });
 
-    return cleanup;
-  }, []);
+        return cleanup;
+    }, []);
 
-  return dragData;
+    return dragData;
 };

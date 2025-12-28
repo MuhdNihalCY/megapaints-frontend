@@ -4,27 +4,27 @@
  */
 
 // Core Services
-import AdminApiService from './AdminApiService.js';
-import UserApiService from './UserApiService.js';
-import ProductCatalogService from './ProductCatalogService.js';
-import BusinessManagementService from './BusinessManagementService.js';
-import KanbanBoardService from './KanbanBoardService.js';
-import LabelManagementService from './LabelManagementService.js';
-import InventoryService from './InventoryService.js';
-import OrderService from './OrderService.js';
-import ApiServiceFactory from './ApiServiceFactory.js';
+import AdminApiService from "./AdminApiService.js";
+import UserApiService from "./UserApiService.js";
+import ProductCatalogService from "./ProductCatalogService.js";
+import BusinessManagementService from "./BusinessManagementService.js";
+import KanbanBoardService from "./KanbanBoardService.js";
+import LabelManagementService from "./LabelManagementService.js";
+import InventoryService from "./InventoryService.js";
+import OrderService from "./OrderService.js";
+import ApiServiceFactory from "./ApiServiceFactory.js";
 
 // Export individual services
 export {
-  AdminApiService,
-  UserApiService,
-  ProductCatalogService,
-  BusinessManagementService,
-  KanbanBoardService,
-  LabelManagementService,
-  InventoryService,
-  OrderService,
-  ApiServiceFactory
+    AdminApiService,
+    UserApiService,
+    ProductCatalogService,
+    BusinessManagementService,
+    KanbanBoardService,
+    LabelManagementService,
+    InventoryService,
+    OrderService,
+    ApiServiceFactory,
 };
 
 // Export factory as default

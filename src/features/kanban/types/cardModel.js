@@ -16,20 +16,20 @@
  * @property {string} dateCreated - ISO timestamp
  * @property {string} dateLastActivity - ISO timestamp
  * @property {string} url - Permanent card link
- * 
+ *
  * @property {CoverImage} coverImage - Cover image or color
  * @property {Label[]} labels - Array of labels
- * 
+ *
  * @property {string[]} members - Array of user IDs
  * @property {DueDate} dueDate - Due date with completion status
  * @property {string} startDate - Optional start date (ISO timestamp)
- * 
+ *
  * @property {Attachment[]} attachments - Array of attachments
  * @property {Checklist[]} checklists - Array of checklists
  * @property {CustomField[]} customFields - Array of custom fields
  * @property {Comment[]} comments - Array of comments
  * @property {Activity[]} activityLog - Activity history
- * 
+ *
  * @property {Sticker[]} stickers - Array of stickers
  * @property {string[]} subscriptions - Array of subscribed user IDs
  */
@@ -164,38 +164,38 @@
  * @returns {Card}
  */
 export function createEmptyCard(overrides = {}) {
-  const now = new Date().toISOString();
-  
-  return {
-    id: null,
-    title: '',
-    description: '',
-    listId: null,
-    boardId: null,
-    position: 0,
-    closed: false,
-    dateCreated: now,
-    dateLastActivity: now,
-    url: '',
-    
-    coverImage: null,
-    labels: [],
-    
-    members: [],
-    dueDate: null,
-    startDate: null,
-    
-    attachments: [],
-    checklists: [],
-    customFields: [],
-    comments: [],
-    activityLog: [],
-    
-    stickers: [],
-    subscriptions: [],
-    
-    ...overrides
-  };
+    const now = new Date().toISOString();
+
+    return {
+        id: null,
+        title: "",
+        description: "",
+        listId: null,
+        boardId: null,
+        position: 0,
+        closed: false,
+        dateCreated: now,
+        dateLastActivity: now,
+        url: "",
+
+        coverImage: null,
+        labels: [],
+
+        members: [],
+        dueDate: null,
+        startDate: null,
+
+        attachments: [],
+        checklists: [],
+        customFields: [],
+        comments: [],
+        activityLog: [],
+
+        stickers: [],
+        subscriptions: [],
+
+        ...overrides,
+    };
 }
 
 /**
@@ -204,68 +204,79 @@ export function createEmptyCard(overrides = {}) {
  * @returns {CardBadges}
  */
 export function calculateCardBadges(card) {
-  // Return empty badges if card is null or undefined
-  if (!card) {
-    return {
-      checklistProgress: { completed: 0, total: 0, percentage: 0 },
-      dueDateBadge: null,
-      attachmentCount: 0,
-      commentCount: 0,
-      descriptionPresent: false,
-      membersCount: 0,
-      labelsCount: 0
-    };
-  }
-  
-  // Calculate checklist progress
-  let checklistProgress = { completed: 0, total: 0, percentage: 0 };
-  if (card.checklists && card.checklists.length > 0) {
-    const allItems = card.checklists.flatMap(cl => cl.items || []);
-    const completedItems = allItems.filter(item => item.completed);
-    checklistProgress = {
-      completed: completedItems.length,
-      total: allItems.length,
-      percentage: allItems.length > 0 ? Math.round((completedItems.length / allItems.length) * 100) : 0
-    };
-  }
-  
-  // Calculate due date badge
-  let dueDateBadge = null;
-  if (card.dueDate) {
-    const dueDate = new Date(card.dueDate.date || card.dueDate);
-    const now = new Date();
-    const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    const isComplete = card.dueDate.completed || card.dueDate.dueComplete || false;
-    const isOverdue = hoursUntilDue < 0;
-    const isDueSoon = hoursUntilDue > 0 && hoursUntilDue <= 24;
-    
-    let color = 'gray';
-    if (isComplete) {
-      color = 'green';
-    } else if (isOverdue) {
-      color = 'red';
-    } else if (isDueSoon) {
-      color = 'yellow';
+    // Return empty badges if card is null or undefined
+    if (!card) {
+        return {
+            checklistProgress: { completed: 0, total: 0, percentage: 0 },
+            dueDateBadge: null,
+            attachmentCount: 0,
+            commentCount: 0,
+            descriptionPresent: false,
+            membersCount: 0,
+            labelsCount: 0,
+        };
     }
-    
-    dueDateBadge = {
-      text: isComplete ? 'Complete' : (isOverdue ? 'Overdue' : formatDueDate(dueDate)),
-      color,
-      isComplete,
-      isOverdue,
-      isDueSoon
+
+    // Calculate checklist progress
+    let checklistProgress = { completed: 0, total: 0, percentage: 0 };
+    if (card.checklists && card.checklists.length > 0) {
+        const allItems = card.checklists.flatMap((cl) => cl.items || []);
+        const completedItems = allItems.filter((item) => item.completed);
+        checklistProgress = {
+            completed: completedItems.length,
+            total: allItems.length,
+            percentage:
+                allItems.length > 0
+                    ? Math.round(
+                          (completedItems.length / allItems.length) * 100,
+                      )
+                    : 0,
+        };
+    }
+
+    // Calculate due date badge
+    let dueDateBadge = null;
+    if (card.dueDate) {
+        const dueDate = new Date(card.dueDate.date || card.dueDate);
+        const now = new Date();
+        const hoursUntilDue =
+            (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+        const isComplete =
+            card.dueDate.completed || card.dueDate.dueComplete || false;
+        const isOverdue = hoursUntilDue < 0;
+        const isDueSoon = hoursUntilDue > 0 && hoursUntilDue <= 24;
+
+        let color = "gray";
+        if (isComplete) {
+            color = "green";
+        } else if (isOverdue) {
+            color = "red";
+        } else if (isDueSoon) {
+            color = "yellow";
+        }
+
+        dueDateBadge = {
+            text: isComplete
+                ? "Complete"
+                : isOverdue
+                  ? "Overdue"
+                  : formatDueDate(dueDate),
+            color,
+            isComplete,
+            isOverdue,
+            isDueSoon,
+        };
+    }
+
+    return {
+        hasDescription: !!(card.description && card.description.trim()),
+        comments: (card.comments || []).length,
+        attachments: (card.attachments || []).length,
+        checklist: checklistProgress,
+        dueDate: dueDateBadge,
+        votes: 0, // Not implemented yet
     };
-  }
-  
-  return {
-    hasDescription: !!(card.description && card.description.trim()),
-    comments: (card.comments || []).length,
-    attachments: (card.attachments || []).length,
-    checklist: checklistProgress,
-    dueDate: dueDateBadge,
-    votes: 0 // Not implemented yet
-  };
 }
 
 /**
@@ -274,23 +285,23 @@ export function calculateCardBadges(card) {
  * @returns {string}
  */
 function formatDueDate(date) {
-  const now = new Date();
-  const diffTime = date.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
-    return 'Today';
-  } else if (diffDays === 1) {
-    return 'Tomorrow';
-  } else if (diffDays === -1) {
-    return 'Yesterday';
-  } else if (diffDays > 1 && diffDays <= 7) {
-    return `In ${diffDays} days`;
-  } else {
-    const month = date.toLocaleString('default', { month: 'short' });
-    const day = date.getDate();
-    return `${month} ${day}`;
-  }
+    const now = new Date();
+    const diffTime = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        return "Today";
+    } else if (diffDays === 1) {
+        return "Tomorrow";
+    } else if (diffDays === -1) {
+        return "Yesterday";
+    } else if (diffDays > 1 && diffDays <= 7) {
+        return `In ${diffDays} days`;
+    } else {
+        const month = date.toLocaleString("default", { month: "short" });
+        const day = date.getDate();
+        return `${month} ${day}`;
+    }
 }
 
 /**
@@ -303,30 +314,29 @@ function formatDueDate(date) {
  * @returns {Card}
  */
 export function addActivity(card, type, authorId, data, text) {
-  // Return null if card is null or undefined
-  if (!card) {
-    return null;
-  }
-  
-  const activity = {
-    id: `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    type,
-    authorId,
-    timestamp: new Date().toISOString(),
-    data,
-    text
-  };
-  
-  return {
-    ...card,
-    activityLog: [...(card.activityLog || []), activity],
-    dateLastActivity: activity.timestamp
-  };
+    // Return null if card is null or undefined
+    if (!card) {
+        return null;
+    }
+
+    const activity = {
+        id: `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type,
+        authorId,
+        timestamp: new Date().toISOString(),
+        data,
+        text,
+    };
+
+    return {
+        ...card,
+        activityLog: [...(card.activityLog || []), activity],
+        dateLastActivity: activity.timestamp,
+    };
 }
 
 export default {
-  createEmptyCard,
-  calculateCardBadges,
-  addActivity
+    createEmptyCard,
+    calculateCardBadges,
+    addActivity,
 };
-

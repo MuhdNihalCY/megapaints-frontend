@@ -4,28 +4,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 .dark {
-  color-scheme: dark;
+    color-scheme: dark;
 }
 
 /* Custom styles for Kanban board */
 .kanban-card.selected {
-  @apply ring-2 ring-blue-500 ring-offset-2;
-  transform: scale(1.02);
+    @apply ring-2 ring-blue-500 ring-offset-2;
+    transform: scale(1.02);
 }
 
 .kanban-card:hover {
-  @apply shadow-lg;
+    @apply shadow-lg;
 }
 
 /* Line clamp utility */
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* Smooth transitions */
 .transition-all {
-  transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }

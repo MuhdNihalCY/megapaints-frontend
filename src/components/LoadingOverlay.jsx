@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 // Loading component styles
 const loadingStyles = `
@@ -110,25 +110,25 @@ const loadingStyles = `
 
 // Loading Overlay Component
 const LoadingOverlay = ({ isLoading, message = "Loading..." }) => {
-  if (!isLoading) return null;
+    if (!isLoading) return null;
 
-  return (
-    <>
-      <style>{loadingStyles}</style>
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-3xl z-[9999] flex items-center justify-center">
-            <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-3xl rounded-lg p-8 shadow-xl flex flex-col items-center justify-center">
-                <div className="three-body">
-                  <div className="three-body__dot"></div>
-                  <div className="three-body__dot"></div>
-                  <div className="three-body__dot"></div>
-                </div>
-                <div className="text-center text-gray-700 dark:text-gray-300 mt-4 font-medium">
-                  {message}
+    return (
+        <>
+            <style>{loadingStyles}</style>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-3xl z-[9999] flex items-center justify-center">
+                <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-3xl rounded-lg p-8 shadow-xl flex flex-col items-center justify-center">
+                    <div className="three-body">
+                        <div className="three-body__dot"></div>
+                        <div className="three-body__dot"></div>
+                        <div className="three-body__dot"></div>
+                    </div>
+                    <div className="text-center text-gray-700 dark:text-gray-300 mt-4 font-medium">
+                        {message}
+                    </div>
                 </div>
             </div>
-        </div>
-    </>
-  );
+        </>
+    );
 };
 
 export default LoadingOverlay;

@@ -8,12 +8,12 @@
  * Must match backend constants in backend/utils/constants.js
  */
 export const DESIGNATIONS = [
-  'Sales',
-  'Office',
-  'Production',
-  'Driver',
-  'Manager',
-  'Supervisor'
+    "Sales",
+    "Office",
+    "Production",
+    "Driver",
+    "Manager",
+    "Supervisor",
 ];
 
 /**
@@ -21,7 +21,7 @@ export const DESIGNATIONS = [
  * @returns {Array<string>} Array of designation strings
  */
 export const getDesignations = () => {
-  return [...DESIGNATIONS];
+    return [...DESIGNATIONS];
 };
 
 /**
@@ -30,7 +30,7 @@ export const getDesignations = () => {
  * @returns {boolean} True if valid, false otherwise
  */
 export const isValidDesignation = (designation) => {
-  return DESIGNATIONS.includes(designation);
+    return DESIGNATIONS.includes(designation);
 };
 
 export default DESIGNATIONS;
