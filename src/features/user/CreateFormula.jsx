@@ -1,18 +1,18 @@
 /**
  * CreateFormula Component
- *
+ * 
  * This component allows users to create paint formulas by:
  * - Selecting tinters (colorants) and their quantities
  * - Configuring binders and additives
  * - Calculating totals and quality metrics
  * - Saving formulas with attachments
- *
+ * 
  * CONSOLE LOGGING STRATEGY:
  * - Only essential dynamic data flow logs are kept for debugging
  * - All logs are wrapped in process.env.NODE_ENV === 'development' checks
  * - Focus on category/subcategory changes, product filtering, and binder configuration
  * - Removed verbose logging to keep console clean in production
- *
+ * 
  * @author Megapaints Team
  * @version 1.0.0
  */
@@ -71,11 +71,11 @@ export const CreateFormulaSections = {
  * @returns {string} Random ID string
  */
 function cryptoRandomId() {
-    try {
-        return crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
-    } catch {
-        return Math.random().toString(36).slice(2);
-    }
+  try {
+    return crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+  } catch {
+    return Math.random().toString(36).slice(2);
+  }
 }
 
 /**
@@ -84,7 +84,7 @@ function cryptoRandomId() {
  * @returns {Object} Empty tinter object
  */
 function createEmptyTint(nextIndex) {
-    return {
+  return { 
         _id: cryptoRandomId(), // Unique identifier
         sl: nextIndex, // Serial number
         code: "", // Product code
@@ -93,64 +93,64 @@ function createEmptyTint(nextIndex) {
         qty: [0, 0, 0, 0, 0, 0], // Quantities for 6 different measurements
         grams: 0, // Calculated grams
         volume: 0, // Calculated volume
-    };
+  };
 }
 
 /**
  * CreateFormula Component
- *
+ * 
  * Main component for creating paint formulas with tinters, binders, and additives
  * Handles all state management, calculations, and user interactions
  */
 const CreateFormula = () => {
-    // ===== FORMULA HEADER STATE =====
-    // Basic formula information
+  // ===== FORMULA HEADER STATE =====
+  // Basic formula information
     const [category, setCategory] = useState(""); // Paint category (e.g., "100 - Paints")
     const [subCategory, setSubCategory] = useState(""); // Subcategory (e.g., "Rosner_Acrylic")
     const [gloss, setGloss] = useState(0); // Gloss level (0-100)
     const [glossInput, setGlossInput] = useState(""); // Raw gloss input value
 
-    // ===== MASTER DATA STATE =====
-    // Options and configurations loaded from backend
+  // ===== MASTER DATA STATE =====
+  // Options and configurations loaded from backend
     const [categoryOptions, setCategoryOptions] = useState([]); // Available paint categories
-    const [subCategoryOptions, setSubCategoryOptions] = useState([]); // Available subcategories
-    const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({}); // Subcategories grouped by category
+  const [subCategoryOptions, setSubCategoryOptions] = useState([]); // Available subcategories
+  const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({}); // Subcategories grouped by category
     const [loadingMasters, setLoadingMasters] = useState(true); // Loading state for master data
     const [mastersError, setMastersError] = useState(""); // Error message if master data fails to load
-
-    // Product and configuration data
+  
+  // Product and configuration data
     const [products, setProducts] = useState([]); // All available products with metadata
     const [binderConfigBySubCategory, setBinderConfigBySubCategory] = useState(
         {},
     ); // Binder configurations by subcategory
-    const [productsBySubCategory, setProductsBySubCategory] = useState({}); // Products filtered by subcategory
+  const [productsBySubCategory, setProductsBySubCategory] = useState({}); // Products filtered by subcategory
     const [filteredProducts, setFilteredProducts] = useState([]); // Products filtered by search term
-
-    // Additives selection state
+  
+  // Additives selection state
     const [rawAdditives, setRawAdditives] = useState([]); // Raw additives data from API
     const [rawBinders, setRawBinders] = useState([]); // Raw binders data from API
     const [selectedAdditiveId, setSelectedAdditiveId] = useState(""); // Currently selected additive ID
     const [additivePercentageInput, setAdditivePercentageInput] = useState(""); // Percentage input value
-    const [isAddingAdditive, setIsAddingAdditive] = useState(false); // Track when additive is being added
-
-    // Binder selection state - Auto-selected based on subcategory
+  const [isAddingAdditive, setIsAddingAdditive] = useState(false); // Track when additive is being added
+  
+  // Binder selection state - Auto-selected based on subcategory
     const [selectedBinder1Id, setSelectedBinder1Id] = useState(""); // Auto-selected binder 1 ID from subcategory
     const [selectedBinder2Id, setSelectedBinder2Id] = useState(""); // Auto-selected binder 2 ID from subcategory
 
-    // ===== UI STATE =====
-    // Product search and dropdown management
+  // ===== UI STATE =====
+  // Product search and dropdown management
     const [showProductList, setShowProductList] = useState({}); // { [tinterId]: boolean } - Controls dropdown visibility
-    const [productSearchInput, setProductSearchInput] = useState({}); // { [tinterId]: string } - Search input values
+  const [productSearchInput, setProductSearchInput] = useState({}); // { [tinterId]: string } - Search input values
     const [dropdownPosition, setDropdownPosition] = useState({}); // { [tinterId]: { top, left } } - Dropdown positioning
-    const [selectedDropdownIndex, setSelectedDropdownIndex] = useState({}); // { [tinterId]: number } - Currently selected item in dropdown
-
-    // Loading and processing states
+  const [selectedDropdownIndex, setSelectedDropdownIndex] = useState({}); // { [tinterId]: number } - Currently selected item in dropdown
+  
+  // Loading and processing states
     const [isSaving, setIsSaving] = useState(false); // Formula save operation in progress
     const [isUploading, setIsUploading] = useState(false); // File upload in progress
 
-    // ===== FORMULA DATA STATE =====
-    // Formula metadata (customer info, project details)
-    const [meta, setMeta] = useState({
+  // ===== FORMULA DATA STATE =====
+  // Formula metadata (customer info, project details)
+  const [meta, setMeta] = useState({
         date: new Date().toISOString().slice(0, 10), // Formula date
         fileNo: "", // File number
         customerName: "", // Customer name
@@ -158,154 +158,154 @@ const CreateFormula = () => {
         colorName: "", // Color name
         customerRef: "", // Customer reference
         projectNo: "", // Project number
-    });
+  });
 
-    // Core formula components
+  // Core formula components
     const [tints, setTints] = useState([createEmptyTint(1)]); // Tinters (colorants) array
     const [binders, setBinders] = useState([]); // Binders array
     const [additives, setAdditives] = useState([]); // Additives array
-
-    // Additional formula data
+  
+  // Additional formula data
     const [remarks, setRemarks] = useState(""); // Formula remarks/notes
     const [attachment, setAttachment] = useState({ file: null, preview: "" }); // File attachment with preview
-    const [uploadedAttachment, setUploadedAttachment] = useState(null); // Uploaded attachment data { _id, url, ... }
-
-    // Input state management
+  const [uploadedAttachment, setUploadedAttachment] = useState(null); // Uploaded attachment data { _id, url, ... }
+  
+  // Input state management
     const [qtyInput, setQtyInput] = useState({}); // { [tinterId]: string[] } - Quantity input values
-    const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string } - Additive input values
+  const [additiveInputById, setAdditiveInputById] = useState({}); // { [additiveId]: string } - Additive input values
 
-    // ===== FILE NUMBER STATE =====
-    const [isFileNumberModalOpen, setIsFileNumberModalOpen] = useState(false); // File number edit modal state
-    const [isAccessKeyModalOpen, setIsAccessKeyModalOpen] = useState(false); // Access key verification modal state
-    const [hasAccessKeyVerified, setHasAccessKeyVerified] = useState(false); // Track if access key has been verified
-    const [isGeneratingFileNumber, setIsGeneratingFileNumber] = useState(false); // File number generation loading state
+  // ===== FILE NUMBER STATE =====
+  const [isFileNumberModalOpen, setIsFileNumberModalOpen] = useState(false); // File number edit modal state
+  const [isAccessKeyModalOpen, setIsAccessKeyModalOpen] = useState(false); // Access key verification modal state
+  const [hasAccessKeyVerified, setHasAccessKeyVerified] = useState(false); // Track if access key has been verified
+  const [isGeneratingFileNumber, setIsGeneratingFileNumber] = useState(false); // File number generation loading state
     const [labelFileNo, setLabelFileNo] = useState(""); // Internal file number (e.g., 100000)
     const [formattedFileNo, setFormattedFileNo] = useState(""); // Formatted file number (e.g., 100000-ABC-05)
 
-    // ===== HELPER FUNCTIONS =====
-
-    /**
-     * Gets binder name by ID from master data
-     * @param {string} binderId - Binder ID to look up
-     * @returns {string} Binder name or fallback text
-     */
-    const getBinderName = (binderId) => {
+  // ===== HELPER FUNCTIONS =====
+  
+  /**
+   * Gets binder name by ID from master data
+   * @param {string} binderId - Binder ID to look up
+   * @returns {string} Binder name or fallback text
+   */
+  const getBinderName = (binderId) => {
         if (!binderId) return "Unknown Binder";
-
-        // Get binder name from the selected binder configuration
-        if (selectedBinderConfig) {
-            if (binderId === selectedBinderConfig.Binder1) {
-                return selectedBinderConfig.Binder1Name || `Binder ${binderId}`;
-            }
-            if (binderId === selectedBinderConfig.Binder2) {
-                return selectedBinderConfig.Binder2Name || `Binder ${binderId}`;
-            }
-        }
-
-        // Try to find binder in the raw binders data
-        if (rawBinders && Array.isArray(rawBinders)) {
+    
+    // Get binder name from the selected binder configuration
+    if (selectedBinderConfig) {
+      if (binderId === selectedBinderConfig.Binder1) {
+        return selectedBinderConfig.Binder1Name || `Binder ${binderId}`;
+      }
+      if (binderId === selectedBinderConfig.Binder2) {
+        return selectedBinderConfig.Binder2Name || `Binder ${binderId}`;
+      }
+    }
+    
+    // Try to find binder in the raw binders data
+    if (rawBinders && Array.isArray(rawBinders)) {
             const binder = rawBinders.find(
                 (b) =>
-                    b.Binder_Id === binderId ||
-                    b._id === binderId ||
+        b.Binder_Id === binderId || 
+        b._id === binderId || 
                     String(b.Binder_Id) === String(binderId),
-            );
-            if (binder) {
+      );
+      if (binder) {
                 return (
                     binder.Binder_Name ||
                     binder.name ||
                     binder.Name ||
                     `Binder ${binderId}`
                 );
-            }
-        }
-
-        // Fallback to formatted ID
-        return `Binder ${binderId}`;
-    };
-
-    // ===== INPUT VALIDATION & SANITIZATION =====
-
-    /**
-     * Sanitizes integer input by removing all non-digit characters
-     * @param {string|any} raw - Raw input value
-     * @returns {string} Sanitized integer string
-     */
-    function sanitizeIntegerInput(raw) {
-        if (typeof raw !== "string") raw = String(raw ?? "");
-        // Allow only digits (no negatives by default)
-        return raw.replace(/[^0-9]/g, "");
+      }
     }
+    
+    // Fallback to formatted ID
+    return `Binder ${binderId}`;
+  };
 
-    /**
-     * Sanitizes float input by allowing only digits and a single decimal point
-     * Handles edge cases like leading decimal points
-     * @param {string|any} raw - Raw input value
-     * @returns {string} Sanitized float string
-     */
-    function sanitizeFloatInput(raw) {
+  // ===== INPUT VALIDATION & SANITIZATION =====
+  
+  /**
+   * Sanitizes integer input by removing all non-digit characters
+   * @param {string|any} raw - Raw input value
+   * @returns {string} Sanitized integer string
+   */
+  function sanitizeIntegerInput(raw) {
         if (typeof raw !== "string") raw = String(raw ?? "");
-        // Allow digits and a single dot; coerce leading dot to 0.
+    // Allow only digits (no negatives by default)
+        return raw.replace(/[^0-9]/g, "");
+  }
+
+  /**
+   * Sanitizes float input by allowing only digits and a single decimal point
+   * Handles edge cases like leading decimal points
+   * @param {string|any} raw - Raw input value
+   * @returns {string} Sanitized float string
+   */
+  function sanitizeFloatInput(raw) {
+        if (typeof raw !== "string") raw = String(raw ?? "");
+    // Allow digits and a single dot; coerce leading dot to 0.
         const input = raw.replace(/[^0-9.]/g, "");
         let result = "";
-        let dotSeen = false;
-
-        for (let i = 0; i < input.length; i += 1) {
-            const ch = input[i];
+    let dotSeen = false;
+    
+    for (let i = 0; i < input.length; i += 1) {
+      const ch = input[i];
             if (ch === ".") {
-                if (dotSeen) continue; // Skip additional decimal points
-                dotSeen = true;
+        if (dotSeen) continue; // Skip additional decimal points
+        dotSeen = true;
                 if (result === "") result = "0"; // Coerce leading decimal to 0.
                 result += ".";
-            } else {
-                result += ch;
-            }
-        }
-        return result;
+      } else {
+        result += ch;
+      }
     }
+    return result;
+  }
 
-    /**
-     * Generic numeric input sanitizer that delegates to specific functions
-     * @param {string|any} raw - Raw input value
-     * @param {string} mode - Sanitization mode: 'int' or 'float'
-     * @returns {string} Sanitized numeric string
-     */
+  /**
+   * Generic numeric input sanitizer that delegates to specific functions
+   * @param {string|any} raw - Raw input value
+   * @param {string} mode - Sanitization mode: 'int' or 'float'
+   * @returns {string} Sanitized numeric string
+   */
     function sanitizeNumericInput(raw, mode = "float") {
         return mode === "int"
             ? sanitizeIntegerInput(raw)
             : sanitizeFloatInput(raw);
-    }
+  }
 
-    /**
-     * Normalizes and validates tinter data from various sources
-     * Ensures consistent structure and calculates derived values
-     * @param {Array} list - Array of tinter objects to normalize
-     * @returns {Array} Normalized tinter array with consistent structure
-     */
-    function normalizeTints(list) {
-        const safe = Array.isArray(list) ? list : [];
-        const out = safe.map((t, idx) => {
-            // Ensure quantity array has exactly 6 elements
-            const qtyArr = Array.isArray(t.qty) ? t.qty.slice(0, 6) : [];
-            while (qtyArr.length < 6) qtyArr.push(0);
-
-            // Extract and validate numeric properties
-            const productDensity = Number(t?.Product_Density || 0);
-            const coefficient = Number(t?.coefficient || 0);
-            const solids = Number(t?.SolidContent || 0);
-            const voc = Number(t?.VOC || 0);
-
-            // Calculate derived values (grams and volume) using the calculation engine
-            const rowCalc = computeTinterRow({
-                qty: qtyArr,
-                coefficient,
-                Product_Density: productDensity,
-                SolidContent: solids,
+  /**
+   * Normalizes and validates tinter data from various sources
+   * Ensures consistent structure and calculates derived values
+   * @param {Array} list - Array of tinter objects to normalize
+   * @returns {Array} Normalized tinter array with consistent structure
+   */
+  function normalizeTints(list) {
+    const safe = Array.isArray(list) ? list : [];
+    const out = safe.map((t, idx) => {
+      // Ensure quantity array has exactly 6 elements
+      const qtyArr = Array.isArray(t.qty) ? t.qty.slice(0, 6) : [];
+      while (qtyArr.length < 6) qtyArr.push(0);
+      
+      // Extract and validate numeric properties
+      const productDensity = Number(t?.Product_Density || 0);
+      const coefficient = Number(t?.coefficient || 0);
+      const solids = Number(t?.SolidContent || 0);
+      const voc = Number(t?.VOC || 0);
+      
+      // Calculate derived values (grams and volume) using the calculation engine
+      const rowCalc = computeTinterRow({ 
+        qty: qtyArr, 
+        coefficient, 
+        Product_Density: productDensity, 
+        SolidContent: solids, 
                 VOC: voc,
-            });
-
-            // Return normalized tinter object with consistent structure
-            return {
+      });
+      
+      // Return normalized tinter object with consistent structure
+      return {
                 _id: t._id || cryptoRandomId(), // Ensure unique identifier
                 sl: t.sl || idx + 1, // Serial number
                 code: t.code || "", // Product code
@@ -324,155 +324,155 @@ const CreateFormula = () => {
                 qty: qtyArr, // Normalized quantity array
                 grams: rowCalc.grams, // Calculated grams (stored for backward compatibility)
                 volume: rowCalc.volumeL, // Calculated volume
-            };
-        });
+      };
+    });
+    
+    // Ensure at least one tinter row exists
+    if (out.length === 0) out.push(createEmptyTint(1));
+    return out;
+  }
 
-        // Ensure at least one tinter row exists
-        if (out.length === 0) out.push(createEmptyTint(1));
-        return out;
-    }
-
-    // ===== FILE NUMBER GENERATION =====
-
-    /**
-     * Generates a new file number for the formula
-     * Handles both automatic generation and manual updates
-     */
-    const generateFileNumber = async () => {
-        setIsGeneratingFileNumber(true);
-        try {
-            // Get current additive information
-            const currentAdditive = additives.length > 0 ? additives[0] : null;
+  // ===== FILE NUMBER GENERATION =====
+  
+  /**
+   * Generates a new file number for the formula
+   * Handles both automatic generation and manual updates
+   */
+  const generateFileNumber = async () => {
+    setIsGeneratingFileNumber(true);
+    try {
+      // Get current additive information
+      const currentAdditive = additives.length > 0 ? additives[0] : null;
             const additiveId =
                 currentAdditive?.additiveId || selectedAdditiveId;
             const additivePercentage =
                 currentAdditive?.percent || additivePercentageInput;
 
-            // Prepare data for file number generation
-            const fileNumberData = {
-                SubCategory: subCategory,
-                gloss: gloss,
-                matt: gloss, // Handle both gloss and matt
-                additiveId: additiveId,
-                AdditivePercentage: additivePercentage,
-                subcategories: subCategoryOptions,
+      // Prepare data for file number generation
+      const fileNumberData = {
+        SubCategory: subCategory,
+        gloss: gloss,
+        matt: gloss, // Handle both gloss and matt
+        additiveId: additiveId,
+        AdditivePercentage: additivePercentage,
+        subcategories: subCategoryOptions,
                 additives: rawAdditives,
-            };
+      };
 
-            // Generate file number
+      // Generate file number
             const result = await FileNumberService.generateFileNo(
                 fileNumberData,
                 true,
             );
-
-            setLabelFileNo(result.labelFileNo);
-            setFormattedFileNo(result.fileNo);
+      
+      setLabelFileNo(result.labelFileNo);
+      setFormattedFileNo(result.fileNo);
             setMeta((prev) => ({
-                ...prev,
+        ...prev,
                 fileNo: result.fileNo,
-            }));
-
+      }));
+      
             if (process.env.NODE_ENV === "development") {
                 console.log("Generated file number:", result);
-            }
-        } catch (error) {
+      }
+    } catch (error) {
             console.error("Error generating file number:", error);
-            // Fallback to timestamp-based number
-            const fallbackNumber = Math.floor(Date.now() / 1000) % 1000000;
-            setLabelFileNo(fallbackNumber);
-            setFormattedFileNo(String(fallbackNumber));
+      // Fallback to timestamp-based number
+      const fallbackNumber = Math.floor(Date.now() / 1000) % 1000000;
+      setLabelFileNo(fallbackNumber);
+      setFormattedFileNo(String(fallbackNumber));
             setMeta((prev) => ({
-                ...prev,
+        ...prev,
                 fileNo: String(fallbackNumber),
-            }));
-        } finally {
-            setIsGeneratingFileNumber(false);
-        }
-    };
+      }));
+    } finally {
+      setIsGeneratingFileNumber(false);
+    }
+  };
 
-    /**
-     * Updates the file number when user edits it via modal
-     * @param {string} newLabelFileNo - New internal file number
-     * @param {string} newFormattedFileNo - New formatted file number
-     */
-    const handleFileNumberUpdate = (newLabelFileNo, newFormattedFileNo) => {
-        setLabelFileNo(newLabelFileNo);
-        setFormattedFileNo(newFormattedFileNo);
+  /**
+   * Updates the file number when user edits it via modal
+   * @param {string} newLabelFileNo - New internal file number
+   * @param {string} newFormattedFileNo - New formatted file number
+   */
+  const handleFileNumberUpdate = (newLabelFileNo, newFormattedFileNo) => {
+    setLabelFileNo(newLabelFileNo);
+    setFormattedFileNo(newFormattedFileNo);
         setMeta((prev) => ({
-            ...prev,
+      ...prev,
             fileNo: newFormattedFileNo,
-        }));
-    };
+    }));
+  };
 
-    /**
-     * Opens the file number edit modal
-     * Requires controlled access key verification first
-     */
-    const openFileNumberModal = () => {
-        if (hasAccessKeyVerified) {
-            // Access key already verified, open file number modal directly
-            setIsFileNumberModalOpen(true);
-        } else {
-            // Need to verify access key first
-            setIsAccessKeyModalOpen(true);
-        }
-    };
+  /**
+   * Opens the file number edit modal
+   * Requires controlled access key verification first
+   */
+  const openFileNumberModal = () => {
+    if (hasAccessKeyVerified) {
+      // Access key already verified, open file number modal directly
+      setIsFileNumberModalOpen(true);
+    } else {
+      // Need to verify access key first
+      setIsAccessKeyModalOpen(true);
+    }
+  };
 
-    /**
-     * Handles successful access key verification
-     */
-    const handleAccessKeySuccess = () => {
-        setHasAccessKeyVerified(true);
-        // Now open the file number modal
-        setIsFileNumberModalOpen(true);
-    };
+  /**
+   * Handles successful access key verification
+   */
+  const handleAccessKeySuccess = () => {
+    setHasAccessKeyVerified(true);
+    // Now open the file number modal
+    setIsFileNumberModalOpen(true);
+  };
 
-    // Reset access key verification when component unmounts or user changes
-    useEffect(() => {
-        // Reset verification state when component mounts
-        setHasAccessKeyVerified(false);
-    }, []);
+  // Reset access key verification when component unmounts or user changes
+  useEffect(() => {
+    // Reset verification state when component mounts
+    setHasAccessKeyVerified(false);
+  }, []);
 
-    // ===== DATA LOADING & INITIALIZATION =====
-
-    /**
-     * Loads fresh master data from server on component mount
-     * Always fetches latest data (no caching) to ensure real-time updates
-     * Fetches categories, subcategories, products, and configurations
-     * Sets up initial form state with default values
-     */
-    useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            setLoadingMasters(true);
+  // ===== DATA LOADING & INITIALIZATION =====
+  
+  /**
+   * Loads fresh master data from server on component mount
+   * Always fetches latest data (no caching) to ensure real-time updates
+   * Fetches categories, subcategories, products, and configurations
+   * Sets up initial form state with default values
+   */
+  useEffect(() => {
+    let cancelled = false;
+    
+    (async () => {
+      setLoadingMasters(true);
             setMastersError("");
-
-            try {
-                // Fetch fresh master data from server (no caching)
-                // This ensures we always have the latest data from the database
-                const data = await fetchMastersFresh();
-
-                // Data loaded successfully
-
-                // ===== EXTRACT AND VALIDATE MASTER DATA =====
-
-                // Parse categories as objects with id and name (handle both object arrays and legacy string arrays)
-                const cats = Array.isArray(data?.categories)
+      
+              try {
+          // Fetch fresh master data from server (no caching)
+          // This ensures we always have the latest data from the database
+          const data = await fetchMastersFresh();
+          
+          // Data loaded successfully
+        
+        // ===== EXTRACT AND VALIDATE MASTER DATA =====
+        
+        // Parse categories as objects with id and name (handle both object arrays and legacy string arrays)
+        const cats = Array.isArray(data?.categories)
                     ? data.categories
                           .map((c) => {
                               if (typeof c === "string") {
-                                  // Legacy format: "id - name" or just name
+                // Legacy format: "id - name" or just name
                                   const parts = c.split(" - ");
-                                  return parts.length > 1
+                return parts.length > 1 
                                       ? {
                                             id: parts[0],
                                             name: parts.slice(1).join(" - "),
                                         }
-                                      : { id: c, name: c };
-                              }
-                              // New format: object with id and name
-                              return {
+                  : { id: c, name: c };
+              }
+              // New format: object with id and name
+              return {
                                   id: c?.id || c?._id || c?.Category_Id || "",
                                   name:
                                       c?.name ||
@@ -483,20 +483,20 @@ const CreateFormula = () => {
                               };
                           })
                           .filter((c) => c.id && c.name)
-                    : [];
-
-                // Extract subcategory mappings and default values
+          : [];
+        
+        // Extract subcategory mappings and default values
                 const subByCat =
                     data?.subCategoriesByCategory &&
                     typeof data.subCategoriesByCategory === "object"
-                        ? data.subCategoriesByCategory
-                        : {};
+          ? data.subCategoriesByCategory 
+          : {};
                 const glossDefault =
                     typeof data?.glossDefault === "number"
                         ? data.glossDefault
                         : 0;
 
-                // Extract additional configuration data
+        // Extract additional configuration data
                 const metaDefaults =
                     data?.metaDefaults && typeof data.metaDefaults === "object"
                         ? data.metaDefaults
@@ -507,9 +507,9 @@ const CreateFormula = () => {
                 const binderCfgBySub =
                     data?.binderConfigBySubCategory &&
                     typeof data.binderConfigBySubCategory === "object"
-                        ? data.binderConfigBySubCategory
-                        : {};
-                const productsBySub = data?.productsBySubCategory || {};
+          ? data.binderConfigBySubCategory 
+          : {};
+        const productsBySub = data?.productsBySubCategory || {};
                 const rawAdds = Array.isArray(data?.additives)
                     ? data.additives
                     : [];
@@ -529,58 +529,58 @@ const CreateFormula = () => {
                     });
                 }
 
-                // ===== BUILD DEFAULT VALUES =====
-                // Construct default values object with fallbacks for all required fields
+        // ===== BUILD DEFAULT VALUES =====
+        // Construct default values object with fallbacks for all required fields
                 const defaultCategoryId =
                     data?.defaultCategory || cats[0]?.id || "100";
                 const defaultSubCategoryId =
                     data?.defaultSubCategory ||
                     subByCat[defaultCategoryId]?.[0]?.id ||
                     "";
-
-                const defaults = {
-                    category: defaultCategoryId,
-                    subCategory: defaultSubCategoryId,
-                    gloss: glossDefault,
-                    tints: normalizeTints(data?.defaultTints),
+        
+        const defaults = {
+          category: defaultCategoryId,
+          subCategory: defaultSubCategoryId,
+          gloss: glossDefault,
+          tints: normalizeTints(data?.defaultTints),
                     binders: Array.isArray(data?.defaultBinders)
                         ? data.defaultBinders.map((b) => ({
-                              _id: b._id || cryptoRandomId(),
+            _id: b._id || cryptoRandomId(),
                               name: b.name || "",
-                              grams: Number(b.grams || 0),
-                              volume: Number(b.volume || 0),
+            grams: Number(b.grams || 0),
+            volume: Number(b.volume || 0),
                           }))
                         : [],
                     additives: Array.isArray(data?.defaultAdditives)
                         ? data.defaultAdditives.map((a) => ({
-                              _id: a._id || cryptoRandomId(),
+            _id: a._id || cryptoRandomId(),
                               name: a.name || "",
-                              percent: Number(a.percent || 0),
-                              grams: Number(a.grams || 0),
+            percent: Number(a.percent || 0),
+            grams: Number(a.grams || 0),
                           }))
                         : [],
                     remarks:
                         typeof data?.defaultRemarks === "string"
                             ? data.defaultRemarks
                             : "",
-                };
+        };
 
-                if (!cancelled) {
-                    // ===== UPDATE OPTIONS AND CONFIGURATIONS =====
-                    // Set available categories as objects with id and name
-                    const fallbackCategories = [
+        if (!cancelled) {
+          // ===== UPDATE OPTIONS AND CONFIGURATIONS =====
+          // Set available categories as objects with id and name
+          const fallbackCategories = [
                         { id: "100", name: "Paints" },
                         { id: "200", name: "Primers" },
-                    ];
-                    setCategoryOptions(cats.length ? cats : fallbackCategories);
-                    setSubCategoriesByCategory(subByCat);
-                    setProductsBySubCategory(productsBySub);
-
-                    // Dynamic data loaded and configured
-
-                    // Set subcategory options for the selected category (as objects)
-                    const initialSubs = subByCat[defaults.category] || [];
-                    const fallbackSubs = [
+          ];
+          setCategoryOptions(cats.length ? cats : fallbackCategories);
+          setSubCategoriesByCategory(subByCat);
+          setProductsBySubCategory(productsBySub);
+          
+          // Dynamic data loaded and configured
+          
+          // Set subcategory options for the selected category (as objects)
+          const initialSubs = subByCat[defaults.category] || [];
+          const fallbackSubs = [
                         { id: "rosner_acrylic", name: "Rosner_Acrylic" },
                         { id: "rosner_pu", name: "Rosner_PU" },
                     ];
@@ -589,106 +589,106 @@ const CreateFormula = () => {
                             ? initialSubs
                             : fallbackSubs,
                     );
+          
+          // Set product and binder configurations
+          setProducts(prods);
+          setBinderConfigBySubCategory(binderCfgBySub);
+          setRawAdditives(rawAdds);
+          setRawBinders(rawBinds);
 
-                    // Set product and binder configurations
-                    setProducts(prods);
-                    setBinderConfigBySubCategory(binderCfgBySub);
-                    setRawAdditives(rawAdds);
-                    setRawBinders(rawBinds);
-
-                    // ===== SET FORM DEFAULTS =====
-                    // Initialize form with default values from server
-                    setCategory(defaults.category);
-                    setSubCategory(defaults.subCategory);
-                    setGloss(defaults.gloss);
+          // ===== SET FORM DEFAULTS =====
+          // Initialize form with default values from server
+          setCategory(defaults.category);
+          setSubCategory(defaults.subCategory);
+          setGloss(defaults.gloss);
                     setGlossInput(defaults.gloss ? String(defaults.gloss) : "");
-                    setTints(defaults.tints);
-                    setBinders(defaults.binders);
-                    setAdditives(defaults.additives);
-                    setRemarks(defaults.remarks);
+          setTints(defaults.tints);
+          setBinders(defaults.binders);
+          setAdditives(defaults.additives);
+          setRemarks(defaults.remarks);
+          
+          // Merge metadata defaults with existing meta state
+          setMeta((m) => ({
+            ...m,
+            ...metaDefaults,
+            date: metaDefaults.date || m.date,
+          }));
 
-                    // Merge metadata defaults with existing meta state
-                    setMeta((m) => ({
-                        ...m,
-                        ...metaDefaults,
-                        date: metaDefaults.date || m.date,
-                    }));
-
-                    // Generate initial file number after form is initialized
-                    if (!cancelled) {
-                        generateFileNumber();
-                    }
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    // ===== ERROR HANDLING =====
+          // Generate initial file number after form is initialized
+          if (!cancelled) {
+            generateFileNumber();
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // ===== ERROR HANDLING =====
                     console.error("Failed to load masters", err);
                     setMastersError("Failed to load data.");
-
-                    // Set fallback sensible defaults when server data fails to load
-                    setCategoryOptions([
+          
+          // Set fallback sensible defaults when server data fails to load
+          setCategoryOptions([
                         { id: "100", name: "Paints" },
                         { id: "200", name: "Primers" },
-                    ]);
-                    setSubCategoryOptions([
+          ]);
+          setSubCategoryOptions([
                         { id: "rosner_acrylic", name: "Rosner_Acrylic" },
                         { id: "rosner_pu", name: "Rosner_PU" },
-                    ]);
+          ]);
                     setCategory("100");
                     setSubCategory("rosner_acrylic");
-                    setGloss(0);
+          setGloss(0);
                     setGlossInput("");
-                    setTints(normalizeTints([createEmptyTint(1)]));
-                }
-            } finally {
-                // Always clean up loading state unless component was unmounted
-                if (!cancelled) setLoadingMasters(false);
-            }
-        })();
-        // Cleanup function to prevent state updates after component unmount
+          setTints(normalizeTints([createEmptyTint(1)]));
+        }
+      } finally {
+        // Always clean up loading state unless component was unmounted
+        if (!cancelled) setLoadingMasters(false);
+      }
+    })();
+    // Cleanup function to prevent state updates after component unmount
         return () => {
             cancelled = true;
         };
-    }, []); // Empty dependency array - only run on mount
+  }, []); // Empty dependency array - only run on mount
 
-    /**
-     * Updates subcategory options when the main category changes
-     * Ensures subcategory selection remains valid for the selected category
-     */
-    useEffect(() => {
-        const subs = subCategoriesByCategory[category] || [];
-        const nextOptions = Array.isArray(subs) ? subs : [];
-
-        setSubCategoryOptions(nextOptions);
-
-        // Reset subcategory if current selection is no longer valid
-        // Check if current subCategory ID exists in the new options
+  /**
+   * Updates subcategory options when the main category changes
+   * Ensures subcategory selection remains valid for the selected category
+   */
+  useEffect(() => {
+    const subs = subCategoriesByCategory[category] || [];
+    const nextOptions = Array.isArray(subs) ? subs : [];
+    
+    setSubCategoryOptions(nextOptions);
+    
+    // Reset subcategory if current selection is no longer valid
+    // Check if current subCategory ID exists in the new options
         const currentSubExists = nextOptions.some(
             (sub) => sub.id === subCategory || sub._id === subCategory,
         );
-        if (!currentSubExists && nextOptions.length > 0) {
+    if (!currentSubExists && nextOptions.length > 0) {
             setSubCategory(nextOptions[0].id || nextOptions[0]._id || "");
-        } else if (!currentSubExists) {
+    } else if (!currentSubExists) {
             setSubCategory("");
-        }
-
-        // Debug: Dynamic data flow - Category change
+    }
+    
+    // Debug: Dynamic data flow - Category change
         if (process.env.NODE_ENV === "development") {
             console.log("[Dynamic Data] Category changed:", {
-                category,
-                subcategoryOptions: nextOptions.length,
-                currentSubCategory: subCategory,
+        category, 
+        subcategoryOptions: nextOptions.length,
+        currentSubCategory: subCategory,
                 willReset: !currentSubExists,
-            });
-        }
-    }, [category, subCategoriesByCategory, subCategory]);
+      });
+    }
+  }, [category, subCategoriesByCategory, subCategory]);
 
-    /**
-     * Updates filtered products when subcategory changes
-     * Loads products specific to the selected subcategory for product search
-     * Preserves existing tinter selections while updating available products
-     */
-    useEffect(() => {
+  /**
+   * Updates filtered products when subcategory changes
+   * Loads products specific to the selected subcategory for product search
+   * Preserves existing tinter selections while updating available products
+   */
+  useEffect(() => {
         const effectDebug = {
             subCategory,
             hasProducts: !!productsBySubCategory[subCategory],
@@ -711,47 +711,47 @@ const CreateFormula = () => {
         }
 
         // Continue with product filtering...
-        if (subCategory && productsBySubCategory[subCategory]) {
-            const productsForSubCategory = productsBySubCategory[subCategory];
-            setFilteredProducts(productsForSubCategory);
-
-            // Preserve existing tinter selections - don't clear them
-            // Only clear if no tinters exist yet
-            if (tints.length === 0 || (tints.length === 1 && !tints[0].code)) {
-                setTints([createEmptyTint(1)]);
-            }
-
-            // Clear search inputs and dropdowns for new subcategory
-            setProductSearchInput({});
-            setShowProductList({});
-
-            // Debug: Dynamic data flow - Subcategory change
+    if (subCategory && productsBySubCategory[subCategory]) {
+      const productsForSubCategory = productsBySubCategory[subCategory];
+      setFilteredProducts(productsForSubCategory);
+      
+      // Preserve existing tinter selections - don't clear them
+      // Only clear if no tinters exist yet
+      if (tints.length === 0 || (tints.length === 1 && !tints[0].code)) {
+        setTints([createEmptyTint(1)]);
+      }
+      
+      // Clear search inputs and dropdowns for new subcategory
+      setProductSearchInput({});
+      setShowProductList({});
+      
+      // Debug: Dynamic data flow - Subcategory change
             if (process.env.NODE_ENV === "development") {
                 console.log("[Dynamic Data] Subcategory changed:", {
-                    subCategory,
-                    availableProducts: productsForSubCategory.length,
+          subCategory, 
+          availableProducts: productsForSubCategory.length,
                     preservedTinters: tints.filter((t) => t.code).length,
                     autoSelectedBinders: true,
-                });
-            }
+        });
+      }
         } else if (!subCategory) {
-            setFilteredProducts([]);
-
-            // Clear products when no subcategory is selected
-            setTints([createEmptyTint(1)]);
-            setProductSearchInput({});
-            setShowProductList({});
-
-            // Debug: Dynamic data flow - No subcategory
+      setFilteredProducts([]);
+      
+      // Clear products when no subcategory is selected
+      setTints([createEmptyTint(1)]);
+      setProductSearchInput({});
+      setShowProductList({});
+      
+      // Debug: Dynamic data flow - No subcategory
             if (process.env.NODE_ENV === "development") {
                 console.log("[Dynamic Data] No subcategory selected:", {
-                    subCategory,
-                    availableProducts: 0,
-                    clearedSelections: true,
+          subCategory, 
+          availableProducts: 0,
+          clearedSelections: true,
                     clearedBinders: true,
-                });
-            }
-        }
+        });
+      }
+    }
     }, [
         subCategory,
         productsBySubCategory,
@@ -770,65 +770,82 @@ const CreateFormula = () => {
         }
     }, [subCategory, binderConfigBySubCategory]);
 
-    // Debug: Monitor additives array changes
+    // Auto-fill remarks from subcategory configuration
     useEffect(() => {
+        if (subCategory && binderConfigBySubCategory) {
+            const subConfig = binderConfigBySubCategory[subCategory];
+            // Always update remarks - either with subcategory remarks or clear it
+            const newRemarks = (subConfig && subConfig.Remarks) ? subConfig.Remarks : "";
+            setRemarks(newRemarks);
+            if (process.env.NODE_ENV === "development") {
+                console.log("[Dynamic Data] Remarks updated from subcategory:", {
+                    subCategory,
+                    remarks: newRemarks,
+                    hasRemarks: Boolean(newRemarks),
+                });
+            }
+        }
+    }, [subCategory, binderConfigBySubCategory]);
+
+  // Debug: Monitor additives array changes
+  useEffect(() => {
         if (process.env.NODE_ENV === "development") {
             console.log("[Dynamic Data] Additives array changed:", {
-                additivesCount: additives.length,
+        additivesCount: additives.length,
                 additives: additives.map((a) => ({
-                    id: a._id,
-                    additiveId: a.additiveId,
-                    name: a.name,
-                    percent: a.percent,
+          id: a._id, 
+          additiveId: a.additiveId, 
+          name: a.name, 
+          percent: a.percent,
                     density: a.Additive_Density,
                 })),
-            });
-        }
-    }, [additives]);
+      });
+    }
+  }, [additives]);
 
-    // ===== FILE NUMBER REGENERATION =====
-
-    /**
-     * Regenerates file number when subcategory, gloss, or additive information changes
-     * This ensures the file number format reflects the current formula configuration
-     */
-    useEffect(() => {
-        // Only regenerate if we have a labelFileNo (meaning initial generation has happened)
-        if (labelFileNo && !isGeneratingFileNumber) {
-            const currentAdditive = additives.length > 0 ? additives[0] : null;
+  // ===== FILE NUMBER REGENERATION =====
+  
+  /**
+   * Regenerates file number when subcategory, gloss, or additive information changes
+   * This ensures the file number format reflects the current formula configuration
+   */
+  useEffect(() => {
+    // Only regenerate if we have a labelFileNo (meaning initial generation has happened)
+    if (labelFileNo && !isGeneratingFileNumber) {
+      const currentAdditive = additives.length > 0 ? additives[0] : null;
             const additiveId =
                 currentAdditive?.additiveId || selectedAdditiveId;
             const additivePercentage =
                 currentAdditive?.percent || additivePercentageInput;
 
-            // Format the file number with current configuration
-            const newFormattedFileNo = FileNumberService.formulaFileFormat(
+      // Format the file number with current configuration
+      const newFormattedFileNo = FileNumberService.formulaFileFormat(
                 String(labelFileNo || ""),
                 String(subCategory || ""),
-                Number(gloss) || 0,
+        Number(gloss) || 0,
                 String(additiveId || ""),
-                Number(additivePercentage) || 0,
-                Array.isArray(subCategoryOptions) ? subCategoryOptions : [],
+        Number(additivePercentage) || 0,
+        Array.isArray(subCategoryOptions) ? subCategoryOptions : [],
                 Array.isArray(rawAdditives) ? rawAdditives : [],
-            );
+      );
 
-            setFormattedFileNo(newFormattedFileNo);
+      setFormattedFileNo(newFormattedFileNo);
             setMeta((prev) => ({
-                ...prev,
+        ...prev,
                 fileNo: newFormattedFileNo,
-            }));
+      }));
 
             if (process.env.NODE_ENV === "development") {
                 console.log("[File Number] Regenerated:", {
-                    labelFileNo,
-                    newFormattedFileNo,
-                    subCategory,
-                    gloss,
-                    additiveId,
+          labelFileNo,
+          newFormattedFileNo,
+          subCategory,
+          gloss,
+          additiveId,
                     additivePercentage,
-                });
-            }
-        }
+        });
+      }
+    }
     }, [
         labelFileNo,
         subCategory,
@@ -841,29 +858,29 @@ const CreateFormula = () => {
         isGeneratingFileNumber,
     ]);
 
-    // ===== PRODUCT SEARCH & SELECTION =====
-
-    /**
-     * Handles product search input and filters products based on search term
-     * Searches across Product_Id, Abbreviation, and Product_Name fields
-     * Filters out already selected products to prevent duplicates
-     * Shows all available products for current subcategory when no search term
-     * @param {string} tintId - ID of the tinter row being searched
-     * @param {string} searchTerm - Search term entered by user
-     */
-    const handleProductSearch = (tintId, searchTerm) => {
+  // ===== PRODUCT SEARCH & SELECTION =====
+  
+  /**
+   * Handles product search input and filters products based on search term
+   * Searches across Product_Id, Abbreviation, and Product_Name fields
+   * Filters out already selected products to prevent duplicates
+   * Shows all available products for current subcategory when no search term
+   * @param {string} tintId - ID of the tinter row being searched
+   * @param {string} searchTerm - Search term entered by user
+   */
+  const handleProductSearch = (tintId, searchTerm) => {
         setProductSearchInput((prev) => ({ ...prev, [tintId]: searchTerm }));
-
-        // Always show the product list when focusing on the input
+    
+    // Always show the product list when focusing on the input
         setShowProductList((prev) => ({ ...prev, [tintId]: true }));
-
-        // Reset dropdown selection when searching
+    
+    // Reset dropdown selection when searching
         setSelectedDropdownIndex((prev) => ({ ...prev, [tintId]: 0 }));
-
-        if (!searchTerm.trim()) {
-            // Show all products for the current subcategory when no search term
-            const availableProducts = productsBySubCategory[subCategory] || [];
-            // Filter out already selected products (except the current row being edited)
+    
+    if (!searchTerm.trim()) {
+      // Show all products for the current subcategory when no search term
+      const availableProducts = productsBySubCategory[subCategory] || [];
+      // Filter out already selected products (except the current row being edited)
             const filtered = availableProducts.filter(
                 (product) =>
                     !tints.some(
@@ -871,14 +888,14 @@ const CreateFormula = () => {
                             tint._id !== tintId &&
                             tint.code === product.Product_Id,
                     ),
-            );
-            setFilteredProducts(filtered);
-            return;
-        }
+      );
+      setFilteredProducts(filtered);
+      return;
+    }
 
-        const availableProducts = productsBySubCategory[subCategory] || [];
-
-        // Filter products by search term (case-insensitive) and exclude already selected
+    const availableProducts = productsBySubCategory[subCategory] || [];
+    
+    // Filter products by search term (case-insensitive) and exclude already selected
         const filtered = availableProducts.filter((product) => {
             const matchesSearch =
                 product.Product_Id?.toLowerCase().includes(
@@ -895,38 +912,38 @@ const CreateFormula = () => {
                 (tint) =>
                     tint._id !== tintId && tint.code === product.Product_Id,
             );
+      
+      return matchesSearch && notAlreadySelected;
+    });
+    
+    setFilteredProducts(filtered);
+  };
 
-            return matchesSearch && notAlreadySelected;
-        });
-
-        setFilteredProducts(filtered);
-    };
-
-    /**
-     * Calculates the position for the product dropdown relative to the input field
-     * Ensures dropdown appears below and aligned with the search input
-     * @param {string} tintId - ID of the tinter row
-     * @param {Event} event - Focus event from the input field
-     */
-    const calculateDropdownPosition = (tintId, event) => {
-        const rect = event.target.getBoundingClientRect();
-        const top = rect.bottom + window.scrollY;
-        const left = rect.left + window.scrollX;
-
+  /**
+   * Calculates the position for the product dropdown relative to the input field
+   * Ensures dropdown appears below and aligned with the search input
+   * @param {string} tintId - ID of the tinter row
+   * @param {Event} event - Focus event from the input field
+   */
+  const calculateDropdownPosition = (tintId, event) => {
+    const rect = event.target.getBoundingClientRect();
+    const top = rect.bottom + window.scrollY;
+    const left = rect.left + window.scrollX;
+    
         setDropdownPosition((prev) => ({
-            ...prev,
+      ...prev,
             [tintId]: { top, left },
-        }));
-    };
+    }));
+  };
 
-    /**
-     * Handles product selection from the dropdown
-     * Updates the tinter row with selected product properties
-     * @param {string} tintId - ID of the tinter row
-     * @param {Object} product - Selected product object with metadata
-     */
-    const selectProduct = (tintId, product) => {
-        // Update tinter row with product information
+  /**
+   * Handles product selection from the dropdown
+   * Updates the tinter row with selected product properties
+   * @param {string} tintId - ID of the tinter row
+   * @param {Object} product - Selected product object with metadata
+   */
+  const selectProduct = (tintId, product) => {
+    // Update tinter row with product information
         updateTint(tintId, "code", product.Product_Id || "");
         updateTint(tintId, "series", product.Abbreviation || ""); // Map Abbreviation to series field
         updateTint(tintId, "name", product.Product_Name || "");
@@ -938,140 +955,140 @@ const CreateFormula = () => {
         );
         updateTint(tintId, "SolidContent", Number(product.SolidContent || 0));
         updateTint(tintId, "VOC", Number(product.VOC || 0));
-
-        // Keep dropdown open and show selected product in search input
+    
+    // Keep dropdown open and show selected product in search input
         setProductSearchInput((prev) => ({
             ...prev,
             [tintId]: product.Product_Id || "",
         }));
-
-        // Hide dropdown after selection
+    
+    // Hide dropdown after selection
         setShowProductList((prev) => ({ ...prev, [tintId]: false }));
-
-        // Focus on the first quantity input for this tinter
-        setTimeout(() => {
+    
+    // Focus on the first quantity input for this tinter
+    setTimeout(() => {
             const quantityInput = document.querySelector(
                 `input[data-tint-id="${tintId}"][data-qty-index="0"]`,
             );
-            if (quantityInput) {
-                quantityInput.focus();
-            }
-        }, 100);
-    };
+      if (quantityInput) {
+        quantityInput.focus();
+      }
+    }, 100);
+  };
 
-    /**
-     * Handles keyboard navigation in the product dropdown
-     * @param {string} tintId - ID of the tinter row
-     * @param {KeyboardEvent} event - Keyboard event
-     */
-    const handleProductDropdownKeyDown = (tintId, event) => {
-        const currentIndex = selectedDropdownIndex[tintId] || 0;
-        const maxIndex = filteredProducts.length - 1;
-
-        switch (event.key) {
+  /**
+   * Handles keyboard navigation in the product dropdown
+   * @param {string} tintId - ID of the tinter row
+   * @param {KeyboardEvent} event - Keyboard event
+   */
+  const handleProductDropdownKeyDown = (tintId, event) => {
+    const currentIndex = selectedDropdownIndex[tintId] || 0;
+    const maxIndex = filteredProducts.length - 1;
+    
+    switch (event.key) {
             case "ArrowDown":
-                event.preventDefault();
-                const nextIndex = Math.min(currentIndex + 1, maxIndex);
+        event.preventDefault();
+        const nextIndex = Math.min(currentIndex + 1, maxIndex);
                 setSelectedDropdownIndex((prev) => ({
                     ...prev,
                     [tintId]: nextIndex,
                 }));
-                // Auto-scroll to keep selected item visible
-                setTimeout(() => scrollToSelectedItem(tintId, nextIndex), 0);
-                break;
-
+        // Auto-scroll to keep selected item visible
+        setTimeout(() => scrollToSelectedItem(tintId, nextIndex), 0);
+        break;
+        
             case "ArrowUp":
-                event.preventDefault();
-                const prevIndex = Math.max(currentIndex - 1, 0);
+        event.preventDefault();
+        const prevIndex = Math.max(currentIndex - 1, 0);
                 setSelectedDropdownIndex((prev) => ({
                     ...prev,
                     [tintId]: prevIndex,
                 }));
-                // Auto-scroll to keep selected item visible
-                setTimeout(() => scrollToSelectedItem(tintId, prevIndex), 0);
-                break;
-
+        // Auto-scroll to keep selected item visible
+        setTimeout(() => scrollToSelectedItem(tintId, prevIndex), 0);
+        break;
+        
             case "Enter":
-                event.preventDefault();
+        event.preventDefault();
                 if (
                     filteredProducts.length > 0 &&
                     currentIndex >= 0 &&
                     currentIndex < filteredProducts.length
                 ) {
-                    selectProduct(tintId, filteredProducts[currentIndex]);
-                }
-                break;
-
-            case "Escape":
-                event.preventDefault();
-                setShowProductList((prev) => ({ ...prev, [tintId]: false }));
-                break;
+          selectProduct(tintId, filteredProducts[currentIndex]);
         }
-    };
+        break;
+        
+            case "Escape":
+        event.preventDefault();
+                setShowProductList((prev) => ({ ...prev, [tintId]: false }));
+        break;
+    }
+  };
 
-    /**
-     * Scrolls the dropdown to keep the selected item visible
-     * @param {string} tintId - ID of the tinter row
-     * @param {number} selectedIndex - Index of the selected item
-     */
-    const scrollToSelectedItem = (tintId, selectedIndex) => {
+  /**
+   * Scrolls the dropdown to keep the selected item visible
+   * @param {string} tintId - ID of the tinter row
+   * @param {number} selectedIndex - Index of the selected item
+   */
+  const scrollToSelectedItem = (tintId, selectedIndex) => {
         const dropdown = document.querySelector(
             `[data-product-dropdown][data-tint-id="${tintId}"]`,
         );
-        if (!dropdown) return;
-
+    if (!dropdown) return;
+    
         const selectedElement = dropdown.querySelector(
             `[data-product-index="${selectedIndex}"]`,
         );
-        if (!selectedElement) return;
-
-        // Use scrollIntoView with smooth behavior to keep the selected item visible
-        selectedElement.scrollIntoView({
+    if (!selectedElement) return;
+    
+    // Use scrollIntoView with smooth behavior to keep the selected item visible
+    selectedElement.scrollIntoView({ 
             block: "nearest",
             behavior: "smooth",
             inline: "nearest",
-        });
-    };
+    });
+  };
 
-    /**
-     * Checks if a product is already selected in another tinter row
-     * @param {string} productId - Product ID to check
-     * @param {string} currentTintId - Current tinter row ID (to exclude from check)
-     * @returns {boolean} True if product is already selected elsewhere
-     */
-    const isProductAlreadySelected = (productId, currentTintId) => {
+  /**
+   * Checks if a product is already selected in another tinter row
+   * @param {string} productId - Product ID to check
+   * @param {string} currentTintId - Current tinter row ID (to exclude from check)
+   * @returns {boolean} True if product is already selected elsewhere
+   */
+  const isProductAlreadySelected = (productId, currentTintId) => {
         return tints.some(
             (tint) => tint._id !== currentTintId && tint.code === productId,
         );
-    };
+  };
 
-    /**
-     * Handles input change with duplicate detection
-     * @param {string} tintId - ID of the tinter row
-     * @param {string} value - Input value
-     */
-    const handleProductInputChange = (tintId, value) => {
+  /**
+   * Handles input change with duplicate detection
+   * @param {string} tintId - ID of the tinter row
+   * @param {string} value - Input value
+   */
+  const handleProductInputChange = (tintId, value) => {
         setProductSearchInput((prev) => ({ ...prev, [tintId]: value }));
         updateTint(tintId, "code", value);
-
-        // Check if this product is already selected elsewhere
-        if (value.trim() && isProductAlreadySelected(value.trim(), tintId)) {
-            // Find the tinter row that has this product
+    
+    // Check if this product is already selected elsewhere
+    if (value.trim() && isProductAlreadySelected(value.trim(), tintId)) {
+      // Find the tinter row that has this product
             const existingTint = tints.find(
                 (tint) => tint._id !== tintId && tint.code === value.trim(),
             );
-            if (existingTint) {
-                // Focus on the quantity inputs of the existing tinter
-                setTimeout(() => {
+      if (existingTint) {
+        // Focus on the quantity inputs of the existing tinter
+        setTimeout(() => {
                     const quantityInput = document.querySelector(
                         `input[data-tint-id="${existingTint._id}"][data-qty-index="0"]`,
                     );
-                    if (quantityInput) {
-                        quantityInput.focus();
-                    }
-                }, 100);
-
-                // Clear the current input since it's a duplicate
+          if (quantityInput) {
+            quantityInput.focus();
+          }
+        }, 100);
+        
+        // Clear the current input since it's a duplicate
                 setProductSearchInput((prev) => ({ ...prev, [tintId]: "" }));
                 updateTint(tintId, "code", "");
 
@@ -1080,216 +1097,216 @@ const CreateFormula = () => {
                         existingTint.sl
                     }. Please use that row to enter quantities.`,
                 );
-                return;
-            }
-        }
+        return;
+      }
+    }
+    
+    handleProductSearch(tintId, value);
+  };
 
-        handleProductSearch(tintId, value);
-    };
-
-    // ===== COMPUTED VALUES & TOTALS =====
-
-    /**
-     * Total grams of all tinters (without binders and additives)
-     * Used for calculations and display
-     */
-    const totalWithoutAdditives = useMemo(
-        () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
+  // ===== COMPUTED VALUES & TOTALS =====
+  
+  /**
+   * Total grams of all tinters (without binders and additives)
+   * Used for calculations and display
+   */
+  const totalWithoutAdditives = useMemo(
+    () => tints.reduce((sum, t) => sum + Number(t.grams || 0), 0),
         [tints],
-    );
-
-    /**
-     * Total grams of all binders
-     * Used for calculations and display
-     */
-    const bindersTotal = useMemo(
-        () => binders.reduce((sum, b) => sum + Number(b.grams || 0), 0),
+  );
+  
+  /**
+   * Total grams of all binders
+   * Used for calculations and display
+   */
+  const bindersTotal = useMemo(
+    () => binders.reduce((sum, b) => sum + Number(b.grams || 0), 0),
         [binders],
-    );
-
-    /**
-     * Total volume of all binders
-     * Used for calculations and display
-     */
-    const bindersTotalVolume = useMemo(
-        () => binders.reduce((sum, b) => sum + Number(b.volume || 0), 0),
+  );
+  
+  /**
+   * Total volume of all binders
+   * Used for calculations and display
+   */
+  const bindersTotalVolume = useMemo(
+    () => binders.reduce((sum, b) => sum + Number(b.volume || 0), 0),
         [binders],
-    );
-
-    /**
-     * Total volume of all tinters (without binders and additives)
-     * Used for calculations and display
-     */
-    const totalWithoutAdditivesVolume = useMemo(
-        () => tints.reduce((sum, t) => sum + Number(t.volume || 0), 0),
+  );
+  
+  /**
+   * Total volume of all tinters (without binders and additives)
+   * Used for calculations and display
+   */
+  const totalWithoutAdditivesVolume = useMemo(
+    () => tints.reduce((sum, t) => sum + Number(t.volume || 0), 0),
         [tints],
-    );
+  );
 
-    // ===== STATE UPDATE FUNCTIONS =====
+  // ===== STATE UPDATE FUNCTIONS =====
+  
+  /**
+   * Updates metadata fields (customer info, project details, etc.)
+   * @param {string} key - Field name to update
+   * @param {any} value - New value for the field
+   */
+  const updateMeta = (key, value) => setMeta((m) => ({ ...m, [key]: value }));
 
-    /**
-     * Updates metadata fields (customer info, project details, etc.)
-     * @param {string} key - Field name to update
-     * @param {any} value - New value for the field
-     */
-    const updateMeta = (key, value) => setMeta((m) => ({ ...m, [key]: value }));
-
-    /**
-     * Updates a specific field in a tinter row
-     * Automatically adds a new empty row when editing the last row with input
-     * @param {string} _id - Unique identifier of the tinter row
-     * @param {string} key - Field name to update (code, series, name, etc.)
-     * @param {any} value - New value for the field
-     */
-    const updateTint = (_id, key, value) => {
-        setTints((prev) => {
-            // Check if we're editing the last row
-            const isEditingLastRow = prev[prev.length - 1]?._id === _id;
+  /**
+   * Updates a specific field in a tinter row
+   * Automatically adds a new empty row when editing the last row with input
+   * @param {string} _id - Unique identifier of the tinter row
+   * @param {string} key - Field name to update (code, series, name, etc.)
+   * @param {any} value - New value for the field
+   */
+  const updateTint = (_id, key, value) => {
+    setTints((prev) => {
+      // Check if we're editing the last row
+      const isEditingLastRow = prev[prev.length - 1]?._id === _id;
             const updated = prev.map((t) =>
                 t._id === _id ? { ...t, [key]: value } : t,
             );
-
-            if (isEditingLastRow) {
-                const last = updated[updated.length - 1];
-                // Check if the last row has any meaningful input
-                const hasAnyInput = Boolean(
-                    (last.code && last.code.trim()) ||
-                    (last.series && last.series.trim()) ||
-                    (last.name && last.name.trim()) ||
-                    Number(last.grams) > 0 ||
+      
+      if (isEditingLastRow) {
+        const last = updated[updated.length - 1];
+        // Check if the last row has any meaningful input
+        const hasAnyInput = Boolean(
+          (last.code && last.code.trim()) ||
+            (last.series && last.series.trim()) ||
+            (last.name && last.name.trim()) ||
+            Number(last.grams) > 0 ||
                     Number(last.volume) > 0,
-                );
+        );
+        
+        // Add new empty row if current row has input
+        if (hasAnyInput) {
+          const nextIndex = updated.length + 1;
+          return [...updated, createEmptyTint(nextIndex)];
+        }
+      }
+      return updated;
+    });
+  };
 
-                // Add new empty row if current row has input
-                if (hasAnyInput) {
-                    const nextIndex = updated.length + 1;
-                    return [...updated, createEmptyTint(nextIndex)];
-                }
-            }
-            return updated;
-        });
-    };
-
-    /**
-     * Updates quantity values for a specific tinter row
-     * Recalculates grams and volume based on new quantities
-     * Automatically adds new row when editing last row with input
-     * @param {string} _id - Unique identifier of the tinter row
-     * @param {number} colIndex - Column index (0-5) for the quantity field
-     * @param {number} value - New quantity value
-     */
-    const updateTintQty = (_id, colIndex, value) => {
-        setTints((prev) => {
-            const updated = prev.map((t) => {
-                if (t._id !== _id) return t;
-
-                // Update quantity array
-                const nextQty = [...t.qty];
-                nextQty[colIndex] = Number(value) || 0;
-
-                // Recalculate derived values (grams and volume) using the calculation engine
-                // Note: grams/volume are derived; keep for legacy but not trusted for UI
-                const derived = computeTinterRow({
-                    qty: nextQty,
-                    coefficient: t.coefficient,
-                    Product_Density: t.Product_Density,
-                    SolidContent: t.SolidContent,
+  /**
+   * Updates quantity values for a specific tinter row
+   * Recalculates grams and volume based on new quantities
+   * Automatically adds new row when editing last row with input
+   * @param {string} _id - Unique identifier of the tinter row
+   * @param {number} colIndex - Column index (0-5) for the quantity field
+   * @param {number} value - New quantity value
+   */
+  const updateTintQty = (_id, colIndex, value) => {
+    setTints((prev) => {
+      const updated = prev.map((t) => {
+        if (t._id !== _id) return t;
+        
+        // Update quantity array
+        const nextQty = [...t.qty];
+        nextQty[colIndex] = Number(value) || 0;
+        
+        // Recalculate derived values (grams and volume) using the calculation engine
+        // Note: grams/volume are derived; keep for legacy but not trusted for UI
+        const derived = computeTinterRow({ 
+          qty: nextQty, 
+          coefficient: t.coefficient, 
+          Product_Density: t.Product_Density, 
+          SolidContent: t.SolidContent, 
                     VOC: t.VOC,
-                });
-
-                // Volume calculation completed
-
+        });
+        
+        // Volume calculation completed
+        
                 return {
                     ...t,
                     qty: nextQty,
                     grams: derived.grams,
                     volume: derived.volumeL,
                 };
-            });
+      });
 
-            // Check if we need to add a new row
-            const last = updated[updated.length - 1];
-            const hasQtyInput = last.qty.some((v) => Number(v) > 0);
+      // Check if we need to add a new row
+      const last = updated[updated.length - 1];
+      const hasQtyInput = last.qty.some((v) => Number(v) > 0);
             const hasMeta = Boolean(
                 (last.code && last.code.trim()) ||
                 (last.series && last.series.trim()) ||
                 (last.name && last.name.trim()),
             );
+      
+      // Add new row if editing last row and it has input
+      if (hasQtyInput || hasMeta) {
+        if (prev[prev.length - 1]?._id === _id) {
+          return [...updated, createEmptyTint(updated.length + 1)];
+        }
+      }
+      return updated;
+    });
+  };
 
-            // Add new row if editing last row and it has input
-            if (hasQtyInput || hasMeta) {
-                if (prev[prev.length - 1]?._id === _id) {
-                    return [...updated, createEmptyTint(updated.length + 1)];
-                }
-            }
-            return updated;
-        });
-    };
-
-    // ===== BINDER MANAGEMENT =====
-
-    /**
-     * Adds a new empty binder row to the formula
-     */
+  // ===== BINDER MANAGEMENT =====
+  
+  /**
+   * Adds a new empty binder row to the formula
+   */
     const addBinder = () =>
         setBinders((prev) => [
             ...prev,
             { _id: cryptoRandomId(), name: "", grams: 0, volume: 0 },
         ]);
-
-    /**
-     * Updates a specific field in a binder row
-     * @param {string} _id - Unique identifier of the binder
-     * @param {string} key - Field name to update
-     * @param {any} value - New value for the field
-     */
+  
+  /**
+   * Updates a specific field in a binder row
+   * @param {string} _id - Unique identifier of the binder
+   * @param {string} key - Field name to update
+   * @param {any} value - New value for the field
+   */
     const updateBinder = (_id, key, value) =>
         setBinders((prev) =>
             prev.map((b) => (b._id === _id ? { ...b, [key]: value } : b)),
         );
-
-    /**
-     * Removes a binder row from the formula
-     * @param {string} _id - Unique identifier of the binder to remove
-     */
+  
+  /**
+   * Removes a binder row from the formula
+   * @param {string} _id - Unique identifier of the binder to remove
+   */
     const removeBinder = (_id) =>
         setBinders((prev) => prev.filter((b) => b._id !== _id));
 
-    // ===== ADDITIVE MANAGEMENT =====
-
-    /**
-     * Adds a new empty additive row to the formula
-     */
+  // ===== ADDITIVE MANAGEMENT =====
+  
+  /**
+   * Adds a new empty additive row to the formula
+   */
     const addAdditive = () =>
         setAdditives((prev) => [
             ...prev,
             { _id: cryptoRandomId(), name: "", percent: 0, grams: 0 },
         ]);
-
-    /**
-     * Adds a new additive row with data from master data
-     * @param {Object} additiveData - Raw additive data from API
-     * @param {string} additiveId - Additive ID
-     */
-    const addAdditiveWithData = (additiveData, additiveId) => {
-        const newAdditive = {
-            _id: cryptoRandomId(),
-            additiveId: additiveId,
+  
+  /**
+   * Adds a new additive row with data from master data
+   * @param {Object} additiveData - Raw additive data from API
+   * @param {string} additiveId - Additive ID
+   */
+  const addAdditiveWithData = (additiveData, additiveId) => {
+    const newAdditive = {
+      _id: cryptoRandomId(),
+      additiveId: additiveId,
             name: additiveData.Additive_Name || "",
-            percent: 0,
-            grams: 0,
-            Additive_Density: Number(additiveData.Additive_Density || 1000),
-            SolidContent: Number(additiveData.SolidContent || 0),
-            VOC: Number(additiveData.VOC || 0),
-        };
-        setAdditives((prev) => [...prev, newAdditive]);
+      percent: 0,
+      grams: 0,
+      Additive_Density: Number(additiveData.Additive_Density || 1000),
+      SolidContent: Number(additiveData.SolidContent || 0),
+      VOC: Number(additiveData.VOC || 0),
     };
+    setAdditives((prev) => [...prev, newAdditive]);
+  };
 
-    /**
-     * Auto-selects binders based on subcategory configuration
-     * @param {string} subCategoryId - ID of the selected subcategory
-     */
-    const autoSelectBindersForSubcategory = (subCategoryId) => {
+  /**
+   * Auto-selects binders based on subcategory configuration
+   * @param {string} subCategoryId - ID of the selected subcategory
+   */
+  const autoSelectBindersForSubcategory = (subCategoryId) => {
         // Enhanced debug logging at function entry
         const debugInfo = {
             subCategoryId,
@@ -1302,23 +1319,23 @@ const CreateFormula = () => {
             JSON.stringify(debugInfo, null, 2),
         );
 
-        if (!subCategoryId) {
+    if (!subCategoryId) {
             console.log(
                 "[Binder Auto-Select] No subcategory ID provided, clearing binders",
             );
             setSelectedBinder1Id("");
             setSelectedBinder2Id("");
-            return;
-        }
-
+      return;
+    }
+    
         // Enhanced lookup with multiple fallbacks for better key matching
         const subcategoryConfig =
             binderConfigBySubCategory[subCategoryId] || // Direct match
             binderConfigBySubCategory[String(subCategoryId)] || // String conversion
-            Object.values(binderConfigBySubCategory).find(
+      Object.values(binderConfigBySubCategory).find(
                 (config) =>
                     config.SubCategoryId === subCategoryId ||
-                    config.SubCategory_Id === subCategoryId ||
+                  config.SubCategory_Id === subCategoryId ||
                     config._id === subCategoryId ||
                     config.id === subCategoryId ||
                     String(config.SubCategoryId) === String(subCategoryId) ||
@@ -1344,11 +1361,11 @@ const CreateFormula = () => {
         console.log(
             "[Binder Auto-Select] Config lookup result:",
             JSON.stringify(lookupResult, null, 2),
-        );
-
-        if (subcategoryConfig) {
-            // Extract binder IDs from the configuration
-            // Handle both direct Binder1/Binder2 and nested Products.Binder1/Binder2
+      );
+    
+    if (subcategoryConfig) {
+      // Extract binder IDs from the configuration
+      // Handle both direct Binder1/Binder2 and nested Products.Binder1/Binder2
             const binder1Id =
                 subcategoryConfig.Binder1 ||
                 subcategoryConfig.Products?.Binder1 ||
@@ -1375,19 +1392,19 @@ const CreateFormula = () => {
             console.log('binder1Id--->>>', binder1Id);
             console.log('binder2Id--->>>', binder2Id);
 
-
-            setSelectedBinder1Id(binder1Id);
-            setSelectedBinder2Id(binder2Id);
-
-            // Debug: Dynamic data flow - Auto binder selection
+      
+      setSelectedBinder1Id(binder1Id);
+      setSelectedBinder2Id(binder2Id);
+      
+      // Debug: Dynamic data flow - Auto binder selection
             if (process.env.NODE_ENV === "development") {
                 console.log(
                     "[Dynamic Data] Auto-selected binders for subcategory:",
                     {
-                        subCategoryId,
-                        binder1Id,
-                        binder2Id,
-                        availableBinders: rawBinders.length,
+          subCategoryId,
+          binder1Id,
+          binder2Id,
+          availableBinders: rawBinders.length,
                         configSource: subcategoryConfig.Products
                             ? "Products object"
                             : "direct properties",
@@ -1419,168 +1436,168 @@ const CreateFormula = () => {
                     })
                     .catch(error => {
                         console.error('[Binder Fallback] Failed to fetch binders:', error);
-                    });
-            }
-        } else {
+        });
+      }
+    } else {
             console.log(
                 "[Binder Auto-Select] No config found, clearing binders",
             );
             setSelectedBinder1Id("");
             setSelectedBinder2Id("");
-
-            // Debug: Dynamic data flow - No binder config found
+      
+      // Debug: Dynamic data flow - No binder config found
             if (process.env.NODE_ENV === "development") {
                 console.log(
                     "[Dynamic Data] No binder configuration found for subcategory:",
                     subCategoryId,
                 );
-            }
-        }
-    };
+      }
+    }
+  };
 
-    /**
-     * Validates if a selected tinter is available in the current subcategory
-     * @param {string} productId - The product ID to validate
-     * @returns {boolean} True if the tinter is available in current subcategory
-     */
-    const isTinterAvailableInSubcategory = (productId) => {
-        if (!subCategory || !productId) return false;
-
-        const availableProducts = productsBySubCategory[subCategory] || [];
+  /**
+   * Validates if a selected tinter is available in the current subcategory
+   * @param {string} productId - The product ID to validate
+   * @returns {boolean} True if the tinter is available in current subcategory
+   */
+  const isTinterAvailableInSubcategory = (productId) => {
+    if (!subCategory || !productId) return false;
+    
+    const availableProducts = productsBySubCategory[subCategory] || [];
         return availableProducts.some(
             (product) => product.Product_Id === productId,
         );
-    };
-
-    /**
-     * Updates a specific field in an additive row
-     * @param {string} _id - Unique identifier of the additive
-     * @param {string} key - Field name to update
-     * @param {any} value - New value for the field
-     */
+  };
+  
+  /**
+   * Updates a specific field in an additive row
+   * @param {string} _id - Unique identifier of the additive
+   * @param {string} key - Field name to update
+   * @param {any} value - New value for the field
+   */
     const updateAdditive = (_id, key, value) =>
         setAdditives((prev) =>
             prev.map((a) => (a._id === _id ? { ...a, [key]: value } : a)),
         );
-
-    /**
-     * Removes an additive row from the formula
-     * @param {string} _id - Unique identifier of the additive to remove
-     */
+  
+     /**
+    * Removes an additive row from the formula
+    * @param {string} _id - Unique identifier of the additive to remove
+    */
     const removeAdditive = (_id) =>
         setAdditives((prev) => prev.filter((a) => a._id !== _id));
 
-    // ===== FILE ATTACHMENT HANDLING =====
-
-    /**
-     * Handles file attachment upload and preview generation
-     * Creates a preview for immediate display and uploads to server
-     * @param {File} file - File object to attach
-     */
-    const onAttach = async (file) => {
-        if (!file) return;
-
-        setIsUploading(true);
-
-        // Create preview for immediate display
-        const reader = new FileReader();
+  // ===== FILE ATTACHMENT HANDLING =====
+  
+  /**
+   * Handles file attachment upload and preview generation
+   * Creates a preview for immediate display and uploads to server
+   * @param {File} file - File object to attach
+   */
+  const onAttach = async (file) => {
+    if (!file) return;
+    
+    setIsUploading(true);
+    
+    // Create preview for immediate display
+    const reader = new FileReader();
         reader.onload = (e) =>
             setAttachment({ file, preview: String(e.target?.result || "") });
-        reader.readAsDataURL(file);
-
-        try {
-            // Upload file to server
-            const uploaded = await FormulaService.uploadAttachment(file);
-            setUploadedAttachment(uploaded);
-        } catch (e) {
+    reader.readAsDataURL(file);
+    
+    try {
+      // Upload file to server
+      const uploaded = await FormulaService.uploadAttachment(file);
+      setUploadedAttachment(uploaded);
+    } catch (e) {
             console.error("Attachment upload failed", e);
-        } finally {
-            setIsUploading(false);
-        }
-    };
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-    // ===== FORM RESET & CLEARING =====
-
-    /**
-     * Resets the entire formula to initial state
-     * Clears all inputs and resets to default values
-     */
-    const clearAll = () => {
-        // Reset metadata to defaults
-        setMeta({
-            date: new Date().toISOString().slice(0, 10),
+  // ===== FORM RESET & CLEARING =====
+  
+  /**
+   * Resets the entire formula to initial state
+   * Clears all inputs and resets to default values
+   */
+  const clearAll = () => {
+    // Reset metadata to defaults
+    setMeta({ 
+      date: new Date().toISOString().slice(0, 10), 
             fileNo: "",
             customerName: "",
             colorCode: "",
             colorName: "",
             customerRef: "",
             projectNo: "",
-        });
-
-        // Reset category and subcategory selections
+    });
+    
+    // Reset category and subcategory selections
         setCategory(categoryOptions[0] || "100 - Paints");
         const subs =
             subCategoriesByCategory[categoryOptions[0]] || subCategoryOptions;
         setSubCategory((Array.isArray(subs) && subs[0]) || "Rosner_Acrylic");
-
-        // Reset formula components
-        setGloss(0);
+    
+    // Reset formula components
+    setGloss(0);
         setGlossInput("");
-        setTints([createEmptyTint(1)]);
-        setBinders([]);
-        setAdditives([]);
+    setTints([createEmptyTint(1)]);
+    setBinders([]);
+    setAdditives([]);
         setRemarks("");
-
-        // Clear UI state
-        setProductSearchInput({});
-        setShowProductList({});
+    
+    // Clear UI state
+    setProductSearchInput({});
+    setShowProductList({});
         setSelectedAdditiveId("");
         setAdditivePercentageInput("");
-        setIsAddingAdditive(false);
+    setIsAddingAdditive(false);
         setSelectedBinder1Id("");
         setSelectedBinder2Id("");
-
-        // Clear attachments
+    
+    // Clear attachments
         setAttachment({ file: null, preview: "" });
-        setUploadedAttachment(null);
-    };
+    setUploadedAttachment(null);
+  };
 
-    // ===== DERIVED COMPUTATIONS =====
-    // These useMemo hooks calculate derived values from the formula data
-    // They automatically recalculate when their dependencies change
+  // ===== DERIVED COMPUTATIONS =====
+  // These useMemo hooks calculate derived values from the formula data
+  // They automatically recalculate when their dependencies change
+  
+  /**
+   * Calculates totals for all tinters including grams, volume, and quality metrics
+   * Uses the tinters calculation engine for accurate computations
+   */
+  const tinterTotals = useMemo(() => computeTinters(tints), [tints]);
 
-    /**
-     * Calculates totals for all tinters including grams, volume, and quality metrics
-     * Uses the tinters calculation engine for accurate computations
-     */
-    const tinterTotals = useMemo(() => computeTinters(tints), [tints]);
-
-    /**
-     * Selects and configures binder settings based on the current subcategory
-     * Applies default values and ensures consistent configuration
-     */
-    const selectedBinderConfig = useMemo(() => {
-        const cfg = binderConfigBySubCategory?.[subCategory] || {};
-
-        // Matt/Gloss handling logic based on subcategory (Scenario 1, 2, 3)
-        let mattGlossValue = 1; // Default value for Scenario 3
-
-        if (cfg?.Matt) {
-            // Scenario 1: Subcategory with Matt Input
-            mattGlossValue = gloss;
-        } else if (cfg?.Gloss) {
-            // Scenario 2: Subcategory with Gloss Input
-            mattGlossValue = gloss;
-        } else {
-            // Scenario 3: No Matt/Gloss (Default) - multiplier = 1
-            mattGlossValue = 1;
-        }
-
-        // Get selected binders from state (auto-selected based on subcategory)
-        const selectedBinder1 = selectedBinder1Id;
-        const selectedBinder2 = selectedBinder2Id;
-
-        // Get binder data from raw binders array using Binder_Id
+  /**
+   * Selects and configures binder settings based on the current subcategory
+   * Applies default values and ensures consistent configuration
+   */
+  const selectedBinderConfig = useMemo(() => {
+    const cfg = binderConfigBySubCategory?.[subCategory] || {};
+    
+    // Matt/Gloss handling logic based on subcategory (Scenario 1, 2, 3)
+    let mattGlossValue = 1; // Default value for Scenario 3
+    
+    if (cfg?.Matt) {
+      // Scenario 1: Subcategory with Matt Input
+      mattGlossValue = gloss;
+    } else if (cfg?.Gloss) {
+      // Scenario 2: Subcategory with Gloss Input
+      mattGlossValue = gloss;
+    } else {
+      // Scenario 3: No Matt/Gloss (Default) - multiplier = 1
+      mattGlossValue = 1;
+    }
+    
+    // Get selected binders from state (auto-selected based on subcategory)
+    const selectedBinder1 = selectedBinder1Id;
+    const selectedBinder2 = selectedBinder2Id;
+    
+    // Get binder data from raw binders array using Binder_Id
         const binder1Data = rawBinders.find(
             (b) => String(b.Binder_Id) === String(selectedBinder1),
         );
@@ -1599,11 +1616,11 @@ const CreateFormula = () => {
                 availableBinderIds: rawBinders.slice(0, 3).map(b => b.Binder_Id)
             });
         }
-
-        const config = {
-            ...cfg,
-            Binder1: selectedBinder1,
-            Binder2: selectedBinder2,
+    
+    const config = {
+      ...cfg,
+      Binder1: selectedBinder1,
+      Binder2: selectedBinder2,
             Binder1Name:
                 binder1Data?.Binder_Name ||
                 binder1Data?.name ||
@@ -1615,83 +1632,83 @@ const CreateFormula = () => {
                 cfg?.Binder2Name ||
                 `Binder ${selectedBinder2}`,
             Binder2Equation: cfg?.Binder2EQ1 ? "Eq1" : "Eq2",
-            MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
-        };
-
-        // Debug: Dynamic data flow - Binder configuration
+      MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
+    };
+    
+    // Debug: Dynamic data flow - Binder configuration
         if (process.env.NODE_ENV === "development" && subCategory) {
             console.log("[Dynamic Data] Binder config loaded:", {
-                subCategory,
-                hasBinder1: !!selectedBinder1,
-                hasBinder2: !!selectedBinder2,
-                hasMatt: !!cfg?.Matt,
-                hasGloss: !!cfg?.Gloss,
-                binder1Name: config.Binder1Name,
-                binder2Name: config.Binder2Name,
-                selectedBinder1Id,
+        subCategory, 
+        hasBinder1: !!selectedBinder1,
+        hasBinder2: !!selectedBinder2,
+        hasMatt: !!cfg?.Matt,
+        hasGloss: !!cfg?.Gloss,
+        binder1Name: config.Binder1Name,
+        binder2Name: config.Binder2Name,
+        selectedBinder1Id,
                 selectedBinder2Id,
-            });
-        }
+      });
+    }
+    
+    // Binder configuration loaded for subcategory
+    
+    return config;
+  }, [binderConfigBySubCategory, subCategory, gloss]);
 
-        // Binder configuration loaded for subcategory
-
-        return config;
-    }, [binderConfigBySubCategory, subCategory, gloss]);
-
-    /**
-     * Calculates binder requirements based on tinter totals and configuration
-     * Determines how much of each binder type is needed
-     */
+  /**
+   * Calculates binder requirements based on tinter totals and configuration
+   * Determines how much of each binder type is needed
+   */
     const binderTotals = useMemo(
         () => computeBinders(tinterTotals.totalGrams, selectedBinderConfig),
         [tinterTotals.totalGrams, selectedBinderConfig],
     );
-
-    /**
-     * Calculates additive requirements based on total formula weight
-     * Considers both tinter and binder contributions
-     */
-    const additiveTotals = useMemo(() => {
-        // Base mass for additive calculation = Total Tinter Grams + Total Binder Grams
+  
+  /**
+   * Calculates additive requirements based on total formula weight
+   * Considers both tinter and binder contributions
+   */
+  const additiveTotals = useMemo(() => {
+    // Base mass for additive calculation = Total Tinter Grams + Total Binder Grams
         const baseMass =
             tinterTotals.totalGrams + binderTotals.totalBinderGrams;
-
-        // Calculate additive totals
-        const result = computeAdditives(additives, baseMass);
-
-        // Debug: Additive calculation
+    
+    // Calculate additive totals
+    const result = computeAdditives(additives, baseMass);
+    
+    // Debug: Additive calculation
         if (process.env.NODE_ENV === "development") {
             console.log("[Dynamic Data] Additive calculation:", {
-                baseMass,
-                tinterTotalGrams: tinterTotals.totalGrams,
-                binderTotalGrams: binderTotals.totalBinderGrams,
-                additivesCount: additives.length,
+        baseMass,
+        tinterTotalGrams: tinterTotals.totalGrams,
+        binderTotalGrams: binderTotals.totalBinderGrams,
+        additivesCount: additives.length,
                 additives: additives.map((a) => ({
                     name: a.name,
                     percent: a.percent,
                     id: a._id,
                 })),
-                result: {
-                    totalAdditiveGrams: result.totalAdditiveGrams,
-                    totalAdditiveVolumeL: result.totalAdditiveVolumeL,
+        result: {
+          totalAdditiveGrams: result.totalAdditiveGrams,
+          totalAdditiveVolumeL: result.totalAdditiveVolumeL,
                     rowsCount: result.rows.length,
                 },
-            });
-        }
-
-        return result;
-    }, [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
-
-    /**
-     * Total grams of all additives
-     * Used for calculations and display
-     */
-    const additivesTotal = additiveTotals.totalAdditiveGrams;
-
-    /**
-     * Computes final totals for the entire formula
-     * Combines tinter, binder, and additive totals
-     */
+      });
+    }
+    
+    return result;
+  }, [additives, tinterTotals.totalGrams, binderTotals.totalBinderGrams]);
+  
+  /**
+   * Total grams of all additives
+   * Used for calculations and display
+   */
+  const additivesTotal = additiveTotals.totalAdditiveGrams;
+  
+  /**
+   * Computes final totals for the entire formula
+   * Combines tinter, binder, and additive totals
+   */
     const finalTotals = useMemo(
         () =>
             computeFinalTotals(
@@ -1710,106 +1727,106 @@ const CreateFormula = () => {
             ),
         [tinterTotals, binderTotals, additiveTotals],
     );
-
-    // Grand totals for the entire formula
-    const grandTotal = finalTotals.finalGrams;
-    const grandTotalVolume = finalTotals.finalVolumeL;
-
-    /**
-     * Calculates quality metrics for the final formula
-     * Includes solid content percentage, density, and VOC content
-     */
+  
+  // Grand totals for the entire formula
+  const grandTotal = finalTotals.finalGrams;
+  const grandTotalVolume = finalTotals.finalVolumeL;
+  
+  /**
+   * Calculates quality metrics for the final formula
+   * Includes solid content percentage, density, and VOC content
+   */
     const quality = useMemo(
         () =>
             computeQualityMetrics({
-                finalGrams: finalTotals.finalGrams,
-                finalVolumeL: finalTotals.finalVolumeL,
-                totalSolidMass: tinterTotals.totalSolidMass,
+    finalGrams: finalTotals.finalGrams, 
+    finalVolumeL: finalTotals.finalVolumeL, 
+    totalSolidMass: tinterTotals.totalSolidMass, 
                 totalVOCmass: tinterTotals.totalVOCMass,
             }),
         [finalTotals, tinterTotals],
     );
+  
+  /**
+   * Calculates quality metrics for the formula
+   * Includes solid content percentage, VOC content, and density
+   */
+  const metrics = useMemo(() => {
+    const solidContent = quality.solidsPercent.toFixed(2);
+    const voc = quality.voc_gPerL.toFixed(3);
+    const density = quality.density_gPerL.toFixed(3);
+    return { solidContent, voc, density };
+  }, [quality]);
 
-    /**
-     * Calculates quality metrics for the formula
-     * Includes solid content percentage, VOC content, and density
-     */
-    const metrics = useMemo(() => {
-        const solidContent = quality.solidsPercent.toFixed(2);
-        const voc = quality.voc_gPerL.toFixed(3);
-        const density = quality.density_gPerL.toFixed(3);
-        return { solidContent, voc, density };
-    }, [quality]);
-
-    // ===== VALIDATION & ERROR CHECKING =====
-    // These useMemo hooks validate formula data and identify issues
-
-    /**
-     * Validates tinter data for completeness and correctness
-     * Checks for missing density values, duplicate products, etc.
-     */
-    const tinterErrors = useMemo(() => validateTinters(tints), [tints]);
-
-    /**
-     * Validates binder configuration for the selected subcategory
-     * Ensures all required binder settings are properly configured
-     */
+  // ===== VALIDATION & ERROR CHECKING =====
+  // These useMemo hooks validate formula data and identify issues
+  
+  /**
+   * Validates tinter data for completeness and correctness
+   * Checks for missing density values, duplicate products, etc.
+   */
+  const tinterErrors = useMemo(() => validateTinters(tints), [tints]);
+  
+  /**
+   * Validates binder configuration for the selected subcategory
+   * Ensures all required binder settings are properly configured
+   */
     const binderErrors = useMemo(
         () => validateBinders(selectedBinderConfig),
         [selectedBinderConfig],
     );
-
-    /**
-     * Validates final quality metrics against acceptable ranges
-     * Provides warnings for values that may cause issues
-     */
+  
+  /**
+   * Validates final quality metrics against acceptable ranges
+   * Provides warnings for values that may cause issues
+   */
     const metricWarnings = useMemo(
         () =>
             validateMetrics({
-                solidsPercent: quality.solidsPercent,
-                density_gPerL: quality.density_gPerL,
+    solidsPercent: quality.solidsPercent, 
+    density_gPerL: quality.density_gPerL, 
                 voc_gPerL: quality.voc_gPerL,
             }),
         [quality],
     );
-
-    /**
-     * Determines if there are any blocking errors that prevent formula saving
-     * Includes validation errors, missing data, and invalid calculations
-     */
+  
+  /**
+   * Determines if there are any blocking errors that prevent formula saving
+   * Includes validation errors, missing data, and invalid calculations
+   */
     const hasBlockingErrors =
         loadingMasters ||
         tinterErrors.some(
             (e) =>
                 e.type === "missing-density" || e.type === "duplicate-product",
         ) ||
-        binderErrors.length > 0 ||
-        !(finalTotals.finalVolumeL > 0) ||
-        !(finalTotals.finalGrams > 0);
+    binderErrors.length > 0 || 
+    !(finalTotals.finalVolumeL > 0) || 
+    !(finalTotals.finalGrams > 0);
 
-    // ===== FORMULA SAVING =====
-
-    /**
-     * Saves the current formula to the server
-     * Constructs a comprehensive payload with all formula data
-     * Handles success/error states and user feedback
-     */
-    const save = async () => {
-        setIsSaving(true);
-
-        // Construct the complete formula payload
-        const payload = {
-            // Basic metadata (customer info, project details)
-            meta,
-
-            // Formula header information
-            header: { category, subCategory, gloss },
-
-            // Core formula components
-            tints, // Tinter selections and quantities
-
-            // Calculated binder requirements
-            binders: [
+  // ===== FORMULA SAVING =====
+  
+  /**
+   * Saves the current formula to the server
+   * Constructs a comprehensive payload with all formula data
+   * Handles success/error states and user feedback
+   */
+  const save = async () => {
+    setIsSaving(true);
+    
+    // Construct the complete formula payload
+    const payload = {
+      // Basic metadata (customer info, project details)
+      meta,
+      
+      // Formula header information
+      header: { category, subCategory, gloss },
+      
+      // Core formula components
+      tints, // Tinter selections and quantities
+      
+      // Calculated binder requirements
+      binders: [
                 {
                     name: "Binder 1",
                     grams: binderTotals.binder1,
@@ -1820,13 +1837,13 @@ const CreateFormula = () => {
                     grams: binderTotals.binder2,
                     volume: binderTotals.binder2VolumeL,
                 },
-            ],
-
-            // Additive selections and percentages
-            additives,
-
-            // Comprehensive totals for all components
-            totals: {
+      ],
+      
+      // Additive selections and percentages
+      additives,
+      
+      // Comprehensive totals for all components
+      totals: {
                 tinter: {
                     grams: tinterTotals.totalGrams,
                     volumeL: tinterTotals.totalVolumeL,
@@ -1843,50 +1860,50 @@ const CreateFormula = () => {
                     grams: finalTotals.finalGrams,
                     volumeL: finalTotals.finalVolumeL,
                 },
-            },
-
-            // Additional information
-            remarks,
-
-            // Quality metrics for the final formula
-            metrics: {
-                solidsPercent: quality.solidsPercent,
-                density_gPerL: quality.density_gPerL,
-                voc_gPerL: quality.voc_gPerL,
-            },
-
-            // File attachment if provided
-            attachment: uploadedAttachment || undefined,
-        };
-
-        try {
-            // Send formula to server via API service
-            const res = await FormulaService.createFormula(payload);
-
-            if (res?.status) {
+      },
+      
+      // Additional information
+      remarks,
+      
+      // Quality metrics for the final formula
+      metrics: {
+        solidsPercent: quality.solidsPercent,
+        density_gPerL: quality.density_gPerL,
+        voc_gPerL: quality.voc_gPerL,
+      },
+      
+      // File attachment if provided
+      attachment: uploadedAttachment || undefined,
+    };
+    
+    try {
+      // Send formula to server via API service
+      const res = await FormulaService.createFormula(payload);
+      
+      if (res?.status) {
                 alert("Formula saved successfully");
-            } else {
+      } else {
                 alert(res?.message || "Save failed");
-            }
-        } catch (e) {
+      }
+    } catch (e) {
             console.error("Save error", e);
             alert("Save failed");
-        } finally {
-            setIsSaving(false);
-        }
-    };
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    // ===== RENDER =====
-
-    return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-            {/* Page header with navigation */}
-            <Header />
-
-            {/* Loading overlay for async operations */}
-            <LoadingOverlay
-                isLoading={loadingMasters || isSaving || isUploading}
-                message={
+  // ===== RENDER =====
+  
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Page header with navigation */}
+      <Header />
+      
+      {/* Loading overlay for async operations */}
+      <LoadingOverlay 
+        isLoading={loadingMasters || isSaving || isUploading} 
+        message={
                     loadingMasters
                         ? "Loading master data..."
                         : isSaving
@@ -1894,89 +1911,89 @@ const CreateFormula = () => {
                           : isUploading
                             ? "Uploading attachment..."
                             : "Loading..."
-                }
-            />
-
-            {/* Page Toolbar - Main actions and title */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    {/* Page title */}
+        }
+      />
+      
+      {/* Page Toolbar - Main actions and title */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Page title */}
                     <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                         Create Formula
                     </h1>
-
-                    {/* Action buttons */}
-                    <div className="flex space-x-3">
-                        {/* Clear All button - resets entire form */}
-                        <button
-                            onClick={clearAll}
-                            disabled={isSaving || isUploading}
-                            className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Clear All
-                        </button>
-
-                        {/* Save button - submits formula to server */}
-                        <button
-                            onClick={save}
+          
+          {/* Action buttons */}
+          <div className="flex space-x-3">
+            {/* Clear All button - resets entire form */}
+            <button 
+              onClick={clearAll} 
+              disabled={isSaving || isUploading}
+              className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Clear All
+            </button>
+            
+            {/* Save button - submits formula to server */}
+            <button 
+              onClick={save} 
                             disabled={
                                 hasBlockingErrors || isSaving || isUploading
                             }
-                            className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                        >
-                            {isSaving ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    <span>Saving...</span>
-                                </>
-                            ) : (
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
                                 "Save"
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </div>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* Main content area */}
-            <div className="p-6">
-                <div className="grid grid-cols-12 gap-6">
-                    {/* Left Sidebar - Formula metadata and configuration */}
-                    <div className="col-span-2 space-y-4">
-                        {/* Formula Metadata Form */}
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
-                            <div className="space-y-3">
-                                {/* Formula Date - Auto-filled with current date */}
-                                <div>
+      {/* Main content area */}
+      <div className="p-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Sidebar - Formula metadata and configuration */}
+          <div className="col-span-2 space-y-4">
+            {/* Formula Metadata Form */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+              <div className="space-y-3">
+                {/* Formula Date - Auto-filled with current date */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Date
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.date}
+                  <input
+                    type="text"
+                    value={meta.date}
                                         onChange={(e) =>
                                             updateMeta("date", e.target.value)
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                    />
-                                </div>
-                                {/* File Number - Unique identifier for the formula */}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        File no.
-                                        {isGeneratingFileNumber && (
-                                            <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                                                Generating...
-                                            </span>
-                                        )}
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={meta.fileNo}
-                                            readOnly
-                                            onClick={openFileNumberModal}
-                                            className={`w-full px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer transition-colors ${
-                                                hasAccessKeyVerified
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                  />
+                </div>
+                {/* File Number - Unique identifier for the formula */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    File no.
+                    {isGeneratingFileNumber && (
+                      <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                        Generating...
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={meta.fileNo}
+                      readOnly
+                      onClick={openFileNumberModal}
+                      className={`w-full px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer transition-colors ${
+                        hasAccessKeyVerified 
                                                     ? "bg-gray-500 text-white hover:bg-gray-600"
                                                     : "bg-gray-400 text-white hover:bg-gray-500"
                                             }`}
@@ -1985,194 +2002,194 @@ const CreateFormula = () => {
                                                     ? "Click to edit file number"
                                                     : "Click to edit file number (requires access key)"
                                             }
-                                        />
-                                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                                            {hasAccessKeyVerified ? (
-                                                <svg
-                                                    className="w-4 h-4 text-gray-400"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                                    />
-                                                </svg>
-                                            ) : (
-                                                <svg
-                                                    className="w-4 h-4 text-yellow-400"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                                                    />
-                                                </svg>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {!hasAccessKeyVerified && (
-                                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                      {hasAccessKeyVerified ? (
+                        <svg 
+                          className="w-4 h-4 text-gray-400" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+                          />
+                        </svg>
+                      ) : (
+                        <svg 
+                          className="w-4 h-4 text-yellow-400" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  {!hasAccessKeyVerified && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
                                             ⚠️ Controlled access required to
                                             edit file number
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Customer Name - Client or customer information */}
-                                <div>
+                    </p>
+                  )}
+                </div>
+                
+                {/* Customer Name - Client or customer information */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Customer Name
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.customerName}
+                  <input
+                    type="text"
+                    value={meta.customerName}
                                         onChange={(e) =>
                                             updateMeta(
                                                 "customerName",
                                                 e.target.value,
                                             )
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                    />
-                                </div>
-
-                                {/* Color Code - Technical color identifier */}
-                                <div>
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                  />
+                </div>
+                
+                {/* Color Code - Technical color identifier */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Color Code
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.colorCode}
+                  <input
+                    type="text"
+                    value={meta.colorCode}
                                         onChange={(e) =>
                                             updateMeta(
                                                 "colorCode",
                                                 e.target.value,
                                             )
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                    />
-                                </div>
-
-                                {/* Color Name - Human-readable color description */}
-                                <div>
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                  />
+                </div>
+                
+                {/* Color Name - Human-readable color description */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Color Name
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.colorName}
+                  <input
+                    type="text"
+                    value={meta.colorName}
                                         onChange={(e) =>
                                             updateMeta(
                                                 "colorName",
                                                 e.target.value,
                                             )
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
-
-                                {/* Customer Reference - Additional customer identifier */}
-                                <div>
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                
+                {/* Customer Reference - Additional customer identifier */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Customer Ref
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.customerRef}
+                  <input
+                    type="text"
+                    value={meta.customerRef}
                                         onChange={(e) =>
                                             updateMeta(
                                                 "customerRef",
                                                 e.target.value,
                                             )
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
-
-                                {/* Project Number - Project identifier or reference */}
-                                <div>
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                
+                {/* Project Number - Project identifier or reference */}
+                <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Project No
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.projectNo}
+                  <input
+                    type="text"
+                    value={meta.projectNo}
                                         onChange={(e) =>
                                             updateMeta(
                                                 "projectNo",
                                                 e.target.value,
                                             )
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
 
-                        {/* File Attachments Section */}
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+            {/* File Attachments Section */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
                             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Attachments
                             </h3>
-
-                            {/* File upload area with drag-and-drop styling */}
-                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded p-6 text-center">
-                                {/* Hidden file input for file selection */}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    id="attachment"
+              
+              {/* File upload area with drag-and-drop styling */}
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded p-6 text-center">
+                {/* Hidden file input for file selection */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="attachment"
                                     onChange={(e) =>
                                         onAttach(e.target.files?.[0] || null)
                                     }
-                                />
-
-                                {/* Clickable upload area */}
+                />
+                
+                {/* Clickable upload area */}
                                 <label
                                     htmlFor="attachment"
                                     className="cursor-pointer"
                                 >
-                                    {attachment.preview ? (
-                                        // Show image preview if file is selected
+                  {attachment.preview ? (
+                    // Show image preview if file is selected
                                         <img
                                             src={attachment.preview}
                                             alt="preview"
                                             className="w-full h-24 object-cover rounded"
                                         />
-                                    ) : (
-                                        // Show upload prompt if no file selected
-                                        <>
+                  ) : (
+                    // Show upload prompt if no file selected
+                    <>
                                             <div className="text-2xl text-gray-400 mb-2">
                                                 📁
                                             </div>
                                             <div className="text-xs text-gray-500 dark:text-gray-400">
                                                 Click to upload image
                                             </div>
-                                        </>
-                                    )}
-                                </label>
-                            </div>
-                        </div>
+                    </>
+                  )}
+                </label>
+              </div>
+            </div>
 
-                        {/* Debug Information - Development Only */}
+            {/* Debug Information - Development Only */}
                         {process.env.NODE_ENV === "development" && (
-                            <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded shadow mb-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded shadow mb-4">
                                 <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
                                     Debug Info
                                 </h3>
-                                <div className="text-xs space-y-1 text-yellow-700 dark:text-yellow-300">
-                                    <div>Category: {category}</div>
-                                    <div>SubCategory: {subCategory}</div>
+                <div className="text-xs space-y-1 text-yellow-700 dark:text-yellow-300">
+                  <div>Category: {category}</div>
+                  <div>SubCategory: {subCategory}</div>
                                     <div>
                                         Available Categories:{" "}
                                         {categoryOptions.length}
@@ -2254,8 +2271,8 @@ const CreateFormula = () => {
                                         Auto-Selected Binder2:{" "}
                                         {selectedBinder2Id || "None"}
                                     </div>
-                                    {selectedBinderConfig && (
-                                        <div className="ml-2">
+                  {selectedBinderConfig && (
+                    <div className="ml-2">
                                             <div>
                                                 Binder1 Name:{" "}
                                                 {selectedBinderConfig.Binder1Name ||
@@ -2289,92 +2306,92 @@ const CreateFormula = () => {
                                                 {selectedBinderConfig.suffix ||
                                                     "None"}
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-                        {/* Quality Metrics Display */}
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
+            {/* Quality Metrics Display */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
                             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                                 Metrics
                             </h3>
-                            <div className="space-y-3">
-                                {/* Solid Content Percentage - Calculated from binder content */}
-                                <div className="flex justify-between items-center">
+              <div className="space-y-3">
+                {/* Solid Content Percentage - Calculated from binder content */}
+                <div className="flex justify-between items-center">
                                     <span className="text-xs text-gray-600 dark:text-gray-300">
                                         Solid Content(%):
                                     </span>
-                                    <div className="flex items-center space-x-1">
-                                        <input
-                                            readOnly
-                                            value={metrics.solidContent}
-                                            className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
-                                        />
+                  <div className="flex items-center space-x-1">
+                    <input
+                      readOnly
+                      value={metrics.solidContent}
+                      className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                    />
                                         <span className="text-xs text-gray-600 dark:text-gray-300">
                                             %
                                         </span>
-                                    </div>
-                                </div>
-
-                                {/* VOC Content - Volatile Organic Compounds in g/L */}
-                                <div className="flex justify-between items-center">
+                  </div>
+                </div>
+                
+                {/* VOC Content - Volatile Organic Compounds in g/L */}
+                <div className="flex justify-between items-center">
                                     <span className="text-xs text-gray-600 dark:text-gray-300">
                                         VOC (g/Ltr):
                                     </span>
-                                    <input
-                                        readOnly
-                                        value={metrics.voc}
-                                        className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
-                                    />
-                                </div>
-
-                                {/* Density - Formula density in g/L */}
-                                <div className="flex justify-between items-center">
+                  <input
+                    readOnly
+                    value={metrics.voc}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+                
+                {/* Density - Formula density in g/L */}
+                <div className="flex justify-between items-center">
                                     <span className="text-xs text-gray-600 dark:text-gray-300">
                                         Density (g/Ltr):
                                     </span>
-                                    <input
-                                        readOnly
-                                        value={metrics.density}
-                                        className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
-                                    />
-                                </div>
-
-                                {/* Total Sampled Quantity - Sum of all components */}
-                                <div className="flex justify-between items-center">
+                  <input
+                    readOnly
+                    value={metrics.density}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+                
+                {/* Total Sampled Quantity - Sum of all components */}
+                <div className="flex justify-between items-center">
                                     <span className="text-xs text-gray-600 dark:text-gray-300">
                                         Sampled QTY:
                                     </span>
-                                    <input
-                                        readOnly
-                                        value={grandTotal.toFixed(2)}
-                                        className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  <input
+                    readOnly
+                    value={grandTotal.toFixed(2)}
+                    className="w-16 px-2 py-1 text-right bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
-                    {/* Main Content */}
-                    <div className="col-span-10">
-                        {/* Formula Configuration Controls */}
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mb-6">
-                            <div className="grid grid-cols-3 gap-4">
-                                {/* Paint Category Selection */}
-                                <div>
+          {/* Main Content */}
+          <div className="col-span-10">
+            {/* Formula Configuration Controls */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mb-6">
+              <div className="grid grid-cols-3 gap-4">
+                {/* Paint Category Selection */}
+                <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Category
                                     </label>
-                                    <select
-                                        value={category}
+                  <select
+                    value={category}
                                         onChange={(e) =>
                                             setCategory(e.target.value)
                                         }
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                    >
-                                        {categoryOptions.map((opt) => {
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                  >
+                    {categoryOptions.map((opt) => {
                                             const optId =
                                                 opt.id ||
                                                 opt._id ||
@@ -2386,31 +2403,31 @@ const CreateFormula = () => {
                                                 opt.Category_Name ||
                                                 opt.label ||
                                                 "";
-                                            return (
+                      return (
                                                 <option
                                                     key={optId}
                                                     value={optId}
                                                 >
                                                     {optName}
                                                 </option>
-                                            );
-                                        })}
-                                    </select>
-                                </div>
-
-                                {/* Paint Subcategory Selection */}
-                                <div>
+                      );
+                    })}
+                  </select>
+                </div>
+                
+                {/* Paint Subcategory Selection */}
+                <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Sub-Category
                                     </label>
-                                    <select
-                                        value={subCategory}
+                  <select
+                    value={subCategory}
                                         onChange={(e) =>
                                             setSubCategory(e.target.value)
                                         }
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                    >
-                                        {subCategoryOptions.map((opt) => {
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                  >
+                    {subCategoryOptions.map((opt) => {
                                             const optId =
                                                 opt.id ||
                                                 opt._id ||
@@ -2422,100 +2439,100 @@ const CreateFormula = () => {
                                                 opt.Subcategory_Name ||
                                                 opt.label ||
                                                 "";
-                                            return (
+                      return (
                                                 <option
                                                     key={optId}
                                                     value={optId}
                                                 >
                                                     {optName}
                                                 </option>
-                                            );
-                                        })}
-                                    </select>
-                                </div>
-
-                                {/* Matt/Gloss Level Input - Dynamic visibility based on subcategory */}
+                      );
+                    })}
+                  </select>
+                </div>
+                
+                {/* Matt/Gloss Level Input - Dynamic visibility based on subcategory */}
                                 {(selectedBinderConfig?.Matt ||
                                     selectedBinderConfig?.Gloss) && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             {selectedBinderConfig?.Matt
                                                 ? "Matt"
                                                 : "Gloss"}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={glossInput}
-                                            onChange={(e) => {
+                    </label>
+                    <input
+                      type="text"
+                      value={glossInput}
+                      onChange={(e) => {
                                                 const v = sanitizeNumericInput(
                                                     e.target.value,
                                                     "float",
                                                 );
-                                                setGlossInput(v);
+                        setGlossInput(v);
                                                 setGloss(
                                                     v === "" ? 0 : Number(v),
                                                 );
-                                            }}
-                                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                      }}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                                             placeholder={
                                                 selectedBinderConfig?.Matt
                                                     ? "Enter Matt value"
                                                     : "Enter Gloss value"
                                             }
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
 
-                        {/* Main Formula Content Grid */}
-                        <div className="grid grid-cols-12 gap-6">
-                            {/* Tinters Selection and Configuration Table */}
-                            <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
-                                {/* Table Header with Column Definitions */}
-                                <div className="bg-gray-600 text-white">
-                                    <div className="grid grid-cols-12 text-xs font-medium">
-                                        {/* Serial Number Column */}
+            {/* Main Formula Content Grid */}
+            <div className="grid grid-cols-12 gap-6">
+              {/* Tinters Selection and Configuration Table */}
+              <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
+                {/* Table Header with Column Definitions */}
+                <div className="bg-gray-600 text-white">
+                  <div className="grid grid-cols-12 text-xs font-medium">
+                    {/* Serial Number Column */}
                                         <div className="col-span-1 p-2 text-center border-r border-gray-500">
                                             SL No.
                                         </div>
-
-                                        {/* Tinters Information Column - Product details */}
+                    
+                    {/* Tinters Information Column - Product details */}
                                         <div className="col-span-7 p-2 text-center border-r border-gray-500">
                                             Tinters
                                         </div>
-
-                                        {/* Quantity Display Column - Shows calculated totals */}
-                                        <div className="col-span-4 p-2">
+                    
+                    {/* Quantity Display Column - Shows calculated totals */}
+                    <div className="col-span-4 p-2">
                                             <div className="text-center mb-1">
                                                 Quantity
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                                                 <div className="text-center">
                                                     Grams (g)
                                                 </div>
                                                 <div className="text-center">
-                                                    Volume (L)
+                                                    Volume (mL)
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                                {/* Rows */}
-                                <div className="divide-y divide-gray-200">
-                                    {tints.map((tint, index) => (
+                {/* Rows */}
+                <div className="divide-y divide-gray-200">
+                  {tints.map((tint, index) => (
                                         <div
                                             key={tint._id}
                                             className="grid grid-cols-12 text-xs h-[42px]"
                                         >
-                                            <div className="col-span-1 p-2 text-center bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
-                                                {index + 1}
-                                            </div>
-                                            <div className="col-span-7 p-2 border-r border-gray-200">
-                                                <div className="grid grid-cols-12 gap-1">
-                                                    <div className="col-span-3 relative">
-                                                        <input
+                      <div className="col-span-1 p-2 text-center bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
+                        {index + 1}
+                      </div>
+                      <div className="col-span-7 p-2 border-r border-gray-200">
+                        <div className="grid grid-cols-12 gap-1">
+                          <div className="col-span-3 relative">
+                            <input
                                                             value={
                                                                 productSearchInput[
                                                                     tint._id
@@ -2526,7 +2543,7 @@ const CreateFormula = () => {
                                                                       ]
                                                                     : tint.code
                                                             }
-                                                            onChange={(e) => {
+                              onChange={(e) => {
                                                                 const value =
                                                                     e.target
                                                                         .value;
@@ -2534,8 +2551,8 @@ const CreateFormula = () => {
                                                                     tint._id,
                                                                     value,
                                                                 );
-                                                            }}
-                                                            onFocus={(e) => {
+                              }}
+                              onFocus={(e) => {
                                                                 handleProductSearch(
                                                                     tint._id,
                                                                     productSearchInput[
@@ -2547,8 +2564,8 @@ const CreateFormula = () => {
                                                                     tint._id,
                                                                     e,
                                                                 );
-                                                            }}
-                                                            onKeyDown={(e) => {
+                              }}
+                              onKeyDown={(e) => {
                                                                 if (
                                                                     showProductList[
                                                                         tint._id
@@ -2558,10 +2575,10 @@ const CreateFormula = () => {
                                                                         tint._id,
                                                                         e,
                                                                     );
-                                                                }
-                                                            }}
-                                                            onBlur={() => {
-                                                                // Delay hiding the dropdown to allow clicking on products
+                                }
+                              }}
+                              onBlur={() => {
+                                // Delay hiding the dropdown to allow clicking on products
                                                                 setTimeout(
                                                                     () =>
                                                                         setShowProductList(
@@ -2574,21 +2591,21 @@ const CreateFormula = () => {
                                                                         ),
                                                                     200,
                                                                 );
-                                                            }}
-                                                            className="w-full px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                                            placeholder="Product ID"
-                                                        />
-                                                        {/* Product dropdown */}
+                              }}
+                              className="w-full px-1 py-1 text-xs border-0 border-b border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                              placeholder="Product ID"
+                            />
+                            {/* Product dropdown */}
                                                         {showProductList[
                                                             tint._id
                                                         ] && (
-                                                            <div
-                                                                className="fixed z-[9999] w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg"
-                                                                data-product-dropdown
+                              <div 
+                                className="fixed z-[9999] w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg"
+                                data-product-dropdown
                                                                 data-tint-id={
                                                                     tint._id
                                                                 }
-                                                                style={{
+                                style={{
                                                                     top:
                                                                         dropdownPosition[
                                                                             tint
@@ -2610,8 +2627,8 @@ const CreateFormula = () => {
                                                             >
                                                                 {filteredProducts.length >
                                                                 0 ? (
-                                                                    <>
-                                                                        {/* Show selected product at the top if one is selected */}
+                                  <>
+                                    {/* Show selected product at the top if one is selected */}
                                                                         {tint.code &&
                                                                             tint.code.trim() && (
                                                                                 <div
@@ -2637,14 +2654,14 @@ const CreateFormula = () => {
                                                                                         {!isTinterAvailableInSubcategory(
                                                                                             tint.code,
                                                                                         ) && (
-                                                                                            <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
+                                            <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
                                                                                                 Not
                                                                                                 in
                                                                                                 current
                                                                                                 subcategory
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
+                                            </span>
+                                          )}
+                                        </div>
                                                                                     <div
                                                                                         className={`font-medium text-sm ${
                                                                                             isTinterAvailableInSubcategory(
@@ -2656,7 +2673,7 @@ const CreateFormula = () => {
                                                                                     >
                                                                                         {tint.series ||
                                                                                             tint.code}
-                                                                                    </div>
+                                        </div>
                                                                                     <div
                                                                                         className={`text-xs truncate ${
                                                                                             isTinterAvailableInSubcategory(
@@ -2668,11 +2685,11 @@ const CreateFormula = () => {
                                                                                     >
                                                                                         {tint.name ||
                                                                                             "N/A"}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-
-                                                                        {/* Show all available products */}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                                                         {/* Show all available products */}
                                                                         {filteredProducts.map(
                                                                             (
                                                                                 product,
@@ -2688,8 +2705,8 @@ const CreateFormula = () => {
                                                                                             ._id
                                                                                     ] ||
                                                                                         0);
-                                                                                return (
-                                                                                    <div
+                                       return (
+                                         <div
                                                                                         key={
                                                                                             product._id ||
                                                                                             idx
@@ -2703,7 +2720,7 @@ const CreateFormula = () => {
                                                                                                 product,
                                                                                             )
                                                                                         }
-                                                                                        className={`px-3 py-2 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                           className={`px-3 py-2 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 ${
                                                                                             isSelected
                                                                                                 ? "bg-green-50 dark:bg-green-900"
                                                                                                 : isKeyboardSelected
@@ -2713,55 +2730,55 @@ const CreateFormula = () => {
                                                                                     >
                                                                                         <div
                                                                                             className={`font-medium text-sm ${
-                                                                                                isSelected
+                                             isSelected 
                                                                                                     ? "text-green-800 dark:text-green-100"
-                                                                                                    : isKeyboardSelected
+                                               : isKeyboardSelected
                                                                                                       ? "text-blue-800 dark:text-blue-100"
                                                                                                       : "text-gray-900 dark:text-white"
                                                                                             }`}
                                                                                         >
                                                                                             {product.Abbreviation ||
                                                                                                 "N/A"}
-                                                                                            {isSelected && (
-                                                                                                <span className="ml-2 text-xs text-green-600 dark:text-green-300">
+                                             {isSelected && (
+                                               <span className="ml-2 text-xs text-green-600 dark:text-green-300">
                                                                                                     ✓
                                                                                                     Selected
-                                                                                                </span>
-                                                                                            )}
+                                               </span>
+                                             )}
                                                                                             {isKeyboardSelected &&
                                                                                                 !isSelected && (
-                                                                                                    <span className="ml-2 text-xs text-blue-600 dark:text-blue-300">
+                                               <span className="ml-2 text-xs text-blue-600 dark:text-blue-300">
                                                                                                         ←
                                                                                                         Use
                                                                                                         Enter
                                                                                                         to
                                                                                                         select
-                                                                                                    </span>
-                                                                                                )}
-                                                                                        </div>
+                                               </span>
+                                             )}
+                                           </div>
                                                                                         <div
                                                                                             className={`text-xs truncate ${
-                                                                                                isSelected
+                                             isSelected 
                                                                                                     ? "text-green-600 dark:text-green-300"
-                                                                                                    : isKeyboardSelected
+                                               : isKeyboardSelected
                                                                                                       ? "text-blue-600 dark:text-blue-300"
                                                                                                       : "text-gray-600 dark:text-gray-400"
                                                                                             }`}
                                                                                         >
                                                                                             {product.Product_Name ||
                                                                                                 "N/A"}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
+                                           </div>
+                                         </div>
+                                       );
                                                                             },
                                                                         )}
-                                                                    </>
-                                                                ) : (
-                                                                    <div className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
-                                                                        {tint.code ? (
-                                                                            `No products found for "${tint.code}"`
-                                                                        ) : (
-                                                                            <div>
+                                  </>
+                                ) : (
+                                  <div className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
+                                    {tint.code ? (
+                                      `No products found for "${tint.code}"`
+                                    ) : (
+                                      <div>
                                                                                 <div>
                                                                                     No
                                                                                     products
@@ -2784,64 +2801,62 @@ const CreateFormula = () => {
                                                                                     different
                                                                                     subcategory
                                                                                 </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="col-span-3">
-                                                        <input
-                                                            value={tint.series}
-                                                            readOnly
-                                                            className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                                        />
-                                                    </div>
-                                                    <div className="col-span-6">
-                                                        <input
-                                                            value={tint.name}
-                                                            readOnly
-                                                            className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-span-4 p-2">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="text-center text-sm font-medium text-blue-600">
-                                                        {tint.grams.toFixed(2)}{" "}
-                                                        g
-                                                    </div>
-                                                    <div className="text-center text-sm text-gray-800 dark:text-gray-200">
-                                                        {tint.volume.toFixed(4)}{" "}
-                                                        L
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="col-span-3">
+                            <input
+                              value={tint.series}
+                              readOnly
+                              className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <input
+                              value={tint.name}
+                              readOnly
+                              className="w-full px-1 py-1 text-xs bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-span-4 p-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="text-center text-sm font-medium text-blue-600">
+                                                        {tint.grams.toFixed(2)}
+                          </div>
+                          <div className="text-center text-sm text-gray-800 dark:text-gray-200">
+                                                        {(tint.volume * 1000).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                            {/* Quantity Inputs */}
-                            <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4 pb-0">
+              {/* Quantity Inputs */}
+              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4 pb-0">
                                 <div className="text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
                                     Quantity
                                 </div>
-                                <div className=" mt-4">
-                                    {tints.map((tint) => (
+                <div className=" mt-4">
+                  {tints.map((tint) => (
                                         <div
                                             key={tint._id}
                                             className="grid grid-cols-6 h-[42px] pb-2 gap-1"
                                         >
-                                            {tint.qty.map((qty, colIndex) => (
-                                                <input
-                                                    key={colIndex}
-                                                    type="text"
-                                                    data-tint-id={tint._id}
-                                                    data-qty-index={colIndex}
-                                                    value={
+                      {tint.qty.map((qty, colIndex) => (
+                          <input
+                            key={colIndex}
+                            type="text"
+                            data-tint-id={tint._id}
+                            data-qty-index={colIndex}
+                            value={
                                                         qtyInput[tint._id]?.[
                                                             colIndex
                                                         ] !== undefined
@@ -2851,14 +2866,14 @@ const CreateFormula = () => {
                                                             : qty === 0
                                                               ? ""
                                                               : String(qty)
-                                                    }
-                                                    onChange={(e) => {
+                            }
+                            onChange={(e) => {
                                                         const v =
                                                             sanitizeNumericInput(
                                                                 e.target.value,
                                                                 "float",
                                                             );
-                                                        setQtyInput((prev) => {
+                              setQtyInput((prev) => {
                                                             const prevRow =
                                                                 prev[tint._id]
                                                                     ? [
@@ -2887,51 +2902,49 @@ const CreateFormula = () => {
                                                                 ? 0
                                                                 : Number(v),
                                                         );
-                                                    }}
-                                                    className="px-2 py-1 text-xs text-right border-b border-gray-300 dark:border-gray-600 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                                />
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                            }}
+                            className="px-2 py-1 text-xs text-right border-b border-gray-300 dark:border-gray-600 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-                        {/* Totals, Binders and Remarks Section */}
-                        <div className="grid grid-cols-12 gap-6 mt-6">
-                            {/* Totals and Binders */}
-                            <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
-                                {/* Total without Additives - aligned to quantity columns */}
-                                <div className="bg-gray-600 text-white p-2">
-                                    <div className="grid grid-cols-12 items-center">
-                                        <div className="col-span-1"></div>
+            {/* Totals, Binders and Remarks Section */}
+            <div className="grid grid-cols-12 gap-6 mt-6">
+              {/* Totals and Binders */}
+              <div className="col-span-8 bg-white dark:bg-gray-800 rounded shadow overflow-hidden">
+                {/* Total without Additives - aligned to quantity columns */}
+                <div className="bg-gray-600 text-white p-2">
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
                                         <div className="col-span-7 text-sm font-medium">
                                             Total without Additives
                                         </div>
-                                        <div className="col-span-4">
-                                            <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
                                                 <div className="text-center text-blue-300 font-semibold">
                                                     {totalWithoutAdditives.toFixed(
                                                         2,
-                                                    )}{" "}
-                                                    g
+                                                    )}
                                                 </div>
                                                 <div className="text-center text-sm">
-                                                    {totalWithoutAdditivesVolume.toFixed(
-                                                        4,
-                                                    )}{" "}
-                                                    L
+                                                    {(totalWithoutAdditivesVolume * 1000).toFixed(
+                                                        2,
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                                {/* Binders - aligned to quantity columns */}
-                                <div className="bg-gray-500 text-white p-2">
-                                    {/* <div className="text-xs text-gray-200 mb-1">
-                      Binder names and calculations are automatically selected based on the chosen subcategory configuration.
-                    </div> */}
+                {/* Binders - aligned to quantity columns */}
+                <div className="bg-gray-500 text-white p-2">
+                  {/* <div className="text-xs text-gray-200 mb-1">
+                    Binder names and calculations are automatically selected based on the chosen subcategory configuration.
+                  </div> */}
                                     <div className="text-sm font-medium mb-2">
                                         Binders
                                     </div>
@@ -2945,137 +2958,133 @@ const CreateFormula = () => {
                                             {selectedBinder2Id || "None"}
                                         </div>
                                     )}
-
-                                    {/* Binder 1 - Show only if auto-selected for subcategory */}
-                                    {selectedBinder1Id && (
-                                        <div className="grid grid-cols-12 items-center mb-1">
-                                            <div className="col-span-1"></div>
-                                            <div className="col-span-7 text-sm">
-                                                <div className="flex items-center space-x-2">
-                                                    <span>Binder 1:</span>
-                                                    <span className="text-gray-300 font-medium">
+                  
+                  {/* Binder 1 - Show only if auto-selected for subcategory */}
+                  {selectedBinder1Id && (
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span>Binder 1:</span>
+                          <span className="text-gray-300 font-medium">
                                                         {
                                                             selectedBinderConfig.Binder1Name
                                                         }
-                                                    </span>
+                          </span>
                                                     <span className="text-xs text-gray-400">
                                                         (ID: {selectedBinder1Id}
                                                         )
                                                     </span>
-                                                </div>
-                                            </div>
-                                            <div className="col-span-4">
-                                                <div className="grid grid-cols-2 gap-2">
+                        </div>
+                      </div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
                                                     <div className="text-center text-blue-300 font-semibold">
                                                         {binderTotals.binder1.toFixed(
                                                             2,
-                                                        )}{" "}
-                                                        g
+                                                        )}
                                                     </div>
                                                     <div className="text-center text-sm">
-                                                        {binderTotals.binder1VolumeL.toFixed(
-                                                            4,
-                                                        )}{" "}
-                                                        L
+                                                        {(binderTotals.binder1VolumeL * 1000).toFixed(
+                                                            2,
+                                                        )}
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Binder 2 - Show only if auto-selected for subcategory */}
-                                    {selectedBinder2Id && (
-                                        <div className="grid grid-cols-12 items-center mb-1">
-                                            <div className="col-span-1"></div>
-                                            <div className="col-span-7 text-sm">
-                                                <div className="flex items-center space-x-2">
-                                                    <span>Binder 2:</span>
-                                                    <span className="text-gray-300 font-medium">
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Binder 2 - Show only if auto-selected for subcategory */}
+                  {selectedBinder2Id && (
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
+                      <div className="col-span-7 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span>Binder 2:</span>
+                          <span className="text-gray-300 font-medium">
                                                         {
                                                             selectedBinderConfig.Binder2Name
                                                         }
-                                                    </span>
+                          </span>
                                                     <span className="text-xs text-gray-400">
                                                         (ID: {selectedBinder2Id}
                                                         )
                                                     </span>
-                                                </div>
-                                            </div>
-                                            <div className="col-span-4">
-                                                <div className="grid grid-cols-2 gap-2">
+                        </div>
+                      </div>
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
                                                     <div className="text-center text-blue-300 font-semibold">
                                                         {binderTotals.binder2.toFixed(
                                                             2,
-                                                        )}{" "}
-                                                        g
+                                                        )}
                                                     </div>
                                                     <div className="text-center text-sm">
-                                                        {binderTotals.binder2VolumeL.toFixed(
-                                                            4,
-                                                        )}{" "}
-                                                        L
+                                                        {(binderTotals.binder2VolumeL * 1000).toFixed(
+                                                            2,
+                                                        )}
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Show message if no binders configured */}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Show message if no binders configured */}
                                     {!selectedBinder1Id &&
                                         !selectedBinder2Id && (
-                                            <div className="grid grid-cols-12 items-center mb-1">
-                                                <div className="col-span-1"></div>
+                    <div className="grid grid-cols-12 items-center mb-1">
+                      <div className="col-span-1"></div>
                                                 <div className="col-span-7 text-sm text-gray-300">
                                                     No binders configured for
                                                     this subcategory
                                                 </div>
-                                                <div className="col-span-4">
-                                                    <div className="grid grid-cols-2 gap-2">
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
                                                         <div className="text-center text-gray-300">
                                                             0.00 g
                                                         </div>
                                                         <div className="text-center text-gray-300">
                                                             0.0000 L
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                                {/* Additives - aligned to quantity columns */}
-                                <div className="bg-gray-400 text-white p-2">
-                                    <div className="text-xs text-gray-200 mb-1">
-                                        {/* Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage for automatic calculation. */}
-                                        {isAddingAdditive && (
+                {/* Additives - aligned to quantity columns */}
+                <div className="bg-gray-400 text-white p-2">
+                  <div className="text-xs text-gray-200 mb-1">
+                    {/* Additives are calculated as percentage of (Tinters + Binders) total. Select additive and enter percentage for automatic calculation. */}
+                    {isAddingAdditive && (
                                             <span className="text-green-300 ml-2">
                                                 ✓ Updated!
                                             </span>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-3 mb-2">
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 mb-2">
                                         <div className="text-sm font-medium">
                                             Additives
                                         </div>
-                                        <div className="text-center">
-                                            <select
-                                                className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-full"
-                                                value={selectedAdditiveId}
-                                                onChange={(e) => {
+                    <div className="text-center">
+                      <select 
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-full"
+                        value={selectedAdditiveId}
+                        onChange={(e) => {
                                                     const additiveId =
                                                         e.target.value;
                                                     setSelectedAdditiveId(
                                                         additiveId,
                                                     );
-                                                    if (additiveId) {
-                                                        // Check if additive already exists
+                          if (additiveId) {
+                            // Check if additive already exists
                                                         const existingAdditive =
                                                             additives.find(
                                                                 (a) =>
                                                                     a.additiveId ===
                                                                     additiveId,
                                                             );
-                                                        if (!existingAdditive) {
-                                                            // Add new additive automatically with 0% default
-                                                            // Handle both string and number ID types
+                            if (!existingAdditive) {
+                              // Add new additive automatically with 0% default
+                              // Handle both string and number ID types
                                                             const additive =
                                                                 rawAdditives.find(
                                                                     (a) =>
@@ -3091,18 +3100,18 @@ const CreateFormula = () => {
                                                                             Number(
                                                                                 additiveId,
                                                                             ),
-                                                                );
-                                                            if (additive) {
+                              );
+                              if (additive) {
                                                                 const newAdditive =
                                                                     {
-                                                                        _id: cryptoRandomId(),
+                                  _id: cryptoRandomId(),
                                                                         additiveId:
                                                                             additiveId,
                                                                         name:
                                                                             additive.Additive_Name ||
                                                                             "",
-                                                                        percent: 0,
-                                                                        grams: 0,
+                                  percent: 0,
+                                  grams: 0,
                                                                         Additive_Density:
                                                                             Number(
                                                                                 additive.Additive_Density ||
@@ -3125,7 +3134,7 @@ const CreateFormula = () => {
                                                                                 ...prev,
                                                                                 newAdditive,
                                                                             ];
-                                                                        // Debug: Additive selection
+                                  // Debug: Additive selection
                                                                         if (
                                                                             process
                                                                                 .env
@@ -3135,7 +3144,7 @@ const CreateFormula = () => {
                                                                             console.log(
                                                                                 "[Dynamic Data] New additive added:",
                                                                                 {
-                                                                                    additiveId,
+                                      additiveId,
                                                                                     additiveName:
                                                                                         additive.Additive_Name,
                                                                                     currentAdditives:
@@ -3143,15 +3152,15 @@ const CreateFormula = () => {
                                                                                     newAdditive,
                                                                                 },
                                                                             );
-                                                                        }
-                                                                        return updated;
+                                  }
+                                  return updated;
                                                                     },
                                                                 );
                                                                 setAdditivePercentageInput(
                                                                     "0",
                                                                 );
-                                                            } else {
-                                                                // Debug: Additive not found in raw data
+                              } else {
+                                // Debug: Additive not found in raw data
                                                                 if (
                                                                     process.env
                                                                         .NODE_ENV ===
@@ -3169,8 +3178,8 @@ const CreateFormula = () => {
                                                                                     (
                                                                                         a,
                                                                                     ) => ({
-                                                                                        id: a.Additive_Id,
-                                                                                        idType: typeof a.Additive_Id,
+                                      id: a.Additive_Id, 
+                                      idType: typeof a.Additive_Id,
                                                                                         name: a.Additive_Name,
                                                                                     }),
                                                                                 ),
@@ -3178,18 +3187,18 @@ const CreateFormula = () => {
                                                                                 rawAdditives.length,
                                                                         },
                                                                     );
-                                                                }
-                                                            }
-                                                        } else {
-                                                            // If additive already exists, set the percentage input to its current value
+                                }
+                              }
+                            } else {
+                              // If additive already exists, set the percentage input to its current value
                                                             setAdditivePercentageInput(
                                                                 String(
                                                                     existingAdditive.percent ||
                                                                         0,
                                                                 ),
                                                             );
-
-                                                            // Debug: Existing additive selected
+                              
+                              // Debug: Existing additive selected
                                                             if (
                                                                 process.env
                                                                     .NODE_ENV ===
@@ -3198,16 +3207,16 @@ const CreateFormula = () => {
                                                                 console.log(
                                                                     "[Dynamic Data] Existing additive selected:",
                                                                     {
-                                                                        additiveId,
+                                  additiveId,
                                                                         additiveName:
                                                                             existingAdditive.name,
                                                                         currentPercent:
                                                                             existingAdditive.percent,
                                                                     },
                                                                 );
-                                                            }
-                                                        }
-                                                    } else {
+                              }
+                            }
+                          } else {
                                                         setAdditivePercentageInput(
                                                             "",
                                                         );
@@ -3216,7 +3225,7 @@ const CreateFormula = () => {
                                             >
                                                 <option value="">
                                                     Select Additive
-                                                </option>
+                          </option>
                                                 {rawAdditives.map(
                                                     (additive) => (
                                                         <option
@@ -3236,13 +3245,13 @@ const CreateFormula = () => {
                                                         </option>
                                                     ),
                                                 )}
-                                            </select>
-                                        </div>
-                                        <div className="text-center">
-                                            <input
-                                                type="text"
-                                                value={additivePercentageInput}
-                                                onChange={(e) => {
+                      </select>
+                    </div>
+                    <div className="text-center">
+                      <input
+                        type="text"
+                        value={additivePercentageInput}
+                        onChange={(e) => {
                                                     const v =
                                                         sanitizeNumericInput(
                                                             e.target.value,
@@ -3251,15 +3260,15 @@ const CreateFormula = () => {
                                                     setAdditivePercentageInput(
                                                         v,
                                                     );
-                                                    // Automatically update additive percentage if additive is selected
-                                                    if (selectedAdditiveId) {
+                          // Automatically update additive percentage if additive is selected
+                          if (selectedAdditiveId) {
                                                         let additive =
                                                             additives.find(
                                                                 (a) =>
                                                                     a.additiveId ===
                                                                     selectedAdditiveId,
                                                             );
-                                                        if (additive) {
+                            if (additive) {
                                                             updateAdditive(
                                                                 additive._id,
                                                                 "percent",
@@ -3267,7 +3276,7 @@ const CreateFormula = () => {
                                                                     ? 0
                                                                     : Number(v),
                                                             );
-                                                            // Show success feedback
+                              // Show success feedback
                                                             setIsAddingAdditive(
                                                                 true,
                                                             );
@@ -3278,8 +3287,8 @@ const CreateFormula = () => {
                                                                     ),
                                                                 500,
                                                             );
-
-                                                            // Debug: Additive percentage update
+                              
+                              // Debug: Additive percentage update
                                                             if (
                                                                 process.env
                                                                     .NODE_ENV ===
@@ -3303,10 +3312,10 @@ const CreateFormula = () => {
                                                                             additive._id,
                                                                     },
                                                                 );
-                                                            }
-                                                        } else {
-                                                            // If additive is selected but not in array, add it immediately
-                                                            // Handle both string and number ID types
+                              }
+                            } else {
+                              // If additive is selected but not in array, add it immediately
+                              // Handle both string and number ID types
                                                             const rawAdditive =
                                                                 rawAdditives.find(
                                                                     (a) =>
@@ -3322,11 +3331,11 @@ const CreateFormula = () => {
                                                                             Number(
                                                                                 selectedAdditiveId,
                                                                             ),
-                                                                );
-                                                            if (rawAdditive) {
+                              );
+                              if (rawAdditive) {
                                                                 const newAdditive =
                                                                     {
-                                                                        _id: cryptoRandomId(),
+                                  _id: cryptoRandomId(),
                                                                         additiveId:
                                                                             selectedAdditiveId,
                                                                         name:
@@ -3339,7 +3348,7 @@ const CreateFormula = () => {
                                                                                 : Number(
                                                                                       v,
                                                                                   ),
-                                                                        grams: 0,
+                                  grams: 0,
                                                                         Additive_Density:
                                                                             Number(
                                                                                 rawAdditive.Additive_Density ||
@@ -3362,7 +3371,7 @@ const CreateFormula = () => {
                                                                                 ...prev,
                                                                                 newAdditive,
                                                                             ];
-                                                                        // Debug: Additive added with percentage
+                                  // Debug: Additive added with percentage
                                                                         if (
                                                                             process
                                                                                 .env
@@ -3387,11 +3396,11 @@ const CreateFormula = () => {
                                                                                         updated.length,
                                                                                 },
                                                                             );
-                                                                        }
-                                                                        return updated;
+                                  }
+                                  return updated;
                                                                     },
                                                                 );
-                                                                // Show success feedback
+                                // Show success feedback
                                                                 setIsAddingAdditive(
                                                                     true,
                                                                 );
@@ -3402,8 +3411,8 @@ const CreateFormula = () => {
                                                                         ),
                                                                     500,
                                                                 );
-                                                            } else {
-                                                                // Debug: Additive not found in raw data
+                                                             } else {
+                                 // Debug: Additive not found in raw data
                                                                 if (
                                                                     process.env
                                                                         .NODE_ENV ===
@@ -3412,7 +3421,7 @@ const CreateFormula = () => {
                                                                     console.log(
                                                                         "[Dynamic Data] Additive not found in raw data:",
                                                                         {
-                                                                            selectedAdditiveId,
+                                     selectedAdditiveId,
                                                                             selectedAdditiveIdType:
                                                                                 typeof selectedAdditiveId,
                                                                             availableRawAdditives:
@@ -3420,8 +3429,8 @@ const CreateFormula = () => {
                                                                                     (
                                                                                         a,
                                                                                     ) => ({
-                                                                                        id: a.Additive_Id,
-                                                                                        idType: typeof a.Additive_Id,
+                                       id: a.Additive_Id, 
+                                       idType: typeof a.Additive_Id,
                                                                                         name: a.Additive_Name,
                                                                                     }),
                                                                                 ),
@@ -3429,122 +3438,119 @@ const CreateFormula = () => {
                                                                                 rawAdditives.length,
                                                                         },
                                                                     );
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                                className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
-                                                placeholder="0"
-                                            />
+                                 }
+                               }
+                            }
+                          }
+                        }}
+                        className="bg-gray-600 text-white px-2 py-1 rounded text-xs w-12 text-center"
+                        placeholder="0"
+                      />
                                             <span className="text-sm mx-2">
                                                 %
                                             </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Individual Additive Rows */}
-
-                                    <div className="grid grid-cols-12 items-center">
-                                        <div className="col-span-1"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Individual Additive Rows */}
+                  
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
                                         <div className="col-span-7 text-sm font-medium">
                                             Additives Total
                                         </div>
-                                        <div className="col-span-4">
-                                            <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
                                                 <div className="text-center text-blue-300 font-semibold">
                                                     {additiveTotals.totalAdditiveGrams.toFixed(
                                                         2,
-                                                    )}{" "}
-                                                    g
+                                                    )}
                                                 </div>
                                                 <div className="text-center text-sm">
-                                                    {additiveTotals.totalAdditiveVolumeL.toFixed(
-                                                        4,
-                                                    )}{" "}
-                                                    L
+                                                    {(additiveTotals.totalAdditiveVolumeL * 1000).toFixed(
+                                                        2,
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                                {/* Total - aligned to quantity columns */}
-                                <div className="bg-gray-600 text-white p-2">
-                                    <div className="grid grid-cols-12 items-center">
-                                        <div className="col-span-1"></div>
+                {/* Total - aligned to quantity columns */}
+                <div className="bg-gray-600 text-white p-2">
+                  <div className="grid grid-cols-12 items-center">
+                    <div className="col-span-1"></div>
                                         <div className="col-span-7 text-sm font-medium">
                                             Total
                                         </div>
-                                        <div className="col-span-4">
-                                            <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2">
                                                 <div className="text-center text-blue-300 font-semibold text-lg">
-                                                    {grandTotal.toFixed(2)} g
+                                                    {grandTotal.toFixed(2)}
                                                 </div>
                                                 <div className="text-center text-lg">
-                                                    {grandTotalVolume.toFixed(
-                                                        4,
-                                                    )}{" "}
-                                                    L
+                                                    {(grandTotalVolume * 1000).toFixed(
+                                                        2,
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                            {/* Remarks */}
-                            <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
+              {/* Remarks */}
+              <div className="col-span-4 bg-white dark:bg-gray-800 rounded shadow p-4">
                                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                                     Remarks
                                 </h3>
-                                <textarea
-                                    value={remarks}
-                                    onChange={(e) => setRemarks(e.target.value)}
-                                    rows={10}
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded text-sm resize-none dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                    placeholder="Enter remarks..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  rows={10}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded text-sm resize-none dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  placeholder="Enter remarks..."
+                />
+              </div>
             </div>
-
-            {/* Access Key Verification Modal */}
-            <AccessKeyModal
-                isOpen={isAccessKeyModalOpen}
-                onClose={() => setIsAccessKeyModalOpen(false)}
-                onSuccess={handleAccessKeySuccess}
-            />
-
-            {/* File Number Edit Modal */}
-            <FileNumberModal
-                isOpen={isFileNumberModalOpen}
-                onClose={() => {
-                    setIsFileNumberModalOpen(false);
-                    // Reset access key verification when modal is closed
-                    setHasAccessKeyVerified(false);
-                }}
-                currentFileNo={labelFileNo}
-                onSave={handleFileNumberUpdate}
-                subcategoryId={subCategory}
-                gloss={gloss}
-                additiveId={selectedAdditiveId}
-                additivePercentage={additivePercentageInput}
-                subcategories={subCategoryOptions}
-                additives={rawAdditives}
-                isLoading={isGeneratingFileNumber}
-            />
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Access Key Verification Modal */}
+      <AccessKeyModal
+        isOpen={isAccessKeyModalOpen}
+        onClose={() => setIsAccessKeyModalOpen(false)}
+        onSuccess={handleAccessKeySuccess}
+      />
+
+      {/* File Number Edit Modal */}
+      <FileNumberModal
+        isOpen={isFileNumberModalOpen}
+        onClose={() => {
+          setIsFileNumberModalOpen(false);
+          // Reset access key verification when modal is closed
+          setHasAccessKeyVerified(false);
+        }}
+        currentFileNo={labelFileNo}
+        onSave={handleFileNumberUpdate}
+        subcategoryId={subCategory}
+        gloss={gloss}
+        additiveId={selectedAdditiveId}
+        additivePercentage={additivePercentageInput}
+        subcategories={subCategoryOptions}
+        additives={rawAdditives}
+        isLoading={isGeneratingFileNumber}
+      />
+    </div>
+  );
 };
 
 /**
  * CreateFormula Component Summary
- *
+ * 
  * This component provides a comprehensive interface for creating paint formulas with:
- *
+ * 
  * FEATURES:
  * - Tinter selection with product search and auto-completion
  * - Quantity input with automatic calculations
@@ -3552,28 +3558,28 @@ const CreateFormula = () => {
  * - Real-time quality metrics calculation
  * - File attachment support
  * - Comprehensive validation and error checking
- *
+ * 
  * STATE MANAGEMENT:
  * - Form data (metadata, tinters, binders, additives)
  * - Master data (categories, products, configurations) - Always fresh from server
  * - UI state (loading, errors, dropdowns)
  * - Computed values (totals, metrics, validations)
- *
+ * 
  * CALCULATIONS:
  * - Uses specialized calculation engines for accurate results
  * - Real-time updates as user modifies inputs
  * - Quality metrics (solid content, VOC, density)
- *
+ * 
  * VALIDATION:
  * - Input sanitization and validation
  * - Business rule enforcement
  * - Error prevention and user feedback
- *
+ * 
  * PERFORMANCE:
  * - Memoized calculations to prevent unnecessary re-computations
  * - Efficient state updates and re-renders
  * - Optimized for large formula management
- *
+ * 
  * @author Megapaints Team
  * @version 1.0.0
  * @lastUpdated 2024

@@ -146,13 +146,38 @@ function formulaFileFormat(
  */
 async function generateFileNo(data, isNewFormula = true) {
     try {
-        // Fetch existing formulas to check for duplicates
-        const existingFormulas = await FormulaService.fetchAllFormulas();
+        // Fetch existing formulas to check for duplicates and get count
+        if (process.env.NODE_ENV === "development") {
+            console.log("[File Number] Fetching existing formulas for count...");
+        }
+        
+        let existingFormulas;
+        try {
+            existingFormulas = await FormulaService.fetchAllFormulas();
+        } catch (fetchError) {
+            console.error("[File Number] Error fetching formulas:", fetchError);
+            // If fetch fails, assume empty database
+            existingFormulas = { formulas: [], total: 0 };
+        }
+        
+        if (process.env.NODE_ENV === "development") {
+            console.log("[File Number] Fetch result:", {
+                success: Boolean(existingFormulas),
+                hasFormulas: Boolean(existingFormulas?.formulas),
+                count: existingFormulas?.formulas?.length || 0,
+                total: existingFormulas?.total || 0,
+            });
+        }
+
+        // Ensure we have a valid formulas array
+        const formulasArray = Array.isArray(existingFormulas?.formulas) 
+            ? existingFormulas.formulas 
+            : [];
 
         const existingFileNumbers = new Set(
-            existingFormulas.formulas
-                ?.map((doc) => doc.labelFileNo)
-                .filter(Boolean) || [],
+            formulasArray
+                .map((doc) => doc.labelFileNo || doc.FileNo || doc.fileNo)
+                .filter(Boolean),
         );
 
         let labelFileNo;
@@ -173,24 +198,29 @@ async function generateFileNo(data, isNewFormula = true) {
 
             labelFileNo = candidateFileNo;
         } else {
-            // Automatic file number generation
-            let fileNo = 100000; // Default starting number
-
-            if (existingFormulas.formulas?.length > 0) {
-                const latestFormula = existingFormulas.formulas[0];
-                const latestFileNo =
-                    latestFormula.FileNo || latestFormula.labelFileNo;
-
-                if (latestFileNo) {
-                    // Extract the numeric part using regex
-                    const numericMatch = String(latestFileNo).match(/^\d+/);
-                    if (numericMatch) {
-                        fileNo = parseInt(numericMatch[0]) + 1;
-                    }
-                }
+            // Automatic file number generation based on total count
+            const BASE_NUMBER = 10000; // Starting number
+            
+            // Calculate file number based on count: 10000 + count
+            const formulaCount = formulasArray.length || 0;
+            let fileNo = BASE_NUMBER + formulaCount;
+            
+            // Ensure the generated number doesn't already exist (safety check)
+            while (
+                existingFileNumbers.has(fileNo) ||
+                existingFileNumbers.has(String(fileNo))
+            ) {
+                fileNo++;
             }
 
             labelFileNo = fileNo;
+            
+            console.log("[File Number Generation]:", {
+                baseNumber: BASE_NUMBER,
+                formulaCount,
+                generatedNumber: fileNo,
+                totalFormulas: formulasArray.length,
+            });
         }
 
         // Format the file number with subcategory, gloss, and additive information
@@ -209,9 +239,14 @@ async function generateFileNo(data, isNewFormula = true) {
             fileNo: formattedFileNo,
         };
     } catch (error) {
-        console.error("Error generating file number:", error);
+        console.error("[File Number] Error generating file number:", error);
+        console.error("[File Number] Error details:", {
+            message: error.message,
+            stack: error.stack,
+        });
         // Fallback to a simple timestamp-based number
         const fallbackNumber = Math.floor(Date.now() / 1000) % 1000000;
+        console.warn("[File Number] Using fallback timestamp-based number:", fallbackNumber);
         return {
             labelFileNo: fallbackNumber,
             fileNo: String(fallbackNumber),
