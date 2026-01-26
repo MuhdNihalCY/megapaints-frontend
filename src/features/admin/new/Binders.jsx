@@ -51,17 +51,29 @@ const Binders = () => {
         const fetchBinders = async () => {
             try {
                 setLoading(true);
-                const response = await apiRequest('/v1/products/binders');
-                if (response.success) {
-                    setBinders(response.binders || []);
-                    setError("");
-                } else {
-                    throw new Error(
-                        response.error || "Failed to fetch binders",
-                    );
-                }
+                // This would be replaced with the actual API endpoint
+                // const data = await apiRequest('/api/v1/binder');
+                // For now, using mock data
+                const mockData = [
+                    {
+                        id: "BIND001",
+                        name: "Acrylic Binder",
+                        description: "Water-based acrylic polymer",
+                        density: "1.05",
+                        unit: "kg",
+                    },
+                    {
+                        id: "BIND002",
+                        name: "Vinyl Acetate",
+                        description: "Vinyl acetate polymer emulsion",
+                        density: "1.02",
+                        unit: "Ltr",
+                    },
+                ];
+                setBinders(mockData);
+                setError("");
             } catch (err) {
-                setError("Failed to fetch binders: " + err.message);
+                setError("Failed to fetch binders");
                 console.error("Error fetching binders:", err);
             } finally {
                 setLoading(false);
@@ -81,50 +93,28 @@ const Binders = () => {
 
     const handleSubmit = async () => {
         try {
-            let response;
             if (editingBinder) {
                 // Update existing binder
-                response = await apiRequest(`/v1/products/binders/${formData._id || formData.id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(formData)
+                // await apiRequest(`/api/v1/binder/${formData.id}`, {
+                //   method: 'PUT',
+                //   body: JSON.stringify(formData)
+                // });
+                setSnackbar({
+                    open: true,
+                    message: "Binder updated successfully",
+                    severity: "success",
                 });
-
-                if (response._id) {
-                    // Update successful, refresh the list
-                    const updatedBinders = binders.map((bind) =>
-                        bind._id === (editingBinder._id || editingBinder.id)
-                            ? { ...bind, ...formData }
-                            : bind,
-                    );
-                    setBinders(updatedBinders);
-                    setSnackbar({
-                        open: true,
-                        message: "Binder updated successfully",
-                        severity: "success",
-                    });
-                } else {
-                    throw new Error(
-                        response.error || "Failed to update binder",
-                    );
-                }
             } else {
                 // Add new binder
-                response = await apiRequest('/v1/products/binders', {
-                    method: 'POST',
-                    body: JSON.stringify(formData)
+                // await apiRequest('/api/v1/binder', {
+                //   method: 'POST',
+                //   body: JSON.stringify(formData)
+                // });
+                setSnackbar({
+                    open: true,
+                    message: "Binder added successfully",
+                    severity: "success",
                 });
-
-                if (response._id) {
-                    // Add successful
-                    setBinders([...binders, response]);
-                    setSnackbar({
-                        open: true,
-                        message: "Binder added successfully",
-                        severity: "success",
-                    });
-                } else {
-                    throw new Error(response.error || "Failed to add binder");
-                }
             }
 
             // Reset form and close dialog
@@ -140,7 +130,7 @@ const Binders = () => {
         } catch (err) {
             setSnackbar({
                 open: true,
-                message: err.message || "Failed to save binder",
+                message: "Failed to save binder",
                 severity: "error",
             });
             console.error("Error saving binder:", err);
@@ -160,25 +150,19 @@ const Binders = () => {
         if (!confirmDelete) return;
 
         try {
-            const response = await apiRequest(`/v1/products/binders/${id}`, {
-                method: 'DELETE'
+            // await apiRequest(`/api/v1/binder/${id}`, {
+            //   method: 'DELETE'
+            // });
+            setBinders(binders.filter((b) => b.id !== id));
+            setSnackbar({
+                open: true,
+                message: "Binder deleted successfully",
+                severity: "success",
             });
-
-            if (response.message) {
-                // Delete successful
-                setBinders(binders.filter((b) => b._id !== id && b.id !== id));
-                setSnackbar({
-                    open: true,
-                    message: "Binder deleted successfully",
-                    severity: "success",
-                });
-            } else {
-                throw new Error(response.error || "Failed to delete binder");
-            }
         } catch (err) {
             setSnackbar({
                 open: true,
-                message: err.message || "Failed to delete binder",
+                message: "Failed to delete binder",
                 severity: "error",
             });
             console.error("Error deleting binder:", err);

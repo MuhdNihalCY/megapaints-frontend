@@ -56,7 +56,7 @@ const Additives = () => {
             try {
                 setLoading(true);
                 // Fetch additives from the backend API
-                const response = await apiRequest("/v1/products/additives");
+                const response = await apiRequest("/v1/additive");
                 if (response.success) {
                     setAdditives(response.additives || []);
                     setError("");
@@ -90,7 +90,7 @@ const Additives = () => {
             if (editingAdditive) {
                 // Update existing additive
                 response = await apiRequest(
-                    `/v1/products/additives/${editingAdditive._id}`,
+                    `/v1/additive/${editingAdditive._id}`,
                     {
                         method: "PUT",
                         body: JSON.stringify(formData),
@@ -117,7 +117,7 @@ const Additives = () => {
                 }
             } else {
                 // Add new additive
-                response = await apiRequest("/v1/products/additives", {
+                response = await apiRequest("/v1/additive", {
                     method: "POST",
                     body: JSON.stringify(formData),
                 });
@@ -178,7 +178,7 @@ const Additives = () => {
         if (!confirmDelete) return;
 
         try {
-            const response = await apiRequest(`/v1/products/additives/${id}`, {
+            const response = await apiRequest(`/v1/additive/${id}`, {
                 method: "DELETE",
             });
 

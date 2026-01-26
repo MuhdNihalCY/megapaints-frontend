@@ -76,8 +76,8 @@ const Products = () => {
                     subCategoriesResponse,
                 ] = await Promise.all([
                     apiRequest("/v1/product"),
-                    apiRequest("/v1/categories"),
-                    apiRequest("/v1/subcategories"),
+                    apiRequest("/v1/category"),
+                    apiRequest("/v1/subcategory"),
                 ]);
 
                 if (productsResponse.success) {

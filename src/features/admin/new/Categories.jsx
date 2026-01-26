@@ -55,7 +55,7 @@ const Categories = () => {
             try {
                 setLoading(true);
                 // Fetch categories from the backend API
-                const response = await apiRequest("/v1/categories");
+                const response = await apiRequest("/v1/category");
                 if (response.success) {
                     setCategories(response.categories || []);
                     setError("");
@@ -86,7 +86,7 @@ const Categories = () => {
             if (editingCategory) {
                 // Update existing category
                 const response = await apiRequest(
-                    `/v1/categories/${editingCategory._id}`,
+                    `/v1/category/${editingCategory._id}`,
                     {
                         method: "PUT",
                         body: JSON.stringify(formData),
@@ -113,7 +113,7 @@ const Categories = () => {
                 }
             } else {
                 // Add new category
-                const response = await apiRequest("/v1/categories", {
+                const response = await apiRequest("/v1/category", {
                     method: "POST",
                     body: JSON.stringify(formData),
                 });
@@ -164,7 +164,7 @@ const Categories = () => {
         if (!confirmDelete) return;
 
         try {
-            const response = await apiRequest(`/v1/categories/${id}`, {
+            const response = await apiRequest(`/v1/category/${id}`, {
                 method: "DELETE",
             });
 
