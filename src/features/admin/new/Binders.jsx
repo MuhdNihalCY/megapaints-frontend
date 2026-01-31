@@ -52,25 +52,26 @@ const Binders = () => {
             try {
                 setLoading(true);
                 // This would be replaced with the actual API endpoint
-                // const data = await apiRequest('/api/v1/binder');
-                // For now, using mock data
-                const mockData = [
-                    {
-                        id: "BIND001",
-                        name: "Acrylic Binder",
-                        description: "Water-based acrylic polymer",
-                        density: "1.05",
-                        unit: "kg",
-                    },
-                    {
-                        id: "BIND002",
-                        name: "Vinyl Acetate",
-                        description: "Vinyl acetate polymer emulsion",
-                        density: "1.02",
-                        unit: "Ltr",
-                    },
-                ];
-                setBinders(mockData);
+                // Fetch binders from the backend API using unified endpoint
+                const response = await apiRequest("/v1/product", {
+                    method: 'GET',
+                    params: { product_type: 'binder' }
+                });
+
+                if (response.status === 'success') {
+                    const mappedBinders = (response.products || []).map(item => ({
+                        ...item,
+                        id: item.code || item.Binder_Id || item._id, // Ensure ID for display
+                        name: item.name,
+                        description: item.description,
+                        density: item.density || item.Binder_Density,
+                        unit: item.unit
+                    }));
+                    setBinders(mappedBinders);
+                    setError("");
+                } else {
+                     throw new Error(response.message || "Failed to fetch binders");
+                }
                 setError("");
             } catch (err) {
                 setError("Failed to fetch binders");

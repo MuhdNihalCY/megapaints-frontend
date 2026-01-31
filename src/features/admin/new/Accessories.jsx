@@ -52,25 +52,26 @@ const Accessories = () => {
             try {
                 setLoading(true);
                 // This would be replaced with the actual API endpoint
-                // const data = await apiRequest('/api/v1/accessory');
-                // For now, using mock data
-                const mockData = [
-                    {
-                        id: "ACC001",
-                        name: "Paint Brush Set",
-                        description: "Set of 5 premium brushes",
-                        price: "25.99",
-                        unit: "set",
-                    },
-                    {
-                        id: "ACC002",
-                        name: "Roller Kit",
-                        description: "Professional paint roller with tray",
-                        price: "15.50",
-                        unit: "kit",
-                    },
-                ];
-                setAccessories(mockData);
+                // Fetch accessories from the backend API using unified endpoint
+                const response = await apiRequest("/v1/product", {
+                    method: 'GET',
+                    params: { product_type: 'accessory' }
+                });
+
+                if (response.status === 'success') {
+                    const mappedAccessories = (response.products || []).map(item => ({
+                        ...item,
+                        id: item.code || item.Binder_Id || item._id, // Ensure ID for display
+                        name: item.name,
+                        description: item.description,
+                        price: item.base_price || item.unit_price || 0,
+                        unit: item.unit
+                    }));
+                    setAccessories(mappedAccessories);
+                    setError("");
+                } else {
+                    throw new Error(response.message || "Failed to fetch accessories");
+                }
                 setError("");
             } catch (err) {
                 setError("Failed to fetch accessories");

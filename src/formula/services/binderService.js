@@ -13,20 +13,18 @@ export async function fetchBindersByIds(ids) {
 
     // Fetch all binders
     // We fetch a large limit to ensure we get better coverage
-    const response = await api.get('/v1/binder', { 
+    const response = await api.get('/v1/product', { 
       params: { 
         page: 1, 
-        limit: 1000 
+        limit: 1000,
+        product_type: 'binder'
       } 
     });
 
     const data = response.data;
     
-    // Extract items from various possible response structures
-    const items = (Array.isArray(data?.binders) && data.binders) ||
-                  (Array.isArray(data?.data?.items) && data.data.items) ||
-                  (Array.isArray(data?.items) && data.items) ||
-                  (Array.isArray(data?.data) && data.data) ||
+    // Extract items from unified response structure
+    const items = (Array.isArray(data?.products) && data.products) ||
                   [];
 
     if (items.length === 0) {

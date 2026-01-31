@@ -158,20 +158,22 @@ export async function fetchMastersFresh() {
     // Fetching fresh data from server
     
     // Fetch all master data in parallel
+    // Fetch all master data in parallel
     const res = await Promise.all([
       api.get('/v1/category', { params: { page: 1, limit: 1000 } }),
       api.get('/v1/subcategory', { params: { page: 1, limit: 1000 } }),
-      api.get('/v1/product', { params: { page: 1, limit: 1000 } }),
-      api.get('/v1/additive', { params: { page: 1, limit: 1000 } }),
-      api.get('/v1/binder', { params: { page: 1, limit: 1000 } }),
+      api.get('/v1/product', { params: { page: 1, limit: 1000 } }), // Fetches tinters/defaults
+      api.get('/v1/product', { params: { page: 1, limit: 1000, product_type: 'additive' } }), // Unified endpoint
+      api.get('/v1/product', { params: { page: 1, limit: 1000, product_type: 'binder' } }), // Unified endpoint
     ]);
     
     // Extract raw data with fallback handling
-    const rawCategories = extractArrayData(res[0]?.data, ['categories', 'category', 'data', 'items']);
+    // Note: The unified product endpoint returns data in 'products' field for all types
+    const rawCategories = extractArrayData(res[0]?.data, ['categories']);
     const rawSubcategories = extractArrayData(res[1]?.data, ['subcategories', 'Subcategories', 'data', 'items']);
-    const rawProducts = extractArrayData(res[2]?.data, ['products', 'data', 'items']);
-    const rawAdditives = extractArrayData(res[3]?.data, ['additives', 'data', 'items']);
-    const rawBinders = extractArrayData(res[4]?.data, ['binders', 'data', 'items']);
+    const rawProducts = extractArrayData(res[2]?.data, ['products']);
+    const rawAdditives = extractArrayData(res[3]?.data, ['products']);
+    const rawBinders = extractArrayData(res[4]?.data, ['products']);
 
     // Raw data counts processed
 

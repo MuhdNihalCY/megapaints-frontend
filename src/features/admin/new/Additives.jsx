@@ -56,13 +56,26 @@ const Additives = () => {
             try {
                 setLoading(true);
                 // Fetch additives from the backend API
-                const response = await apiRequest("/v1/additive");
-                if (response.success) {
-                    setAdditives(response.additives || []);
+                // Fetch additives from the backend API using unified endpoint
+                const response = await apiRequest("/v1/product", {
+                    method: 'GET',
+                    params: { product_type: 'additive' }
+                });
+                
+                if (response.status === 'success') {
+                    // Map response to component structure
+                    // Backend returns unified structure, we map it to what this component expects
+                    const mappedAdditives = (response.products || []).map(item => ({
+                        ...item,
+                        // Ensure legacy fields if needed
+                        price: item.base_price || item.unit_price || 0,
+                        priceUnit: item.unit || item.priceUnit || 'kg'
+                    }));
+                    setAdditives(mappedAdditives);
                     setError("");
                 } else {
                     throw new Error(
-                        response.error || "Failed to fetch additives",
+                        response.message || "Failed to fetch additives",
                     );
                 }
             } catch (err) {

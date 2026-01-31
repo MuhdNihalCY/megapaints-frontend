@@ -9,15 +9,18 @@ async function getAll(
         sortOrder = "asc",
         search = "",
     } = {},
+    params = {} 
 ) {
+    const queryParams = { page, limit, sortBy, sortOrder, search, ...params };
     const res = await api.get(`/v1/${endpoint}`, {
-        params: { page, limit, sortBy, sortOrder, search },
+        params: queryParams,
     });
     return res.data;
 }
 
 export const FormulaService = {
     async fetchMasters() {
+        // Fetch all master data in parallel using unified endpoint
         const [cat, sub, prod, add] = await Promise.all([
             getAll("category").catch(() => ({
                 success: false,
@@ -27,8 +30,10 @@ export const FormulaService = {
                 success: false,
                 subcategories: [],
             })),
+            // Fetch default products (tinters)
             getAll("product").catch(() => ({ success: false, products: [] })),
-            getAll("additive").catch(() => ({ success: false, additives: [] })),
+            // Fetch additives using unified endpoint with product_type
+            getAll("product", { product_type: 'additive' }).catch(() => ({ success: false, products: [] })),
         ]);
 
         const categories = Array.isArray(cat?.categories) ? cat.categories : [];
@@ -36,7 +41,8 @@ export const FormulaService = {
             ? sub.subcategories
             : [];
         const products = Array.isArray(prod?.products) ? prod.products : [];
-        const additives = Array.isArray(add?.additives) ? add.additives : [];
+        // Additives are now returned in 'products' array from unified endpoint
+        const additives = Array.isArray(add?.products) ? add.products : [];
 
         const categoryNames = categories
             .map((c) => c?.name || c?.Category_Name || c?.Category || c?._id)

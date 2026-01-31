@@ -52,25 +52,26 @@ const Auxiliaries = () => {
             try {
                 setLoading(true);
                 // This would be replaced with the actual API endpoint
-                // const data = await apiRequest('/api/v1/auxilary');
-                // For now, using mock data
-                const mockData = [
-                    {
-                        id: "AUX001",
-                        name: "Thinner",
-                        description: "Paint thinner solvent",
-                        density: "0.8",
-                        unit: "Ltr",
-                    },
-                    {
-                        id: "AUX002",
-                        name: "Hardener",
-                        description: "Epoxy hardener",
-                        density: "1.1",
-                        unit: "kg",
-                    },
-                ];
-                setAuxiliaries(mockData);
+                // Fetch auxiliaries from the backend API using unified endpoint
+                const response = await apiRequest("/v1/product", {
+                    method: 'GET',
+                    params: { product_type: 'auxiliary' }
+                });
+
+                if (response.status === 'success') {
+                    const mappedAuxiliaries = (response.products || []).map(item => ({
+                        ...item,
+                        id: item.code || item.Binder_Id || item._id, // Ensure ID for display
+                        name: item.name,
+                        description: item.description,
+                        density: item.density || (item.properties?.density),
+                        unit: item.unit
+                    }));
+                    setAuxiliaries(mappedAuxiliaries);
+                    setError("");
+                } else {
+                    throw new Error(response.message || "Failed to fetch auxiliaries");
+                }
                 setError("");
             } catch (err) {
                 setError("Failed to fetch auxiliaries");
