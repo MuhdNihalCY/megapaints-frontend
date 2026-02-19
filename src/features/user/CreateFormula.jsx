@@ -535,7 +535,8 @@ const CreateFormula = () => {
                     data?.defaultCategory || cats[0]?.id || "100";
                 const defaultSubCategoryId =
                     data?.defaultSubCategory ||
-                    subByCat[defaultCategoryId]?.[0]?.id ||
+                    subByCat[defaultCategoryId]?.[0]?.name ||
+                    subByCat[defaultCategoryId]?.[0] ||
                     "";
 
                 const defaults = {
@@ -662,12 +663,12 @@ const CreateFormula = () => {
         setSubCategoryOptions(nextOptions);
 
         // Reset subcategory if current selection is no longer valid
-        // Check if current subCategory ID exists in the new options
+        // Check if current subCategory name exists in the new options
         const currentSubExists = nextOptions.some(
-            (sub) => sub.id === subCategory || sub._id === subCategory,
+            (sub) => (sub && sub.name) === subCategory || (sub && sub.id) === subCategory,
         );
         if (!currentSubExists && nextOptions.length > 0) {
-            setSubCategory(nextOptions[0].id || nextOptions[0]._id || "");
+            setSubCategory(nextOptions[0].name ?? nextOptions[0].id ?? "");
         } else if (!currentSubExists) {
             setSubCategory("");
         }
@@ -2425,7 +2426,7 @@ const CreateFormula = () => {
                                             return (
                                                 <option
                                                     key={optId}
-                                                    value={optId}
+                                                    value={optName}
                                                 >
                                                     {optName}
                                                 </option>

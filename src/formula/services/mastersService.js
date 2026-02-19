@@ -267,48 +267,55 @@ export async function fetchMastersFresh() {
     const productsBySubCategory = {};
     const binderConfigBySubCategory = {};
 
-    // Initialize category mappings
-    categoryNames.forEach((catName) => {
-      subCategoriesByCategory[catName] = [];
+    // Initialize category mappings by category ID (not displayName)
+    Array.from(categoryMap.keys()).forEach((id) => {
+      subCategoriesByCategory[id] = [];
     });
 
     rawSubcategories.forEach((sub) => {
       const subName = sub?.SubCategory || sub?.name || sub?.Subcategory_Name || sub?.label;
       const categoryId = String(sub?.Category_Id || sub?.category_id || '');
+      const subCategoryId = String(sub?.SubCategory_Id || sub?._id || '');
       
       if (!subName) {
         console.warn('[Masters] Subcategory missing name:', sub);
         return;
       }
 
-      // Find parent category
-      let parentCategory = null;
+      // Find parent category by ID
+      let parentCategoryId = null;
       if (categoryId && categoryMap.has(categoryId)) {
-        parentCategory = categoryMap.get(categoryId).displayName;
+        parentCategoryId = categoryId;
       } else if (categoryId && !isNaN(Number(categoryId))) {
         // Try numeric version
         const numericId = String(Number(categoryId));
         if (categoryMap.has(numericId)) {
-          parentCategory = categoryMap.get(numericId).displayName;
+          parentCategoryId = numericId;
         }
       }
 
       // Fallback to first category if no match found
-      if (!parentCategory && categoryNames.length > 0) {
-        parentCategory = categoryNames[0];
+      if (!parentCategoryId && categoryMap.size > 0) {
+        parentCategoryId = Array.from(categoryMap.keys())[0];
         // Using fallback category for subcategory
       }
 
-      if (parentCategory) {
-        // Add subcategory to parent category
-        if (!subCategoriesByCategory[parentCategory].includes(subName)) {
-          subCategoriesByCategory[parentCategory].push(subName);
+      if (parentCategoryId) {
+        // Add subcategory to parent category as an object with id and name
+        const existingSub = subCategoriesByCategory[parentCategoryId].find(
+          s => s.id === subCategoryId || s.name === subName
+        );
+        
+        if (!existingSub) {
+          subCategoriesByCategory[parentCategoryId].push({
+            id: subCategoryId,
+            name: subName
+          });
           // Subcategory mapped successfully
         }
 
         // Find products for this subcategory
         const subCategoryProducts = [];
-        const subCategoryId = String(sub?.SubCategory_Id || sub?._id || '');
 
         // Method 1: Products linked by SubCategory_Id
         if (subCategoryId) {
@@ -356,7 +363,7 @@ export async function fetchMastersFresh() {
           // Store the original subcategory data for reference
           SubCategory: subName,
           Category_Id: categoryId,
-          SubCategory_Id: sub?.SubCategory_Id || sub?._id,
+          SubCategory_Id: subCategoryId,
           
           // Binder IDs (handle both direct and nested)
           Binder1: binder1Id,
@@ -400,22 +407,46 @@ export async function fetchMastersFresh() {
     
     // Ensure "Rosner_Acrylic" exists as a fallback subcategory if missing
     const hasRosnerAcrylic = Object.values(subCategoriesByCategory).some(subs => 
-      subs.includes('Rosner_Acrylic') || subs.includes('rosner_acrylic')
+      subs.some(s => s && s.name === 'Rosner_Acrylic')
     );
 
     if (!hasRosnerAcrylic) {
-      // Find or create "Paints" category
-      let paintsCategory = categoryNames.find(c => c.includes('Paints')) || '100 - Paints';
-      if (!categoryNames.includes(paintsCategory)) {
-         categoryNames.push(paintsCategory);
-         subCategoriesByCategory[paintsCategory] = [];
+      // Find or create "Paints" category by ID
+      let paintsCategoryId = null;
+      
+      // Try to find a category with "Paints" in the name
+      for (const [id, catData] of categoryMap.entries()) {
+        if (catData.name.includes('Paints')) {
+          paintsCategoryId = id;
+          break;
+        }
       }
       
-      // Add Rosner_Acrylic to Paints
-      if (!subCategoriesByCategory[paintsCategory]) {
-        subCategoriesByCategory[paintsCategory] = [];
+      // If no Paints category found, use the first category or create a fallback
+      if (!paintsCategoryId) {
+        if (categoryMap.size > 0) {
+          paintsCategoryId = Array.from(categoryMap.keys())[0];
+        } else {
+          // Create fallback category
+          paintsCategoryId = '100';
+          categoryMap.set(paintsCategoryId, {
+            id: '100',
+            name: 'Paints',
+            displayName: '100 - Paints'
+          });
+        }
       }
-      subCategoriesByCategory[paintsCategory].push('Rosner_Acrylic');
+      
+      // Ensure the category has a subcategory array
+      if (!subCategoriesByCategory[paintsCategoryId]) {
+        subCategoriesByCategory[paintsCategoryId] = [];
+      }
+      
+      // Add Rosner_Acrylic to the category
+      subCategoriesByCategory[paintsCategoryId].push({
+        id: 'rosner_acrylic',
+        name: 'Rosner_Acrylic'
+      });
       
       // Add fallback binder configuration for Rosner_Acrylic
       binderConfigBySubCategory['Rosner_Acrylic'] = {
@@ -442,15 +473,17 @@ export async function fetchMastersFresh() {
         productsBySubCategory['Rosner_Acrylic'] = [];
       }
     }
-    const defaultCategory = categoryNames[0] || '100 - Paints';
-    const defaultSubCategory = subCategoriesByCategory[defaultCategory]?.[0] || 'Rosner_Acrylic';
+    
+    // Set defaults using category ID and subcategory name
+    const defaultCategoryId = Array.from(categoryMap.keys())[0] || '100';
+    const defaultSubCategoryName = subCategoriesByCategory[defaultCategoryId]?.[0]?.name || 'Rosner_Acrylic';
 
     // Final data structure prepared successfully
 
     // ===== BUILD PAYLOAD =====
     const payload = {
       status: true,
-      categories: categoryNames,
+      categories: Array.from(categoryMap.values()).map(({ id, name }) => ({ id, name })),
       subCategoriesByCategory,
       productsBySubCategory,
       binderConfigBySubCategory,
@@ -460,9 +493,9 @@ export async function fetchMastersFresh() {
       additives: rawAdditives,
       binders: Array.from(binderMap.values()),
       
-      // Default values
-      defaultCategory,
-      defaultSubCategory,
+      // Default values - category as ID, subcategory as name
+      defaultCategory: defaultCategoryId,
+      defaultSubCategory: defaultSubCategoryName,
       glossDefault: 0,
       
       // Default formula components
