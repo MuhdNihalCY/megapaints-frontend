@@ -307,64 +307,12 @@ const Products = () => {
         );
     };
 
-    const filteredAndSortedProducts = useMemo(() => {
-        let filtered = [...products];
+    const sortedProducts = useMemo(() => {
+        // Server-side filtering is already applied, only sort client-side
+        const sorted = [...products];
 
-        // Apply search filter
-        if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            filtered = filtered.filter(
-                (product) =>
-                    (product.name &&
-                        product.name.toLowerCase().includes(searchLower)) ||
-                    (product.code &&
-                        product.code.toLowerCase().includes(searchLower)) ||
-                    (product.description &&
-                        product.description
-                            .toLowerCase()
-                            .includes(searchLower)),
-            );
-        }
-
-        // Apply category filter
-        if (filterCategory) {
-            filtered = filtered.filter((product) => {
-                const categoryId = product.category?._id || product.category_id;
-                return (
-                    categoryId === filterCategory ||
-                    categoryId?.toString() === filterCategory
-                );
-            });
-        }
-
-        // Apply subcategory filter
-        if (filterSubCategory) {
-            filtered = filtered.filter((product) => {
-                const subCategoryId =
-                    product.subcategory?._id || product.subcategory_id;
-                return (
-                    subCategoryId === filterSubCategory ||
-                    subCategoryId?.toString() === filterSubCategory
-                );
-            });
-        }
-
-        // Apply product type filter
-        if (filterProductType) {
-            filtered = filtered.filter(
-                (product) => product.product_type === filterProductType,
-            );
-        }
-
-        // Apply active filter
-        if (filterActive !== null) {
-            filtered = filtered.filter(
-                (product) => product.is_active === filterActive,
-            );
-        }
-
-        // Apply sorting
-        filtered.sort((a, b) => {
+        // Apply sorting only
+        sorted.sort((a, b) => {
             let aValue, bValue;
 
             switch (sortField) {
@@ -398,17 +346,8 @@ const Products = () => {
             return 0;
         });
 
-        return filtered;
-    }, [
-        products,
-        sortField,
-        sortDirection,
-        searchTerm,
-        filterCategory,
-        filterSubCategory,
-        filterProductType,
-        filterActive,
-    ]);
+        return sorted;
+    }, [products, sortField, sortDirection]);
 
     if (loading && products.length === 0) {
         return (
@@ -534,7 +473,7 @@ const Products = () => {
                             setFilterSubCategory(e.target.value);
                             setPagination((prev) => ({ ...prev, page: 1 }));
                         }}
-                        disabled={!filterCategory || subCategories.length === 0}
+                        disabled={!filterCategory}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <option value="">All Sub-Categories</option>
@@ -671,7 +610,7 @@ const Products = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                    {filteredAndSortedProducts.length === 0 ? (
+                                    {sortedProducts.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="7"
@@ -684,6 +623,7 @@ const Products = () => {
                                                 <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
                                                     {searchTerm ||
                                                     filterCategory ||
+                                                    filterSubCategory ||
                                                     filterProductType ||
                                                     filterActive !== null
                                                         ? "Try adjusting your filters"
@@ -692,7 +632,7 @@ const Products = () => {
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredAndSortedProducts.map(
+                                        sortedProducts.map(
                                             (product) => {
                                                 const inventory =
                                                     product.inventory_summary ||
