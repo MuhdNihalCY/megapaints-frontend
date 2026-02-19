@@ -27,6 +27,7 @@ import {
     Warehouse,
     BarChart3,
     Columns,
+    Database,
 } from "lucide-react";
 
 const drawerWidth = 260;
@@ -55,6 +56,7 @@ const menuItems = [
     { text: "Customers", icon: Users, path: "/admin/customers" },
     { text: "Orders", icon: ShoppingCart, path: "/admin/orders" },
     { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns" },
+    { text: "Backup & Restore", icon: Database, path: "/admin/backup" },
 ];
 
 export default function AdminLayout() {
