@@ -218,27 +218,86 @@ export async function fetchMastersFresh() {
     // ===== PROCESS PRODUCTS =====
     const productMap = new Map();
     
+    console.log('[Masters Debug] Processing', rawProducts.length, 'raw products');
+    if (rawProducts.length > 0) {
+      console.log('[Masters Debug] Sample product:', {
+        code: rawProducts[0]?.code,
+        Product_Id: rawProducts[0]?.Product_Id,
+        subcategory: rawProducts[0]?.subcategory,
+        subcategories: rawProducts[0]?.subcategories
+      });
+    }
+    
     rawProducts.forEach((product) => {
-      const productId = String(product?.Product_Id || '').trim();
+      const productId = String(product?.Product_Id || product?.code || '').trim();
       
       if (productId && productId !== '0' && productId !== 'null' && productId !== 'undefined') {
+        // Extract subcategory information from the product
+        // Products can have either subcategory (single) or subcategories (array)
+        const subcategoryInfo = product?.subcategory || (product?.subcategories && product.subcategories[0]);
+        
+        // Handle different ObjectId formats: plain string, ObjectId object, or {$oid: "..."} format
+        let subcategoryId = '';
+        if (subcategoryInfo?._id) {
+          if (typeof subcategoryInfo._id === 'string') {
+            subcategoryId = subcategoryInfo._id;
+          } else if (subcategoryInfo._id.$oid) {
+            subcategoryId = subcategoryInfo._id.$oid;
+          } else if (subcategoryInfo._id.toString) {
+            subcategoryId = subcategoryInfo._id.toString();
+          }
+        }
+        if (!subcategoryId) {
+          subcategoryId = subcategoryInfo?.SubCategory_Id || product?.SubCategory_Id || '';
+        }
+        
+        const subcategoryName = subcategoryInfo?.name || '';
+        
+        const categoryInfo = product?.category;
+        let categoryId = '';
+        if (categoryInfo?._id) {
+          if (typeof categoryInfo._id === 'string') {
+            categoryId = categoryInfo._id;
+          } else if (categoryInfo._id.$oid) {
+            categoryId = categoryInfo._id.$oid;
+          } else if (categoryInfo._id.toString) {
+            categoryId = categoryInfo._id.toString();
+          }
+        }
+        if (!categoryId) {
+          categoryId = categoryInfo?.Category_Id || product?.Category_Id || '';
+        }
+        
         productMap.set(productId, {
           _id: product._id,
           Product_Id: productId,
           Product_Name: product?.Product_Name || product?.name || '',
           Abbreviation: product?.Abbreviation || product?.abbreviation || '',
-          Product_Density: Number(product?.Product_Density) || 1000,
-          SolidContent: Number(product?.SolidContent) || 0,
-          VOC: Number(product?.VOC) || 0,
+          Product_Density: Number(product?.Product_Density || product?.density) || 1000,
+          SolidContent: Number(product?.SolidContent || product?.solid_content) || 0,
+          VOC: Number(product?.VOC || product?.voc) || 0,
           coefficient: Number(product?.coefficient) || 1,
-          SubCategory_Id: product?.SubCategory_Id || product?.subcategory_id || '',
-          Category_Id: product?.Category_Id || product?.category_id || '',
-          GroupName: product?.GroupName || '',
-          Price: product?.Price || 0,
-          PriceUnit: product?.PriceUnit || ''
+          SubCategory_Id: String(subcategoryId),
+          SubCategory_Name: subcategoryName,
+          Category_Id: String(categoryId),
+          GroupName: product?.GroupName || product?.group?.name || '',
+          Price: product?.Price || product?.base_price || 0,
+          PriceUnit: product?.PriceUnit || product?.unit || '',
+          // Store all subcategories if product has multiple
+          subcategories: product?.subcategories || (subcategoryInfo ? [subcategoryInfo] : [])
         });
       }
     });
+
+    console.log('[Masters Debug] Products mapped:', productMap.size);
+    if (productMap.size > 0) {
+      const firstProduct = Array.from(productMap.values())[0];
+      console.log('[Masters Debug] Sample mapped product:', {
+        Product_Id: firstProduct.Product_Id,
+        SubCategory_Id: firstProduct.SubCategory_Id,
+        SubCategory_Name: firstProduct.SubCategory_Name
+      });
+    }
 
     // Products processed successfully
 
@@ -275,7 +334,21 @@ export async function fetchMastersFresh() {
     rawSubcategories.forEach((sub) => {
       const subName = sub?.SubCategory || sub?.name || sub?.Subcategory_Name || sub?.label;
       const categoryId = String(sub?.Category_Id || sub?.category_id || '');
-      const subCategoryId = String(sub?.SubCategory_Id || sub?._id || '');
+      
+      // Handle different ObjectId formats
+      let subCategoryId = '';
+      if (sub?._id) {
+        if (typeof sub._id === 'string') {
+          subCategoryId = sub._id;
+        } else if (sub._id.$oid) {
+          subCategoryId = sub._id.$oid;
+        } else if (sub._id.toString) {
+          subCategoryId = sub._id.toString();
+        }
+      }
+      if (!subCategoryId) {
+        subCategoryId = String(sub?.SubCategory_Id || '');
+      }
       
       if (!subName) {
         console.warn('[Masters] Subcategory missing name:', sub);
@@ -317,38 +390,74 @@ export async function fetchMastersFresh() {
         // Find products for this subcategory
         const subCategoryProducts = [];
 
-        // Method 1: Products linked by SubCategory_Id
+        console.log(`[Masters Debug] Processing subcategory: ${subName} (ID: ${subCategoryId})`);
+
+        // Method 1: Products linked by subcategory _id (most accurate)
         if (subCategoryId) {
           productMap.forEach((product, productId) => {
-            if (product.SubCategory_Id === subCategoryId || 
-                product.SubCategory_Id === subName ||
-                product.SubCategory_Id === sub?._id) {
+            // Convert both IDs to strings for comparison
+            const productSubId = String(product.SubCategory_Id || '');
+            const subId = String(subCategoryId);
+            const subMongoId = String(sub?._id || '');
+            
+            // Check if product's subcategory ID matches this subcategory's ID
+            if (productSubId && (productSubId === subId || productSubId === subMongoId)) {
               subCategoryProducts.push(product);
+              console.log(`  [Match Method 1] Product ${productId} matched by SubCategory_Id`);
+            } else if (product.subcategories && Array.isArray(product.subcategories)) {
+              // Check if any of the product's subcategories matches
+              const matchesSubcategory = product.subcategories.some(sc => {
+                const scId = String(sc._id || '');
+                return scId && (scId === subId || scId === subMongoId || sc.name === subName);
+              });
+              if (matchesSubcategory) {
+                subCategoryProducts.push(product);
+                console.log(`  [Match Method 1b] Product ${productId} matched by subcategories array`);
+              }
             }
           });
         }
 
-        // Method 2: Products linked by Category_Id (if no direct subcategory link)
+        // Method 2: Products linked by subcategory name (fallback)
+        if (subCategoryProducts.length === 0 && subName) {
+          productMap.forEach((product, productId) => {
+            if (product.SubCategory_Name === subName) {
+              subCategoryProducts.push(product);
+              console.log(`  [Match Method 2] Product ${productId} matched by SubCategory_Name`);
+            } else if (product.subcategories && Array.isArray(product.subcategories)) {
+              const matchesSubcategory = product.subcategories.some(sc => sc.name === subName);
+              if (matchesSubcategory) {
+                subCategoryProducts.push(product);
+                console.log(`  [Match Method 2b] Product ${productId} matched by subcategories name`);
+              }
+            }
+          });
+        }
+
+        // Method 3: Products linked by Category_Id (if no direct subcategory link)
         if (subCategoryProducts.length === 0 && categoryId) {
           productMap.forEach((product, productId) => {
-            if (product.Category_Id === categoryId) {
+            if (String(product.Category_Id) === categoryId) {
               subCategoryProducts.push(product);
+              console.log(`  [Match Method 3] Product ${productId} matched by Category_Id`);
             }
           });
         }
 
-        // Method 3: Products from subcategory.Products array (if available)
+        // Method 4: Products from subcategory.Products array (if available)
         if (sub.Products && Array.isArray(sub.Products)) {
           sub.Products.forEach(productId => {
             const productIdStr = String(productId).trim();
             const product = productMap.get(productIdStr);
             if (product && !subCategoryProducts.some(p => p.Product_Id === product.Product_Id)) {
               subCategoryProducts.push(product);
+              console.log(`  [Match Method 4] Product ${productIdStr} matched from sub.Products array`);
             }
           });
         }
 
-              productsBySubCategory[subName] = subCategoryProducts;
+        productsBySubCategory[subName] = subCategoryProducts;
+        console.log(`[Masters Debug] ${subName}: ${subCategoryProducts.length} products matched`);
       // Products mapped to subcategory successfully
 
         // Configure binders for this subcategory
@@ -359,6 +468,14 @@ export async function fetchMastersFresh() {
         const binder1Data = binder1Id ? binderMap.get(binder1Id) : null;
         const binder2Data = binder2Id ? binderMap.get(binder2Id) : null;
 
+        // Transform level_of_shine to Matt/Gloss boolean flags
+        // level_of_shine can be 'matt', 'gloss', or null
+        const levelOfShine = sub?.level_of_shine || sub?.Products?.level_of_shine;
+        const hasMatt = levelOfShine === 'matt' || Boolean(sub?.Matt || sub?.Products?.Matt);
+        const hasGloss = levelOfShine === 'gloss' || Boolean(sub?.Gloss || sub?.Products?.Gloss);
+        
+        console.log(`[Masters Debug] ${subName} - level_of_shine: ${levelOfShine}, Matt: ${hasMatt}, Gloss: ${hasGloss}`);
+        
         binderConfigBySubCategory[subName] = {
           // Store the original subcategory data for reference
           SubCategory: subName,
@@ -388,14 +505,14 @@ export async function fetchMastersFresh() {
           Binder2XwithB1Hidden: sub?.Binder2XwithB1Hidden || '',
           Binder_Density: Number(sub?.Binder_Density) || 1000,
           
-          // UI configuration
-          Gloss: Boolean(sub?.Gloss || sub?.Products?.Gloss),
-          Matt: Boolean(sub?.Matt || sub?.Products?.Matt),
-          Liter: Boolean(sub?.Liter || sub?.Products?.Liter),
-          Gram: Boolean(sub?.Gram || sub?.Products?.Gram),
+          // UI configuration - Transform level_of_shine to Matt/Gloss booleans
+          Gloss: hasGloss,
+          Matt: hasMatt,
+          Liter: Boolean(sub?.Liter || sub?.Products?.Liter || sub?.unit === 'liter'),
+          Gram: Boolean(sub?.Gram || sub?.Products?.Gram || sub?.unit === 'kg'),
           
           // Additional properties
-          Remarks: sub?.Remarks || '',
+          Remarks: sub?.Remarks || sub?.remarks || '',
           suffix: sub?.suffix || sub?.Products?.suffix || ''
         };
 
