@@ -33,6 +33,7 @@ import InventorySummary from "./features/admin/inventory/InventorySummary";
 import AdminLayout from "./features/admin/components/AdminLayout";
 import KanbanColumns from "./features/admin/new/KanbanColumns";
 import BackupRestore from "./features/admin/BackupRestore";
+import Migration from "./features/admin/Migration";
 import UserProtectedRoute from "./components/UserProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import CreateFormula from "./features/user/CreateFormula";
@@ -216,6 +217,10 @@ function App() {
                                         <Route
                                             path="backup"
                                             element={<BackupRestore />}
+                                        />
+                                        <Route
+                                            path="migration"
+                                            element={<Migration />}
                                         />
                                     </Route>
 

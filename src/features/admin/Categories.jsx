@@ -167,7 +167,15 @@ const Categories = () => {
             }
         } catch (err) {
             console.error("Failed to delete category:", err);
-            setError(err.message || "Failed to delete category");
+            
+            // If category doesn't exist (404), refresh the list
+            if (err.response?.status === 404 || err.status === 404) {
+                setSuccess("Category no longer exists; list refreshed.");
+                fetchCategories();
+                setTimeout(() => setSuccess(""), 3000);
+            } else {
+                setError(err.message || "Failed to delete category");
+            }
         }
     };
 
