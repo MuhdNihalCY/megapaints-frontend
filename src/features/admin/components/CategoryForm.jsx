@@ -99,14 +99,14 @@ const CategoryForm = ({
                 binder_2_id:
                     category.binder_2_id?._id || category.binder_2_id || "",
                 binder_1_equation_values: {
-                    valueA: category.binder_1_equation_values?.valueA || "",
-                    valueB: category.binder_1_equation_values?.valueB || "",
-                    valueC: category.binder_1_equation_values?.valueC || "",
-                    valueD: category.binder_1_equation_values?.valueD || "",
+                    valueA: category.binder_1_equation_values?.valueA ?? "",
+                    valueB: category.binder_1_equation_values?.valueB ?? "",
+                    valueC: category.binder_1_equation_values?.valueC ?? "",
+                    valueD: category.binder_1_equation_values?.valueD ?? "",
                 },
                 binder_2_equation_type: category.binder_2_equation_type || "",
                 binder_2_equation_values: {
-                    valueA: category.binder_2_equation_values?.valueA || "",
+                    valueA: category.binder_2_equation_values?.valueA ?? "",
                 },
                 remarks: category.remarks || "",
             });

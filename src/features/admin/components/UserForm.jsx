@@ -66,6 +66,18 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
     useEffect(() => {
         fetchBranches();
         if (user) {
+            const normalizeBranchIds = (branches) => {
+                if (!Array.isArray(branches)) return [];
+                return branches
+                    .map(b => {
+                        if (!b) return null;
+                        if (typeof b === 'string') return b;
+                        if (typeof b === 'object' && b._id) return b._id;
+                        return null;
+                    })
+                    .filter(Boolean);
+            };
+
             setFormData({
                 username: user.username || "",
                 email: user.email || "",
@@ -76,7 +88,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: user.phone || "",
                 designation: user.designation || "",
                 roles: user.roles || [],
-                branches: user.branches || [],
+                branches: normalizeBranchIds(user.branches),
                 permissions: user.permissions || [],
                 is_active: user.is_active !== undefined ? user.is_active : true,
             });
@@ -202,6 +214,20 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
         try {
             const adminServices = apiServiceFactory.initializeAdminServices();
 
+            // Normalize branches to ensure only IDs are sent
+            const normalizeBranchIds = (branches) => {
+                if (!Array.isArray(branches)) return [];
+                const ids = branches
+                    .map(b => {
+                        if (!b) return null;
+                        if (typeof b === 'string') return b;
+                        if (typeof b === 'object' && b._id) return b._id;
+                        return null;
+                    })
+                    .filter(Boolean);
+                return [...new Set(ids)];
+            };
+
             // Prepare data for API
             const submitData = {
                 username: formData.username.trim(),
@@ -211,7 +237,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: formData.phone.trim(),
                 designation: formData.designation.trim(),
                 roles: formData.roles,
-                branches: formData.branches,
+                branches: normalizeBranchIds(formData.branches),
                 permissions: formData.permissions,
                 is_active: formData.is_active,
             };
