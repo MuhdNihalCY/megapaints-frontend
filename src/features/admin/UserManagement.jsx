@@ -69,8 +69,10 @@ const UserManagement = () => {
                 ...(filterDesignation && { designation: filterDesignation }),
             };
 
+            console.log("[Admin Users] API GET /api/admin/business/users", { params });
             const response =
                 await adminServices.businessManagement.getUsers(params);
+            console.log("[Admin Users] API GET /api/admin/business/users response", { status: response?.status, data: response?.data });
 
             if (response && response.status === "success") {
                 setUsers(response.data?.users || []);
@@ -124,8 +126,18 @@ const UserManagement = () => {
         setEditingUser(null);
     };
 
-    const handleUserFormSuccess = () => {
-        fetchUsers(); // Refresh the user list
+    const handleUserFormSuccess = (updatedData) => {
+        if (updatedData?.user) {
+            const updated = updatedData.user;
+            setUsers((prev) =>
+                prev.map((u) =>
+                    (u._id || u.id) === (updated._id || updated.id)
+                        ? { ...u, ...updated }
+                        : u
+                )
+            );
+        }
+        fetchUsers();
         setShowUserForm(false);
         setEditingUser(null);
     };
@@ -141,12 +153,13 @@ const UserManagement = () => {
 
         try {
             const adminServices = getAdminServices();
+            const payload = { is_active: !user.is_active };
+            console.log("[Admin Users] API PUT /api/admin/business/users/:id (toggle status)", { userId: user._id, payload });
             const response = await adminServices.businessManagement.updateUser(
                 user._id,
-                {
-                    is_active: !user.is_active,
-                },
+                payload,
             );
+            console.log("[Admin Users] API PUT /api/admin/business/users/:id (toggle status) response", { status: response?.status, data: response?.data });
 
             if (response.status === "success") {
                 setSuccess(

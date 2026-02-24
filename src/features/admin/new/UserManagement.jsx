@@ -79,8 +79,18 @@ const UserManagement = () => {
         setEditingUser(null);
     };
 
-    const handleUserFormSuccess = () => {
-        fetchUsers(); // Refresh the user list
+    const handleUserFormSuccess = (updatedData) => {
+        if (updatedData?.user) {
+            const updated = updatedData.user;
+            setUsers((prev) =>
+                prev.map((u) =>
+                    (u._id || u.id) === (updated._id || updated.id)
+                        ? { ...u, ...updated }
+                        : u
+                )
+            );
+        }
+        fetchUsers();
     };
 
     if (loading) {

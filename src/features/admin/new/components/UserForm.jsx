@@ -55,7 +55,12 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                     .map(b => {
                         if (!b) return null;
                         if (typeof b === 'string') return b;
-                        if (typeof b === 'object' && b._id) return b._id;
+                        if (typeof b === 'object' && b._id != null) {
+                            const id = b._id;
+                            if (typeof id === 'string') return id;
+                            if (id && typeof id === 'object' && id.$oid) return id.$oid;
+                            return id.toString ? id.toString() : String(id);
+                        }
                         return null;
                     })
                     .filter(Boolean);
@@ -253,8 +258,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                         ? "User updated successfully!"
                         : "User created successfully!",
                 );
+                onSuccess && onSuccess(response.data);
                 setTimeout(() => {
-                    onSuccess && onSuccess(response.data);
                     onClose && onClose();
                 }, 1500);
             } else {
@@ -567,24 +572,23 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                                         <input
                                             type="checkbox"
                                             checked={formData.branches.includes(
-                                                branch._id,
+                                                String(branch._id ?? branch.id ?? ''),
                                             )}
                                             onChange={(e) => {
+                                                const branchId = String(branch._id ?? branch.id ?? '');
                                                 if (e.target.checked) {
                                                     handleArrayChange(
                                                         "branches",
                                                         [
                                                             ...formData.branches,
-                                                            branch._id,
+                                                            branchId,
                                                         ],
                                                     );
                                                 } else {
                                                     handleArrayChange(
                                                         "branches",
                                                         formData.branches.filter(
-                                                            (b) =>
-                                                                b !==
-                                                                branch._id,
+                                                            (b) => String(b) !== branchId,
                                                         ),
                                                     );
                                                 }

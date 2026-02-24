@@ -72,7 +72,12 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                     .map(b => {
                         if (!b) return null;
                         if (typeof b === 'string') return b;
-                        if (typeof b === 'object' && b._id) return b._id;
+                        if (typeof b === 'object' && b._id != null) {
+                            const id = b._id;
+                            if (typeof id === 'string') return id;
+                            if (id && typeof id === 'object' && id.$oid) return id.$oid;
+                            return id.toString ? id.toString() : String(id);
+                        }
                         return null;
                     })
                     .filter(Boolean);
@@ -98,8 +103,10 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
     const fetchBranches = async () => {
         try {
             const adminServices = apiServiceFactory.initializeAdminServices();
+            console.log("[Admin Users] API GET /api/admin/business/branches");
             const response =
                 await adminServices.businessManagement.getBranches();
+            console.log("[Admin Users] API GET branches response", { status: response?.status, data: response?.data });
             if (response.status === "success") {
                 setBranches(response.data.branches || []);
             }
@@ -250,18 +257,22 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             }
 
             let response;
+            const logPayload = { ...submitData };
+            if (logPayload.password) logPayload.password = "[REDACTED]";
             if (user) {
-                // Update existing user
+                console.log("[Admin Users] API PUT /api/admin/business/users/:id", { userId: user._id, payload: logPayload });
                 response = await adminServices.businessManagement.updateUser(
                     user._id,
                     submitData,
                 );
+                console.log("[Admin Users] API PUT update user response", { status: response?.status, data: response?.data });
             } else {
-                // Create new user
+                console.log("[Admin Users] API POST /api/admin/business/users", { payload: logPayload });
                 response =
                     await adminServices.businessManagement.createUser(
                         submitData,
                     );
+                console.log("[Admin Users] API POST create user response", { status: response?.status, data: response?.data });
             }
 
             if (response.status === "success") {
@@ -270,8 +281,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                         ? "User updated successfully!"
                         : "User created successfully!",
                 );
+                onSuccess && onSuccess(response.data);
                 setTimeout(() => {
-                    onSuccess && onSuccess(response.data);
                     onClose && onClose();
                 }, 1500);
             } else {
@@ -645,24 +656,23 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                                         <input
                                             type="checkbox"
                                             checked={formData.branches.includes(
-                                                branch._id,
+                                                String(branch._id ?? branch.id ?? ''),
                                             )}
                                             onChange={(e) => {
+                                                const branchId = String(branch._id ?? branch.id ?? '');
                                                 if (e.target.checked) {
                                                     handleArrayChange(
                                                         "branches",
                                                         [
                                                             ...formData.branches,
-                                                            branch._id,
+                                                            branchId,
                                                         ],
                                                     );
                                                 } else {
                                                     handleArrayChange(
                                                         "branches",
                                                         formData.branches.filter(
-                                                            (b) =>
-                                                                b !==
-                                                                branch._id,
+                                                            (b) => String(b) !== branchId,
                                                         ),
                                                     );
                                                 }
