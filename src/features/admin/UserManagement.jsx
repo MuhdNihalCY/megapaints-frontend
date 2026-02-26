@@ -501,7 +501,7 @@ const UserManagement = () => {
                                             </div>
                                         </th>
                                         <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                                            Branches
+                                            Branch
                                         </th>
                                         <th
                                             className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -594,25 +594,7 @@ const UserManagement = () => {
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                                                     <span className="truncate block max-w-[150px]">
-                                                        {user.branches &&
-                                                        Array.isArray(
-                                                            user.branches,
-                                                        ) &&
-                                                        user.branches.length > 0
-                                                            ? user.branches
-                                                                  .length === 1
-                                                                ? typeof user
-                                                                      .branches[0] ===
-                                                                      "object" &&
-                                                                  user
-                                                                      .branches[0]
-                                                                      .name
-                                                                    ? user
-                                                                          .branches[0]
-                                                                          .name
-                                                                    : "1 branch"
-                                                                : `${user.branches.length} branches`
-                                                            : "-"}
+                                                        {user.branchName || "-"}
                                                     </span>
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">

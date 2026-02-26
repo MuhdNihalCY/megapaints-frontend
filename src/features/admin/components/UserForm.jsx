@@ -68,19 +68,26 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
         if (user) {
             const normalizeBranchIds = (branches) => {
                 if (!Array.isArray(branches)) return [];
+                const invalidMarkers = ['[Circular]', '[Max Depth Reached]'];
                 return branches
-                    .map(b => {
-                        if (!b) return null;
-                        if (typeof b === 'string') return b;
-                        if (typeof b === 'object' && b._id != null) {
-                            const id = b._id;
-                            if (typeof id === 'string') return id;
-                            if (id && typeof id === 'object' && id.$oid) return id.$oid;
-                            return id.toString ? id.toString() : String(id);
+                    .map((b) => {
+                        if (b == null) return null;
+                        if (typeof b === 'string') {
+                            if (invalidMarkers.includes(b)) return null;
+                            return b;
+                        }
+                        if (typeof b === 'object') {
+                            if (b._id != null) {
+                                const id = b._id;
+                                if (typeof id === 'string') return invalidMarkers.includes(id) ? null : id;
+                                if (id && typeof id === 'object' && id.$oid) return id.$oid;
+                                return id.toString ? id.toString() : String(id);
+                            }
+                            if (b.$oid) return b.$oid;
                         }
                         return null;
                     })
-                    .filter(Boolean);
+                    .filter((id) => id && typeof id === 'string' && id.length === 24 && /^[a-f0-9]{24}$/i.test(id));
             };
 
             setFormData({
@@ -93,7 +100,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: user.phone || "",
                 designation: user.designation || "",
                 roles: user.roles || [],
-                branches: normalizeBranchIds(user.branches),
+                branches: normalizeBranchIds(user.branches).slice(0, 1),
                 permissions: user.permissions || [],
                 is_active: user.is_active !== undefined ? user.is_active : true,
             });
@@ -160,8 +167,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             errors.roles = "At least one role is required";
         }
 
-        if (formData.branches.length === 0) {
-            errors.branches = "At least one branch is required";
+        if (formData.branches.length !== 1) {
+            errors.branches = "Please select one branch";
         }
 
         setValidationErrors(errors);
@@ -224,14 +231,21 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             // Normalize branches to ensure only IDs are sent
             const normalizeBranchIds = (branches) => {
                 if (!Array.isArray(branches)) return [];
+                const invalidMarkers = ['[Circular]', '[Max Depth Reached]'];
                 const ids = branches
-                    .map(b => {
-                        if (!b) return null;
-                        if (typeof b === 'string') return b;
-                        if (typeof b === 'object' && b._id) return b._id;
+                    .map((b) => {
+                        if (b == null) return null;
+                        if (typeof b === 'string') return invalidMarkers.includes(b) ? null : b;
+                        if (typeof b === 'object' && b._id != null) {
+                            const id = b._id;
+                            if (typeof id === 'string') return invalidMarkers.includes(id) ? null : id;
+                            if (id && typeof id === 'object' && id.$oid) return id.$oid;
+                            return id.toString ? id.toString() : String(id);
+                        }
+                        if (typeof b === 'object' && b.$oid) return b.$oid;
                         return null;
                     })
-                    .filter(Boolean);
+                    .filter((id) => id && typeof id === 'string' && id.length === 24 && /^[a-f0-9]{24}$/i.test(id));
                 return [...new Set(ids)];
             };
 
@@ -244,7 +258,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: formData.phone.trim(),
                 designation: formData.designation.trim(),
                 roles: formData.roles,
-                branches: normalizeBranchIds(formData.branches),
+                branches: normalizeBranchIds(formData.branches).slice(0, 1),
                 permissions: formData.permissions,
                 is_active: formData.is_active,
             };
@@ -641,49 +655,37 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                             </div>
                         </div>
 
-                        {/* Branches Section */}
+                        {/* Branch Section - single selection (one branch per user) */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                                 <Building2 className="w-4 h-4 mr-2 text-gray-500" />
-                                Branches *
+                                Branch *
                             </label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {branches.map((branch) => (
-                                    <label
-                                        key={branch._id}
-                                        className="flex items-center"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.branches.includes(
-                                                String(branch._id ?? branch.id ?? ''),
-                                            )}
-                                            onChange={(e) => {
-                                                const branchId = String(branch._id ?? branch.id ?? '');
-                                                if (e.target.checked) {
-                                                    handleArrayChange(
-                                                        "branches",
-                                                        [
-                                                            ...formData.branches,
-                                                            branchId,
-                                                        ],
-                                                    );
-                                                } else {
-                                                    handleArrayChange(
-                                                        "branches",
-                                                        formData.branches.filter(
-                                                            (b) => String(b) !== branchId,
-                                                        ),
-                                                    );
-                                                }
-                                            }}
-                                            className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                                            {branch.name}
-                                        </span>
-                                    </label>
-                                ))}
+                                {branches.map((branch) => {
+                                    const branchId = String(branch._id ?? branch.id ?? '');
+                                    const selected = formData.branches[0] === branchId;
+                                    return (
+                                        <label
+                                            key={branch._id}
+                                            className="flex items-center cursor-pointer"
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="userBranch"
+                                                value={branchId}
+                                                checked={selected}
+                                                onChange={() => {
+                                                    handleArrayChange("branches", [branchId]);
+                                                }}
+                                                className="mr-2 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                {branch.name}
+                                            </span>
+                                        </label>
+                                    );
+                                })}
                             </div>
                             {validationErrors.branches && (
                                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
