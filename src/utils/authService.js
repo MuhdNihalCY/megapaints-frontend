@@ -32,22 +32,7 @@ class AuthService {
      */
     async adminLogin(username, password) {
         try {
-            // ABSOLUTE HARDCODED URL - NO VARIABLES, NO FUNCTIONS - DIRECTLY TO PORT 3000
-            // This bypasses ALL getApiUrl logic and browser cache issues
-            const finalUrl = "http://localhost:3000/api/auth/admin/login";
-
-            // CRITICAL: Verify one more time before fetch
-            if (finalUrl.includes(":5173") || finalUrl.includes("5173")) {
-                console.error("❌ CRITICAL ERROR: URL STILL CONTAINS 5173!");
-                throw new Error("URL construction failed - contains port 5173");
-            }
-
-            if (!finalUrl.startsWith("http://localhost:3000")) {
-                console.error(
-                    "❌ CRITICAL ERROR: URL does not start with http://localhost:3000",
-                );
-                throw new Error("URL construction failed - wrong URL format");
-            }
+            const finalUrl = getApiUrl("/auth/admin/login");
 
             const response = await fetch(finalUrl, {
                 method: "POST",

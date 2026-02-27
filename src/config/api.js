@@ -3,23 +3,26 @@
  * All API calls should use this configuration for consistent base URL management
  */
 
+// Optional env override: VITE_API_BASE_URL (full URL including /api, e.g. http://localhost:3000/api or http://localhost:4000/api when backend runs on a different port)
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
 // Environment-based API configuration
 const API_CONFIG = {
     // Development environment
     development: {
-        baseURL: "http://localhost:3000/api",
+        baseURL: envBaseUrl || "http://localhost:3000/api",
         useProxy: false, // Use direct connection to localhost:3000
     },
 
     // Production environment
     production: {
-        baseURL: "https://test.megamixsystems.com/api",
+        baseURL: envBaseUrl || "https://test.megamixsystems.com/api",
         useProxy: false,
     },
 
     // Staging environment
     staging: {
-        baseURL: "https://test.megamixsystems.com/api",
+        baseURL: envBaseUrl || "https://test.megamixsystems.com/api",
         useProxy: false,
     },
 };
