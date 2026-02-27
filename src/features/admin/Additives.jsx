@@ -164,7 +164,9 @@ const Additives = () => {
                     (additive.name &&
                         additive.name.toLowerCase().includes(searchLower)) ||
                     (additive.code &&
-                        additive.code.toLowerCase().includes(searchLower)),
+                        additive.code.toLowerCase().includes(searchLower)) ||
+                    (additive.abbreviation &&
+                        additive.abbreviation.toLowerCase().includes(searchLower)),
             );
         }
 
@@ -177,17 +179,22 @@ const Additives = () => {
         filtered.sort((a, b) => {
             let aValue, bValue;
             switch (sortField) {
+                case "id":
+                case "code":
+                    aValue = (a.code || a._id?.toString() || "").toLowerCase();
+                    bValue = (b.code || b._id?.toString() || "").toLowerCase();
+                    break;
+                case "abbreviation":
+                    aValue = (a.abbreviation || "").toLowerCase();
+                    bValue = (b.abbreviation || "").toLowerCase();
+                    break;
                 case "name":
                     aValue = (a.name || "").toLowerCase();
                     bValue = (b.name || "").toLowerCase();
                     break;
-                case "price":
-                    aValue = a.base_price || 0;
-                    bValue = b.base_price || 0;
-                    break;
-                case "status":
-                    aValue = a.is_active ? 1 : 0;
-                    bValue = b.is_active ? 1 : 0;
+                case "density":
+                    aValue = a.density ?? -1;
+                    bValue = b.density ?? -1;
                     break;
                 default:
                     aValue = (a.name || "").toLowerCase();
@@ -340,36 +347,42 @@ const Additives = () => {
                                     <tr>
                                         <th
                                             className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("code")}
+                                        >
+                                            <div className="flex items-center">
+                                                ID
+                                                {getSortIcon("code")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("abbreviation")}
+                                        >
+                                            <div className="flex items-center">
+                                                Abbreviation
+                                                {getSortIcon("abbreviation")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                             onClick={() => handleSort("name")}
                                         >
                                             <div className="flex items-center">
-                                                Additive
+                                                Additive Name
                                                 {getSortIcon("name")}
                                             </div>
                                         </th>
-                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                                            Category
-                                        </th>
                                         <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                            onClick={() => handleSort("price")}
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("density")}
                                         >
                                             <div className="flex items-center">
-                                                Price
-                                                {getSortIcon("price")}
-                                            </div>
-                                        </th>
-                                        <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                            onClick={() => handleSort("status")}
-                                        >
-                                            <div className="flex items-center">
-                                                Status
-                                                {getSortIcon("status")}
+                                                Density (ml/1000g)
+                                                {getSortIcon("density")}
                                             </div>
                                         </th>
                                         <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                            Actions
+                                            Action
                                         </th>
                                     </tr>
                                 </thead>
@@ -399,85 +412,25 @@ const Additives = () => {
                                                     key={additive._id}
                                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                                 >
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {additive.code ||
+                                                            additive._id
+                                                                ?.toString()
+                                                                .slice(-8) ||
+                                                            "-"}
+                                                    </td>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {additive.abbreviation || "-"}
+                                                    </td>
                                                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                                    {
-                                                                        additive.name
-                                                                    }
-                                                                </div>
-                                                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                                    ID:{" "}
-                                                                    {additive._id
-                                                                        ?.toString()
-                                                                        .slice(
-                                                                            -8,
-                                                                        ) ||
-                                                                        additive.id}
-                                                                </div>
-                                                                {additive.description && (
-                                                                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs hidden sm:block">
-                                                                        {
-                                                                            additive.description
-                                                                        }
-                                                                    </div>
-                                                                )}
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden mt-1">
-                                                                    {additive.category ||
-                                                                        "-"}
-                                                                </div>
-                                                            </div>
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                            {additive.name || "-"}
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden md:table-cell">
-                                                        <div className="truncate block max-w-[150px]">
-                                                            {additive.category ||
-                                                                "-"}
-                                                        </div>
-                                                        {additive.chemical_formula && (
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
-                                                                {
-                                                                    additive.chemical_formula
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
-                                                        <div className="flex items-center">
-                                                            <span className="font-semibold">
-                                                                AED{" "}
-                                                                {additive.unit_price?.toFixed(
-                                                                    2,
-                                                                ) || "0.00"}
-                                                            </span>
-                                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
-                                                                /{" "}
-                                                                {additive.unit ||
-                                                                    "unit"}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
-                                                        <span
-                                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                                additive.is_active
-                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                                            }`}
-                                                        >
-                                                            {additive.is_active ? (
-                                                                <>
-                                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                                    Active
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <XCircle className="w-3 h-3 mr-1" />
-                                                                    Inactive
-                                                                </>
-                                                            )}
-                                                        </span>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {additive.density != null && additive.density !== ""
+                                                            ? additive.density
+                                                            : "-"}
                                                     </td>
                                                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex items-center justify-end space-x-1 sm:space-x-2">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { formatPrice } from "../../utils/formatPrice";
 import {
     Plus,
     RefreshCw,
@@ -14,7 +15,6 @@ import {
     Activity,
     X,
     Filter,
-    Users,
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
@@ -166,7 +166,9 @@ const Tinters = () => {
                     (tinter.name &&
                         tinter.name.toLowerCase().includes(searchLower)) ||
                     (tinter.code &&
-                        tinter.code.toLowerCase().includes(searchLower)),
+                        tinter.code.toLowerCase().includes(searchLower)) ||
+                    (tinter.abbreviation &&
+                        tinter.abbreviation.toLowerCase().includes(searchLower)),
             );
         }
 
@@ -182,21 +184,25 @@ const Tinters = () => {
             let aValue, bValue;
 
             switch (sortField) {
+                case "code":
+                    aValue = (a.code || a._id?.toString() || "").toLowerCase();
+                    bValue = (b.code || b._id?.toString() || "").toLowerCase();
+                    break;
+                case "abbreviation":
+                    aValue = (a.abbreviation || "").toLowerCase();
+                    bValue = (b.abbreviation || "").toLowerCase();
+                    break;
                 case "name":
                     aValue = (a.name || "").toLowerCase();
                     bValue = (b.name || "").toLowerCase();
                     break;
+                case "density":
+                    aValue = a.density ?? -1;
+                    bValue = b.density ?? -1;
+                    break;
                 case "price":
                     aValue = a.base_price || 0;
                     bValue = b.base_price || 0;
-                    break;
-                case "status":
-                    aValue = a.is_active ? 1 : 0;
-                    bValue = b.is_active ? 1 : 0;
-                    break;
-                case "created":
-                    aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                     break;
                 default:
                     aValue = (a.name || "").toLowerCase();
@@ -350,21 +356,42 @@ const Tinters = () => {
                                     <tr>
                                         <th
                                             className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("code")}
+                                        >
+                                            <div className="flex items-center">
+                                                ID
+                                                {getSortIcon("code")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("abbreviation")}
+                                        >
+                                            <div className="flex items-center">
+                                                Abbreviation
+                                                {getSortIcon("abbreviation")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                             onClick={() => handleSort("name")}
                                         >
                                             <div className="flex items-center">
-                                                Tinter
+                                                Product Name
                                                 {getSortIcon("name")}
                                             </div>
                                         </th>
-                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                                            Category
-                                        </th>
-                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                                            Group
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("density")}
+                                        >
+                                            <div className="flex items-center">
+                                                Density
+                                                {getSortIcon("density")}
+                                            </div>
                                         </th>
                                         <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                             onClick={() => handleSort("price")}
                                         >
                                             <div className="flex items-center">
@@ -372,17 +399,8 @@ const Tinters = () => {
                                                 {getSortIcon("price")}
                                             </div>
                                         </th>
-                                        <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                            onClick={() => handleSort("status")}
-                                        >
-                                            <div className="flex items-center">
-                                                Status
-                                                {getSortIcon("status")}
-                                            </div>
-                                        </th>
                                         <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                            Actions
+                                            Action
                                         </th>
                                     </tr>
                                 </thead>
@@ -412,127 +430,31 @@ const Tinters = () => {
                                                     key={tinter._id}
                                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                                 >
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {tinter.code ||
+                                                            tinter._id
+                                                                ?.toString()
+                                                                .slice(-8) ||
+                                                            "-"}
+                                                    </td>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {tinter.abbreviation || "-"}
+                                                    </td>
                                                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                                    {
-                                                                        tinter.name
-                                                                    }
-                                                                </div>
-                                                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                                    Code:{" "}
-                                                                    {tinter.code ||
-                                                                        tinter._id
-                                                                            ?.toString()
-                                                                            .slice(
-                                                                                -8,
-                                                                            ) ||
-                                                                        tinter.id}
-                                                                </div>
-                                                                {tinter.description && (
-                                                                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs hidden sm:block">
-                                                                        {
-                                                                            tinter.description
-                                                                        }
-                                                                    </div>
-                                                                )}
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden mt-1">
-                                                                    {tinter
-                                                                        .category
-                                                                        ?.name ||
-                                                                        "-"}
-                                                                </div>
-                                                            </div>
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                            {tinter.name || "-"}
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden md:table-cell">
-                                                        <div className="truncate block max-w-[150px]">
-                                                            {tinter.category
-                                                                ?.name || "-"}
-                                                        </div>
-                                                        {tinter.subcategories &&
-                                                            tinter.subcategories
-                                                                .length > 0 && (
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                                    {
-                                                                        tinter
-                                                                            .subcategories
-                                                                            .length
-                                                                    }{" "}
-                                                                    sub-categor
-                                                                    {tinter
-                                                                        .subcategories
-                                                                        .length ===
-                                                                    1
-                                                                        ? "y"
-                                                                        : "ies"}
-                                                                </div>
-                                                            )}
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {tinter.density != null && tinter.density !== ""
+                                                            ? tinter.density
+                                                            : "-"}
                                                     </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
-                                                        {tinter.group ? (
-                                                            <div className="flex items-center">
-                                                                <Users className="w-4 h-4 mr-1 text-gray-400 flex-shrink-0" />
-                                                                <span className="truncate block max-w-[150px]">
-                                                                    {
-                                                                        tinter
-                                                                            .group
-                                                                            .name
-                                                                    }
-                                                                </span>
-                                                                {tinter.group
-                                                                    .code && (
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
-                                                                        (
-                                                                        {
-                                                                            tinter
-                                                                                .group
-                                                                                .code
-                                                                        }
-                                                                        )
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-gray-400 dark:text-gray-500">
-                                                                -
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
-                                                        <div className="flex items-center">
-                                                            <span className="font-semibold">
-                                                                AED{" "}
-                                                                {tinter.base_price?.toFixed(
-                                                                    2,
-                                                                ) || "0.00"}
-                                                            </span>
-                                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
-                                                                /{" "}
-                                                                {tinter.unit ||
-                                                                    "unit"}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
-                                                        <span
-                                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                                tinter.is_active
-                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                                            }`}
-                                                        >
-                                                            {tinter.is_active ? (
-                                                                <>
-                                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                                    Active
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <XCircle className="w-3 h-3 mr-1" />
-                                                                    Inactive
-                                                                </>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <span className="font-semibold">
+                                                            AED{" "}
+                                                            {formatPrice(
+                                                                tinter.base_price ?? 0,
                                                             )}
                                                         </span>
                                                     </td>

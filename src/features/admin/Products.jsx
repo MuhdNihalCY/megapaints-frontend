@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
+import { formatPrice } from "../../utils/formatPrice";
 import {
     Plus,
     RefreshCw,
@@ -717,9 +718,9 @@ const Products = () => {
                                                             <div className="flex items-center">
                                                                 <span className="font-semibold">
                                                                     AED{" "}
-                                                                    {product.base_price?.toFixed(
-                                                                        2,
-                                                                    ) || "0.00"}
+                                                                    {formatPrice(
+                                                                        product.base_price,
+                                                                    )}
                                                                 </span>
                                                                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
                                                                     /{" "}

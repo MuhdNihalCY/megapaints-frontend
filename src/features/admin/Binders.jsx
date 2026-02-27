@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { formatPrice } from "../../utils/formatPrice";
 import {
     Plus,
     RefreshCw,
@@ -163,7 +164,9 @@ const Binders = () => {
                     (binder.name &&
                         binder.name.toLowerCase().includes(searchLower)) ||
                     (binder.code &&
-                        binder.code.toLowerCase().includes(searchLower)),
+                        binder.code.toLowerCase().includes(searchLower)) ||
+                    (binder.abbreviation &&
+                        binder.abbreviation.toLowerCase().includes(searchLower)),
             );
         }
         if (filterActive !== null) {
@@ -174,17 +177,25 @@ const Binders = () => {
         filtered.sort((a, b) => {
             let aValue, bValue;
             switch (sortField) {
+                case "code":
+                    aValue = (a.code || a._id?.toString() || "").toLowerCase();
+                    bValue = (b.code || b._id?.toString() || "").toLowerCase();
+                    break;
+                case "abbreviation":
+                    aValue = (a.abbreviation || "").toLowerCase();
+                    bValue = (b.abbreviation || "").toLowerCase();
+                    break;
                 case "name":
                     aValue = (a.name || "").toLowerCase();
                     bValue = (b.name || "").toLowerCase();
                     break;
+                case "density":
+                    aValue = a.density ?? -1;
+                    bValue = b.density ?? -1;
+                    break;
                 case "price":
                     aValue = a.base_price || 0;
                     bValue = b.base_price || 0;
-                    break;
-                case "status":
-                    aValue = a.is_active ? 1 : 0;
-                    bValue = b.is_active ? 1 : 0;
                     break;
                 default:
                     aValue = (a.name || "").toLowerCase();
@@ -336,18 +347,42 @@ const Binders = () => {
                                     <tr>
                                         <th
                                             className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("code")}
+                                        >
+                                            <div className="flex items-center">
+                                                ID
+                                                {getSortIcon("code")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("abbreviation")}
+                                        >
+                                            <div className="flex items-center">
+                                                Abbreviation
+                                                {getSortIcon("abbreviation")}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                             onClick={() => handleSort("name")}
                                         >
                                             <div className="flex items-center">
-                                                Binder
+                                                Binder Name
                                                 {getSortIcon("name")}
                                             </div>
                                         </th>
-                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                                            Type
+                                        <th
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => handleSort("density")}
+                                        >
+                                            <div className="flex items-center">
+                                                Density (ml/1000g)
+                                                {getSortIcon("density")}
+                                            </div>
                                         </th>
                                         <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                             onClick={() => handleSort("price")}
                                         >
                                             <div className="flex items-center">
@@ -355,17 +390,8 @@ const Binders = () => {
                                                 {getSortIcon("price")}
                                             </div>
                                         </th>
-                                        <th
-                                            className="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                            onClick={() => handleSort("status")}
-                                        >
-                                            <div className="flex items-center">
-                                                Status
-                                                {getSortIcon("status")}
-                                            </div>
-                                        </th>
                                         <th className="px-3 sm:px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                            Actions
+                                            Action
                                         </th>
                                     </tr>
                                 </thead>
@@ -373,7 +399,7 @@ const Binders = () => {
                                     {filteredAndSortedBinders.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan="5"
+                                                colSpan="6"
                                                 className="px-3 sm:px-6 py-12 text-center"
                                             >
                                                 <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -395,82 +421,33 @@ const Binders = () => {
                                                     key={binder._id}
                                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                                 >
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {binder.code ||
+                                                            binder._id
+                                                                ?.toString()
+                                                                .slice(-8) ||
+                                                            "-"}
+                                                    </td>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {binder.abbreviation || "-"}
+                                                    </td>
                                                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                                    {
-                                                                        binder.name
-                                                                    }
-                                                                </div>
-                                                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                                                                    ID:{" "}
-                                                                    {binder._id
-                                                                        ?.toString()
-                                                                        .slice(
-                                                                            -8,
-                                                                        ) ||
-                                                                        binder.id}
-                                                                </div>
-                                                                {binder.description && (
-                                                                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate max-w-xs hidden sm:block">
-                                                                        {
-                                                                            binder.description
-                                                                        }
-                                                                    </div>
-                                                                )}
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden mt-1">
-                                                                    {binder.type ||
-                                                                        "-"}
-                                                                </div>
-                                                            </div>
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                            {binder.name || "-"}
                                                         </div>
                                                     </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden md:table-cell">
-                                                        <div className="truncate block max-w-[150px]">
-                                                            {binder.type || "-"}
-                                                        </div>
-                                                        {binder.compatibility && (
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
-                                                                {
-                                                                    binder.compatibility
-                                                                }
-                                                            </div>
-                                                        )}
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        {binder.density != null && binder.density !== ""
+                                                            ? binder.density
+                                                            : "-"}
                                                     </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
-                                                        <div className="flex items-center">
-                                                            <span className="font-semibold">
-                                                                AED{" "}
-                                                                {binder.unit_price?.toFixed(
-                                                                    2,
-                                                                ) || "0.00"}
-                                                            </span>
-                                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 whitespace-nowrap">
-                                                                /{" "}
-                                                                {binder.unit ||
-                                                                    "unit"}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
-                                                        <span
-                                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                                binder.is_active
-                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                                            }`}
-                                                        >
-                                                            {binder.is_active ? (
-                                                                <>
-                                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                                    Active
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <XCircle className="w-3 h-3 mr-1" />
-                                                                    Inactive
-                                                                </>
+                                                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                        <span className="font-semibold">
+                                                            AED{" "}
+                                                            {formatPrice(
+                                                                binder.base_price ??
+                                                                    binder.unit_price ??
+                                                                    0,
                                                             )}
                                                         </span>
                                                     </td>
