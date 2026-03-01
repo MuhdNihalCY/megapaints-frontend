@@ -5,17 +5,17 @@ import { safeNumber, safePositive } from "./validation.js";
  *
  * @param {Object} tinterTotals - Tinter totals from computeTinters
  * @param {number} tinterTotals.totalGrams - Total tinter mass in grams
- * @param {number} tinterTotals.totalVolumeL - Total tinter volume in liters
+ * @param {number} tinterTotals.totalVolumeL - Total tinter volume in ml
  * @param {Object} binderTotals - Binder totals from computeBinders
  * @param {number} binderTotals.totalBinderGrams - Total binder mass in grams
- * @param {number} binderTotals.totalBinderVolumeL - Total binder volume in liters
+ * @param {number} binderTotals.totalBinderVolumeL - Total binder volume in ml
  * @param {Object} additiveTotals - Additive totals from computeAdditives
  * @param {number} additiveTotals.totalAdditiveGrams - Total additive mass in grams
- * @param {number} additiveTotals.totalAdditiveVolumeL - Total additive volume in liters
+ * @param {number} additiveTotals.totalAdditiveVolumeL - Total additive volume in ml
  *
  * @returns {Object} Final combined totals
  * @returns {number} return.finalGrams - Total formula mass in grams
- * @returns {number} return.finalVolumeL - Total formula volume in liters
+ * @returns {number} return.finalVolumeL - Total formula volume in ml
  *
  * @example
  * const tinterTotals = { totalGrams: 500, totalVolumeL: 0.5 };
@@ -43,7 +43,7 @@ export function computeFinalTotals(tinterTotals, binderTotals, additiveTotals) {
  *
  * @param {Object} params - Quality metrics input parameters
  * @param {number} params.finalGrams - Total formula mass in grams
- * @param {number} params.finalVolumeL - Total formula volume in liters
+ * @param {number} params.finalVolumeL - Total formula volume in ml (from V = m × (Density/1000))
  * @param {number} params.totalSolidMass - Total solid mass from tinters in grams
  * @param {number} params.totalVOCmass - Total VOC mass from tinters in grams
  *
@@ -70,12 +70,12 @@ export function computeQualityMetrics({
 }) {
     // Validate inputs using safe functions
     const mass = safePositive(finalGrams, 0);
-    const volume = safePositive(finalVolumeL, 0);
-    const solidMass = safePositive(totalSolidMass, 0);
-    const vocMass = safePositive(totalVOCmass, 0);
+    // Volume is passed in ml; convert to L for density (g/L) = mass (g) / volume (L)
+    const volumeMl = safePositive(finalVolumeL, 0);
+    const volumeL = volumeMl > 0 ? volumeMl / 1000 : 0;
 
     // Return zeros if invalid inputs
-    if (!(mass > 0) || !(volume > 0)) {
+    if (!(mass > 0) || !(volumeL > 0)) {
         return {
             solidsPercent: 0,
             density_gPerL: 0,
@@ -83,11 +83,12 @@ export function computeQualityMetrics({
         };
     }
 
-    // FIXED: Density (g/L) = Mass (g) / Volume (L)
-    // Correct physics formula: Density = Mass / Volume
-    const density_gPerL = mass / volume;
+    // Density (g/L) = Mass (g) / Volume (L)
+    const density_gPerL = mass / volumeL;
 
     // SolidContent = Σ(tinter_solid_content% * tinter_quantity) / TotalGram * 100
+    const solidMass = safePositive(totalSolidMass, 0);
+    const vocMass = safePositive(totalVOCmass, 0);
     const solidsPercent = (solidMass / mass) * 100;
 
     // VOC = (Σ(tinter_VOC% * tinter_quantity) / TotalGram) * 100 * 10 * (Density/1000)

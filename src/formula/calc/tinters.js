@@ -3,6 +3,7 @@ import {
     safeCoefficient,
     safeDensity,
     safePercent,
+    volumeFromMassAndDensity,
 } from "./validation.js";
 
 /**
@@ -11,14 +12,14 @@ import {
  * @param {Object} row - Tinter row data
  * @param {Array<number>} row.qty - Array of 6 quantity values
  * @param {number} [row.coefficient=1] - Coefficient multiplier
- * @param {number} [row.Product_Density=1000] - Product density in g/L
+ * @param {number} [row.Product_Density=1000] - Product density as ml/1000g (e.g. 990.1)
  * @param {number} [row.SolidContent=0] - Solid content percentage (0-100)
  * @param {number} [row.VOC=0] - VOC percentage (0-100)
  * @param {string} [row.name] - Product name (for logging)
  *
  * @returns {Object} Calculated values
  * @returns {number} return.grams - Total mass in grams
- * @returns {number} return.volumeL - Total volume in liters
+ * @returns {number} return.volumeL - Volume in ml (V = m × (Density/1000))
  * @returns {number} return.solidsPercent - Solid content percentage
  * @returns {number} return.vocPercent - VOC percentage
  *
@@ -38,20 +39,19 @@ export function computeTinterRow(row) {
     const coefficient = safeCoefficient(row?.coefficient);
     const grams = sum * coefficient;
 
-    // FIXED: Density is in g/L - Volume (L) = Mass (g) / Density (g/L)
-    // Correct physics formula: Volume = Mass / Density
-    const density_g_per_l = safeDensity(row?.Product_Density, 1000);
-    const volumeL = density_g_per_l > 0 ? grams / density_g_per_l : 0;
+    // Volume (ml) = mass (g) × (Density/1000); Density stored as ml/1000g (e.g. 990.1)
+    const volumeL = volumeFromMassAndDensity(grams, row?.Product_Density, 1000);
+    const density_ml_per_1000g = safeDensity(row?.Product_Density, 1000);
 
     // Validate quality metrics (0-100 range)
     const solidsPercent = safePercent(row?.SolidContent, 0);
     const vocPercent = safePercent(row?.VOC, 0);
 
-    // Debug logging for density conversion (development only)
+    // Debug logging for volume (development only)
     if (
         process.env.NODE_ENV === "development" &&
         grams > 0 &&
-        density_g_per_l > 0
+        density_ml_per_1000g > 0
     ) {
         console.log(
             "[Tinter Calc] Product:",
@@ -59,12 +59,10 @@ export function computeTinterRow(row) {
             "Mass:",
             grams.toFixed(2),
             "g",
-            "Density:",
-            density_g_per_l,
-            "g/L",
-            "Volume:",
-            volumeL.toFixed(4),
-            "L",
+            "Density (ml/1000g):",
+            density_ml_per_1000g,
+            "Volume (ml):",
+            volumeL.toFixed(2),
             "Solids:",
             solidsPercent + "%",
             "VOC:",
@@ -86,7 +84,7 @@ export function computeTinterRow(row) {
  * @param {Array<Object>} rows - Array of tinter row objects
  * @returns {Object} Aggregated totals
  * @returns {number} return.totalGrams - Total mass of all tinters in grams
- * @returns {number} return.totalVolumeL - Total volume of all tinters in liters
+ * @returns {number} return.totalVolumeL - Total volume in ml (V = m × (Density/1000))
  * @returns {number} return.totalSolidMass - Total solid mass in grams
  * @returns {number} return.totalVOCMass - Total VOC mass in grams
  *

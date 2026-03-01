@@ -29,6 +29,7 @@ import {
     Columns,
     Database,
     RefreshCw,
+    Key,
 } from "lucide-react";
 
 const drawerWidth = 260;
@@ -59,6 +60,7 @@ const menuItems = [
     { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns" },
     { text: "Backup & Restore", icon: Database, path: "/admin/backup" },
     { text: "Data Migration", icon: RefreshCw, path: "/admin/migration" },
+    { text: "Controlled Access", icon: Key, path: "/admin/controlled-access" },
 ];
 
 export default function AdminLayout() {

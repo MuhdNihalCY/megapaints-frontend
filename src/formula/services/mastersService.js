@@ -638,7 +638,13 @@ export async function fetchMastersFresh() {
       
       // Metadata defaults
       metaDefaults: {
-        date: new Date().toISOString().slice(0, 10),
+        date: (() => {
+          const now = new Date();
+          const d = String(now.getDate()).padStart(2, '0');
+          const m = String(now.getMonth() + 1).padStart(2, '0');
+          const y = now.getFullYear();
+          return `${d}/${m}/${y}`;
+        })(),
         fileNo: '',
         customerName: '',
         colorCode: '',
@@ -687,20 +693,20 @@ export const FormulaService = {
     return res.data;
   },
 
-  async createFormula(payload) {
+  async createFormula(payload, file = null) {
+    if (file) {
+      const form = new FormData();
+      form.append('formula', JSON.stringify(payload));
+      form.append('file', file);
+      const res = await api.post('/admin/formula', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return res.data;
+    }
     const res = await api.post('/admin/formula', payload);
     return res.data;
   },
 
   async updateFormula(formulaId, payload) {
     const res = await api.put(`/admin/formula/${encodeURIComponent(formulaId)}`, payload);
-    return res.data;
-  },
-
-  async uploadAttachment(file) {
-    const form = new FormData();
-    form.append('file', file);
-    const res = await api.post('/admin/formula/attachments', form, { headers: { 'Content-Type': 'multipart/form-data' } });
     return res.data;
   },
 };

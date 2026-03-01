@@ -96,6 +96,18 @@ function createEmptyTint(nextIndex) {
     };
 }
 
+/** Format a Date or ISO date string as dd/mm/yyyy; pass through if already dd/mm/yyyy */
+function formatDDMMYYYY(d) {
+    if (!d) return "";
+    if (typeof d === "string" && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d.trim())) return d.trim();
+    const date = typeof d === "string" ? new Date(d) : d;
+    if (isNaN(date.getTime())) return "";
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
 /**
  * CreateFormula Component
  *
@@ -151,7 +163,7 @@ const CreateFormula = () => {
     // ===== FORMULA DATA STATE =====
     // Formula metadata (customer info, project details)
     const [meta, setMeta] = useState({
-        date: new Date().toISOString().slice(0, 10), // Formula date
+        date: formatDDMMYYYY(new Date()), // Formula date (dd/mm/yyyy)
         fileNo: "", // File number
         customerName: "", // Customer name
         colorCode: "", // Color code
@@ -612,7 +624,7 @@ const CreateFormula = () => {
                     setMeta((m) => ({
                         ...m,
                         ...metaDefaults,
-                        date: metaDefaults.date || m.date,
+                        date: formatDDMMYYYY(metaDefaults.date) || m.date,
                     }));
 
                     // Generate initial file number after form is initialized
@@ -1279,7 +1291,7 @@ const CreateFormula = () => {
             name: additiveData.Additive_Name || "",
             percent: 0,
             grams: 0,
-            Additive_Density: Number(additiveData.Additive_Density || 1000),
+            Additive_Density: Number(additiveData.Additive_Density || additiveData.density || additiveData.Product_Density || additiveData.Binder_Density || 1000),
             SolidContent: Number(additiveData.SolidContent || 0),
             VOC: Number(additiveData.VOC || 0),
         };
@@ -1474,30 +1486,17 @@ const CreateFormula = () => {
     // ===== FILE ATTACHMENT HANDLING =====
 
     /**
-     * Handles file attachment upload and preview generation
-     * Creates a preview for immediate display and uploads to server
+     * Handles file attachment selection (preview only).
+     * File is sent to the server only when the formula is saved.
      * @param {File} file - File object to attach
      */
-    const onAttach = async (file) => {
+    const onAttach = (file) => {
         if (!file) return;
-
-        setIsUploading(true);
-
-        // Create preview for immediate display
+        setUploadedAttachment(null); // Clear any prior upload; file will go with save
         const reader = new FileReader();
         reader.onload = (e) =>
             setAttachment({ file, preview: String(e.target?.result || "") });
         reader.readAsDataURL(file);
-
-        try {
-            // Upload file to server
-            const uploaded = await FormulaService.uploadAttachment(file);
-            setUploadedAttachment(uploaded);
-        } catch (e) {
-            console.error("Attachment upload failed", e);
-        } finally {
-            setIsUploading(false);
-        }
     };
 
     // ===== FORM RESET & CLEARING =====
@@ -1509,7 +1508,7 @@ const CreateFormula = () => {
     const clearAll = () => {
         // Reset metadata to defaults
         setMeta({
-            date: new Date().toISOString().slice(0, 10),
+            date: formatDDMMYYYY(new Date()),
             fileNo: "",
             customerName: "",
             colorCode: "",
@@ -1617,6 +1616,9 @@ const CreateFormula = () => {
                 `Binder ${selectedBinder2}`,
             Binder2Equation: cfg?.Binder2EQ1 ? "Eq1" : "Eq2",
             MattValue: mattGlossValue, // Used ONLY in Binder1 calculation
+            // Pass selected binder product densities so volume uses correct density (e.g. 990.1)
+            Binder1_Density: binder1Data?.Binder_Density ?? cfg?.Binder1_Density ?? cfg?.Binder1Density,
+            Binder2_Density: binder2Data?.Binder_Density ?? cfg?.Binder2_Density ?? cfg?.Binder2Density,
         };
 
         // Debug: Dynamic data flow - Binder configuration
@@ -1856,13 +1858,13 @@ const CreateFormula = () => {
                 voc_gPerL: quality.voc_gPerL,
             },
 
-            // File attachment if provided
+            // Attachment is sent as file in same request when present (see createFormula)
             attachment: uploadedAttachment || undefined,
         };
 
         try {
-            // Send formula to server via API service
-            const res = await FormulaService.createFormula(payload);
+            // Send formula (and optional file) in one request; file only submitted on save
+            const res = await FormulaService.createFormula(payload, attachment?.file || null);
 
             if (res?.status) {
                 alert("Formula saved successfully");
@@ -1957,6 +1959,7 @@ const CreateFormula = () => {
                                         onChange={(e) =>
                                             updateMeta("date", e.target.value)
                                         }
+                                        placeholder="dd/mm/yyyy"
                                         className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                                     />
                                 </div>
@@ -2406,9 +2409,11 @@ const CreateFormula = () => {
                                     </label>
                                     <select
                                         value={subCategory}
-                                        onChange={(e) =>
-                                            setSubCategory(e.target.value)
-                                        }
+                                        onChange={(e) => {
+                                            const selected = e.target.value;
+                                            setSubCategory(selected);
+                                            console.log("[CreateFormula] Subcategory selected:", selected);
+                                        }}
                                         className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
                                     >
                                         {subCategoryOptions.map((opt) => {
@@ -2496,7 +2501,7 @@ const CreateFormula = () => {
                                                     Grams (g)
                                                 </div>
                                                 <div className="text-center">
-                                                    Volume (L)
+                                                    Volume
                                                 </div>
                                             </div>
                                         </div>
@@ -2815,8 +2820,7 @@ const CreateFormula = () => {
                                                         g
                                                     </div>
                                                     <div className="text-center text-sm text-gray-800 dark:text-gray-200">
-                                                        {tint.volume.toFixed(4)}{" "}
-                                                        L
+                                                        {tint.volume.toFixed(4)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -2976,8 +2980,7 @@ const CreateFormula = () => {
                                                     <div className="text-center text-sm">
                                                         {binderTotals.binder1VolumeL.toFixed(
                                                             4,
-                                                        )}{" "}
-                                                        L
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -3012,8 +3015,7 @@ const CreateFormula = () => {
                                                     <div className="text-center text-sm">
                                                         {binderTotals.binder2VolumeL.toFixed(
                                                             4,
-                                                        )}{" "}
-                                                        L
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -3104,9 +3106,11 @@ const CreateFormula = () => {
                                                                             "",
                                                                         percent: 0,
                                                                         grams: 0,
-                                                                        Additive_Density:
-                                                                            Number(
+                                                                        Additive_Density: Number(
                                                                                 additive.Additive_Density ||
+                                                                                additive.density ||
+                                                                                additive.Product_Density ||
+                                                                                additive.Binder_Density ||
                                                                                     1000,
                                                                             ),
                                                                         SolidContent:
@@ -3344,6 +3348,9 @@ const CreateFormula = () => {
                                                                         Additive_Density:
                                                                             Number(
                                                                                 rawAdditive.Additive_Density ||
+                                                                                rawAdditive.density ||
+                                                                                rawAdditive.Product_Density ||
+                                                                                rawAdditive.Binder_Density ||
                                                                                     1000,
                                                                             ),
                                                                         SolidContent:
@@ -3462,8 +3469,7 @@ const CreateFormula = () => {
                                                 <div className="text-center text-sm">
                                                     {additiveTotals.totalAdditiveVolumeL.toFixed(
                                                         4,
-                                                    )}{" "}
-                                                    L
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -3485,8 +3491,7 @@ const CreateFormula = () => {
                                                 <div className="text-center text-lg">
                                                     {grandTotalVolume.toFixed(
                                                         4,
-                                                    )}{" "}
-                                                    L
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

@@ -1,4 +1,4 @@
-import { safeNumber, safeDivisor, safeDensity } from "./validation.js";
+import { safeNumber, safeDivisor, safeDensity, volumeFromMassAndDensity } from "./validation.js";
 
 /**
  * Computes binder requirements based on tinter totals and configuration
@@ -14,17 +14,17 @@ import { safeNumber, safeDivisor, safeDensity } from "./validation.js";
  * @param {number} [cfg.Binder2Avalue=0] - Binder 2 equation parameter A
  * @param {string} [cfg.Binder2Equation='Eq1'] - Binder 2 equation type ('Eq1' or 'Eq2')
  * @param {number} [cfg.MattValue=1] - Matt/Gloss factor for Binder 1 calculation
- * @param {number} [cfg.Binder1_Density=1000] - Individual density for Binder 1 (g/L)
- * @param {number} [cfg.Binder2_Density=1000] - Individual density for Binder 2 (g/L)
- * @param {number} [cfg.Binder_Density=1000] - Fallback/shared density for all binders (g/L)
+ * @param {number} [cfg.Binder1_Density=1000] - Density for Binder 1 as ml/1000g
+ * @param {number} [cfg.Binder2_Density=1000] - Density for Binder 2 as ml/1000g
+ * @param {number} [cfg.Binder_Density=1000] - Fallback density as ml/1000g
  *
  * @returns {Object} Calculated binder amounts and totals
  * @returns {number} return.binder1 - Binder 1 mass in grams
  * @returns {number} return.binder2 - Binder 2 mass in grams
- * @returns {number} return.binder1VolumeL - Binder 1 volume in liters
- * @returns {number} return.binder2VolumeL - Binder 2 volume in liters
+ * @returns {number} return.binder1VolumeL - Binder 1 volume in ml (V = m × (Density/1000))
+ * @returns {number} return.binder2VolumeL - Binder 2 volume in ml
  * @returns {number} return.totalBinderGrams - Total binder mass in grams
- * @returns {number} return.totalBinderVolumeL - Total binder volume in liters
+ * @returns {number} return.totalBinderVolumeL - Total binder volume in ml
  *
  * @example
  * // With individual binder densities
@@ -98,11 +98,9 @@ export function computeBinders(totalTinterGrams, cfg) {
           )
         : 0;
 
-    // FIXED: Density is in g/L - Volume (L) = Mass (g) / Density (g/L)
-    // Correct physics formula: Volume = Mass / Density
-    // Now supports individual densities for each binder
-    const binder1VolumeL = binder1Density > 0 ? binder1 / binder1Density : 0;
-    const binder2VolumeL = binder2Density > 0 ? binder2 / binder2Density : 0;
+    // Volume (ml) = mass (g) × (Density/1000); Density stored as ml/1000g
+    const binder1VolumeL = volumeFromMassAndDensity(binder1, cfg?.Binder1_Density || cfg?.Binder1Density, sharedDensity);
+    const binder2VolumeL = volumeFromMassAndDensity(binder2, cfg?.Binder2_Density || cfg?.Binder2Density, sharedDensity);
 
     const totalBinderGrams = binder1 + binder2;
     const totalBinderVolumeL = binder1VolumeL + binder2VolumeL;

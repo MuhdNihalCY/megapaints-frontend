@@ -90,7 +90,20 @@ export const FormulaService = {
         return res.data;
     },
 
-    async createFormula(payload) {
+    /**
+     * Create formula. If file is provided, sends multipart (payload + file) in one request.
+     * File is only sent when saving, not when selecting.
+     */
+    async createFormula(payload, file = null) {
+        if (file) {
+            const form = new FormData();
+            form.append("formula", JSON.stringify(payload));
+            form.append("file", file);
+            const res = await api.post("/admin/formula", form, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            return res.data;
+        }
         const res = await api.post("/admin/formula", payload);
         return res.data;
     },
@@ -103,14 +116,6 @@ export const FormulaService = {
         return res.data;
     },
 
-    async uploadAttachment(file) {
-        const form = new FormData();
-        form.append("file", file);
-        const res = await api.post("/admin/formula/attachments", form, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
-        return res.data;
-    },
 };
 
 export default FormulaService;

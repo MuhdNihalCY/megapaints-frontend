@@ -110,6 +110,23 @@ export function safeDivisor(value, defaultValue = 1) {
 }
 
 /**
+ * Computes volume in ml from mass and density using V = m × (Density/1000).
+ * Used for tinters, binders, and additives so all product volumes use the same formula.
+ *
+ * @param {number} massGrams - Mass in grams
+ * @param {*} densityMlPer1000g - Density as ml per 1000g (e.g. 990.1)
+ * @param {number} [defaultDensity=1000] - Default density when densityMlPer1000g is missing/invalid
+ * @returns {number} Volume in ml
+ */
+export function volumeFromMassAndDensity(massGrams, densityMlPer1000g, defaultDensity = 1000) {
+    const density = safeDensity(densityMlPer1000g, defaultDensity);
+    if (density <= 0) return 0;
+    const mass = Number(massGrams);
+    if (!Number.isFinite(mass) || mass <= 0) return 0;
+    return mass * (density / 1000);
+}
+
+/**
  * Validates tinter row data structure
  * @param {Object} row - Tinter row object
  * @returns {Object} Validation result with errors array

@@ -1,4 +1,4 @@
-import { safeNumber, safeDensity, safePercent } from "./validation.js";
+import { safeNumber, safeDensity, safePercent, volumeFromMassAndDensity } from "./validation.js";
 
 /**
  * Computes additive requirements based on percentage and base mass
@@ -8,13 +8,13 @@ import { safeNumber, safeDensity, safePercent } from "./validation.js";
  * @param {string} additives[]._id - Additive ID
  * @param {string} [additives[].name] - Additive name
  * @param {number} additives[].percent - Additive percentage (0-100)
- * @param {number} [additives[].Additive_Density=1000] - Additive density in g/L
+ * @param {number} [additives[].Additive_Density=1000] - Additive density as ml/1000g
  * @param {number} baseMass - Base mass for percentage calculations (tinters + binders)
  *
  * @returns {Object} Calculated additive totals and individual rows
  * @returns {Array<Object>} return.rows - Detailed data for each additive
  * @returns {number} return.totalAdditiveGrams - Total additive mass in grams
- * @returns {number} return.totalAdditiveVolumeL - Total additive volume in liters
+ * @returns {number} return.totalAdditiveVolumeL - Total additive volume in ml (V = m × (Density/1000))
  *
  * @example
  * const additives = [
@@ -34,11 +34,11 @@ export function computeAdditives(additives, baseMass) {
         // Validate and sanitize inputs
         const percent = safePercent(a?.percent, 0); // 0-100 range
 
-        // FIXED: Density is in g/L - Volume (L) = Mass (g) / Density (g/L)
-        // Correct physics formula: Volume = Mass / Density
-        const density_g_per_l = safeDensity(a?.Additive_Density, 1000); // Default density 1000 g/L
+        // Volume (ml) = mass (g) × (Density/1000); Density stored as ml/1000g
+        const densitySource = a?.Additive_Density ?? a?.density ?? a?.Product_Density;
+        const density_ml_per_1000g = safeDensity(densitySource, 1000);
         const grams = (baseMass * percent) / 100;
-        const volumeL = density_g_per_l > 0 ? grams / density_g_per_l : 0;
+        const volumeL = volumeFromMassAndDensity(grams, densitySource, 1000);
 
         totalAdditiveGrams += grams;
         totalAdditiveVolumeL += volumeL;
@@ -49,7 +49,7 @@ export function computeAdditives(additives, baseMass) {
             grams,
             volumeL,
             percent,
-            density: density_g_per_l,
+            density: density_ml_per_1000g,
         });
     }
 
