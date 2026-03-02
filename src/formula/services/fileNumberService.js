@@ -126,10 +126,10 @@ function formulaFileFormat(fileNo, subcategoryID, gloss, additiveID, additivePer
 async function generateFileNo(data, isNewFormula = true) {
   try {
     // Fetch existing formulas to check for duplicates
-    const existingFormulas = await FormulaService.fetchAllFormulas();
-    
+    const res = await FormulaService.fetchAllFormulas();
+    const formulasList = res?.data ?? res?.formulas ?? [];
     const existingFileNumbers = new Set(
-      existingFormulas.formulas?.map(doc => doc.labelFileNo).filter(Boolean) || []
+      formulasList.map(doc => (doc.labelFileNo ?? doc.file_no ?? doc.FileNo)).filter(Boolean)
     );
 
     let labelFileNo;
@@ -153,9 +153,9 @@ async function generateFileNo(data, isNewFormula = true) {
       // Automatic file number generation
       let fileNo = 100000; // Default starting number
 
-      if (existingFormulas.formulas?.length > 0) {
-        const latestFormula = existingFormulas.formulas[0];
-        const latestFileNo = latestFormula.FileNo || latestFormula.labelFileNo;
+      if (formulasList.length > 0) {
+        const latestFormula = formulasList[0];
+        const latestFileNo = latestFormula.FileNo || latestFormula.file_no || latestFormula.labelFileNo;
         
         if (latestFileNo) {
           // Extract the numeric part using regex
@@ -202,10 +202,10 @@ async function generateFileNo(data, isNewFormula = true) {
  */
 async function validateFileNumber(fileNo) {
   try {
-    const existingFormulas = await FormulaService.fetchAllFormulas();
-    
+    const res = await FormulaService.fetchAllFormulas();
+    const formulasList = res?.data ?? res?.formulas ?? [];
     const existingFileNumbers = new Set(
-      existingFormulas.formulas?.map(doc => doc.labelFileNo).filter(Boolean) || []
+      formulasList.map(doc => (doc.labelFileNo ?? doc.file_no ?? doc.FileNo)).filter(Boolean)
     );
 
     return !existingFileNumbers.has(fileNo) && 

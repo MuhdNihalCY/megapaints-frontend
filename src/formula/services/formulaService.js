@@ -73,13 +73,13 @@ export const FormulaService = {
 
     async fetchFormulaById(formulaId) {
         const res = await api.get(
-            `/admin/formula/${encodeURIComponent(formulaId)}`,
+            `/user/formulas/${encodeURIComponent(formulaId)}`,
         );
         return res.data;
     },
 
     async fetchAllFormulas() {
-        const res = await api.get("/v1/formulations/formula", {
+        const res = await api.get("/user/formulas", {
             params: {
                 page: 1,
                 limit: 10000,
@@ -99,19 +99,37 @@ export const FormulaService = {
             const form = new FormData();
             form.append("formula", JSON.stringify(payload));
             form.append("file", file);
-            const res = await api.post("/admin/formula", form, {
+            const res = await api.post("/user/formulas", form, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             return res.data;
         }
-        const res = await api.post("/admin/formula", payload);
+        const res = await api.post("/user/formulas", payload);
         return res.data;
     },
 
-    async updateFormula(formulaId, payload) {
+    async updateFormula(formulaId, payload, file = null) {
+        if (file) {
+            const form = new FormData();
+            form.append("formula", JSON.stringify(payload));
+            form.append("file", file);
+            const res = await api.put(
+                `/user/formulas/${encodeURIComponent(formulaId)}`,
+                form,
+                { headers: { "Content-Type": "multipart/form-data" } },
+            );
+            return res.data;
+        }
         const res = await api.put(
-            `/admin/formula/${encodeURIComponent(formulaId)}`,
+            `/user/formulas/${encodeURIComponent(formulaId)}`,
             payload,
+        );
+        return res.data;
+    },
+
+    async deleteFormula(formulaId) {
+        const res = await api.delete(
+            `/user/formulas/${encodeURIComponent(formulaId)}`,
         );
         return res.data;
     },

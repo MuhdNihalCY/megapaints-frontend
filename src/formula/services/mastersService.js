@@ -689,7 +689,7 @@ export const FormulaService = {
   },
 
   async fetchFormulaById(formulaId) {
-    const res = await api.get(`/admin/formula/${encodeURIComponent(formulaId)}`);
+    const res = await api.get(`/user/formulas/${encodeURIComponent(formulaId)}`);
     return res.data;
   },
 
@@ -698,15 +698,15 @@ export const FormulaService = {
       const form = new FormData();
       form.append('formula', JSON.stringify(payload));
       form.append('file', file);
-      const res = await api.post('/admin/formula', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/user/formulas', form, { headers: { 'Content-Type': 'multipart/form-data' } });
       return res.data;
     }
-    const res = await api.post('/admin/formula', payload);
+    const res = await api.post('/user/formulas', payload);
     return res.data;
   },
 
   async updateFormula(formulaId, payload) {
-    const res = await api.put(`/admin/formula/${encodeURIComponent(formulaId)}`, payload);
+    const res = await api.put(`/user/formulas/${encodeURIComponent(formulaId)}`, payload);
     return res.data;
   },
 };

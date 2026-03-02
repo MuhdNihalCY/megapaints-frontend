@@ -19,6 +19,7 @@
 
 // React hooks and core dependencies
 import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 
 // Component imports
 import Header from "./components/Header";
@@ -47,6 +48,8 @@ import {
     validateBinders,
     validateMetrics,
 } from "../../utils/validation";
+
+import { apiConfig } from "../../config/api";
 
 /**
  * Section identifiers for the CreateFormula component
@@ -115,6 +118,10 @@ function formatDDMMYYYY(d) {
  * Handles all state management, calculations, and user interactions
  */
 const CreateFormula = () => {
+    const { id: formulaId } = useParams();
+    const navigate = useNavigate();
+    const isEditMode = Boolean(formulaId);
+
     // ===== FORMULA HEADER STATE =====
     // Basic formula information
     const [category, setCategory] = useState(""); // Paint category (e.g., "100 - Paints")
@@ -159,6 +166,8 @@ const CreateFormula = () => {
     // Loading and processing states
     const [isSaving, setIsSaving] = useState(false); // Formula save operation in progress
     const [isUploading, setIsUploading] = useState(false); // File upload in progress
+    const [loadingFormula, setLoadingFormula] = useState(!!formulaId); // Loading formulation for edit
+    const [formulaLoadError, setFormulaLoadError] = useState(""); // Error loading formula for edit
 
     // ===== FORMULA DATA STATE =====
     // Formula metadata (customer info, project details)
@@ -181,6 +190,7 @@ const CreateFormula = () => {
     const [remarks, setRemarks] = useState(""); // Formula remarks/notes
     const [attachment, setAttachment] = useState({ file: null, preview: "" }); // File attachment with preview
     const [uploadedAttachment, setUploadedAttachment] = useState(null); // Uploaded attachment data { _id, url, ... }
+    const [attachmentRemoved, setAttachmentRemoved] = useState(false); // User chose to remove existing attachment (edit mode)
 
     // Input state management
     const [qtyInput, setQtyInput] = useState({}); // { [tinterId]: string[] } - Quantity input values
@@ -663,6 +673,100 @@ const CreateFormula = () => {
             cancelled = true;
         };
     }, []); // Empty dependency array - only run on mount
+
+    /**
+     * Edit mode: load formulation by id and apply formulation_data to form state.
+     * Runs after masters are loaded so category/subcategory options exist.
+     */
+    useEffect(() => {
+        if (!formulaId || loadingMasters) return;
+        let cancelled = false;
+        setLoadingFormula(true);
+        setFormulaLoadError("");
+        FormulaService.fetchFormulaById(formulaId)
+            .then((res) => {
+                if (cancelled) return;
+                const formulation = res?.data;
+                const fd = formulation?.formulation_data;
+                if (!fd) {
+                    setFormulaLoadError("Invalid formula data");
+                    return;
+                }
+                const metaIn = fd.meta || {};
+                setMeta({
+                    date: formatDDMMYYYY(metaIn.date) || formatDDMMYYYY(new Date()),
+                    fileNo: metaIn.fileNo ?? metaIn.file_no ?? "",
+                    customerName: metaIn.customerName ?? metaIn.customer_name ?? "",
+                    colorCode: metaIn.colorCode ?? metaIn.color_code ?? "",
+                    colorName: metaIn.colorName ?? metaIn.color_name ?? "",
+                    customerRef: metaIn.customerRef ?? metaIn.customer_ref ?? "",
+                    projectNo: metaIn.projectNo ?? metaIn.project_no ?? "",
+                });
+                const header = fd.header || {};
+                setCategory(header.category ?? "");
+                setSubCategory(header.subCategory ?? header.sub_category ?? "");
+                const g = Number(header.gloss);
+                setGloss(isNaN(g) ? 0 : g);
+                setGlossInput(isNaN(g) ? "" : String(g));
+                const tintList = Array.isArray(fd.tints) ? fd.tints : [];
+                const normalizedTints = tintList.length
+                    ? tintList.map((t, i) => ({
+                          ...t,
+                          _id: t._id || cryptoRandomId(),
+                          sl: t.sl ?? i + 1,
+                      }))
+                    : [createEmptyTint(1)];
+                setTints(normalizedTints);
+                const qtyFromTints = {};
+                normalizedTints.forEach((t) => {
+                    if (Array.isArray(t.qty)) {
+                        qtyFromTints[t._id] = t.qty.map((v) => String(v ?? ""));
+                    }
+                });
+                if (Object.keys(qtyFromTints).length) setQtyInput(qtyFromTints);
+                const normalizedAdditives = Array.isArray(fd.additives)
+                    ? fd.additives.map((a) => ({
+                          ...a,
+                          _id: a._id || cryptoRandomId(),
+                      }))
+                    : [];
+                setAdditives(normalizedAdditives);
+                const additiveInputs = {};
+                normalizedAdditives.forEach((a) => {
+                    additiveInputs[a._id] = a.percent != null ? String(a.percent) : (a.percentage != null ? String(a.percentage) : "");
+                });
+                if (normalizedAdditives.length) {
+                    setAdditiveInputById((prev) => ({ ...prev, ...additiveInputs }));
+                    // Auto-select first additive in dropdown and set percentage input so the selection is visible
+                    const first = normalizedAdditives[0];
+                    const additiveId = first.additiveId ?? first.Additive_Id ?? "";
+                    setSelectedAdditiveId(String(additiveId));
+                    const pct = first.percent ?? first.percentage;
+                    setAdditivePercentageInput(pct != null ? String(pct) : "");
+                }
+                setRemarks(typeof fd.remarks === "string" ? fd.remarks : "");
+                const fileNo = metaIn.fileNo ?? metaIn.file_no ?? "";
+                setLabelFileNo(fileNo);
+                setFormattedFileNo(fileNo);
+                if (formulation?.attachment?.url) {
+                    setUploadedAttachment(formulation.attachment);
+                    setAttachmentRemoved(false);
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setFormulaLoadError(
+                        err?.response?.data?.message || err?.message || "Failed to load formula",
+                    );
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingFormula(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [formulaId, loadingMasters]);
 
     /**
      * Updates subcategory options when the main category changes
@@ -1493,10 +1597,18 @@ const CreateFormula = () => {
     const onAttach = (file) => {
         if (!file) return;
         setUploadedAttachment(null); // Clear any prior upload; file will go with save
+        setAttachmentRemoved(false);
         const reader = new FileReader();
         reader.onload = (e) =>
             setAttachment({ file, preview: String(e.target?.result || "") });
         reader.readAsDataURL(file);
+    };
+
+    /** Remove current attachment (new file or existing). On save in edit mode, backend will clear stored attachment if clearAttachment is set. */
+    const onRemoveAttachment = () => {
+        setAttachment({ file: null, preview: "" });
+        setUploadedAttachment(null);
+        setAttachmentRemoved(true);
     };
 
     // ===== FORM RESET & CLEARING =====
@@ -1543,6 +1655,7 @@ const CreateFormula = () => {
         // Clear attachments
         setAttachment({ file: null, preview: "" });
         setUploadedAttachment(null);
+        setAttachmentRemoved(false);
     };
 
     // ===== DERIVED COMPUTATIONS =====
@@ -1777,18 +1890,13 @@ const CreateFormula = () => {
     );
 
     /**
-     * Determines if there are any blocking errors that prevent formula saving
-     * Includes validation errors, missing data, and invalid calculations
+     * Determines if there are any blocking errors that prevent formula saving.
+     * Only blocks on: still loading masters, or duplicate tinter product.
+     * Drafts with 0 totals, missing density, or missing binder config can still be saved.
      */
     const hasBlockingErrors =
         loadingMasters ||
-        tinterErrors.some(
-            (e) =>
-                e.type === "missing-density" || e.type === "duplicate-product",
-        ) ||
-        binderErrors.length > 0 ||
-        !(finalTotals.finalVolumeL > 0) ||
-        !(finalTotals.finalGrams > 0);
+        tinterErrors.some((e) => e.type === "duplicate-product");
 
     // ===== FORMULA SAVING =====
 
@@ -1800,10 +1908,48 @@ const CreateFormula = () => {
     const save = async () => {
         setIsSaving(true);
 
+        // Ensure we have a file number before save (create mode). Generate if missing so save never fails for empty fileNo.
+        let fileNoToUse = meta.fileNo || meta.file_no || "";
+        if (!isEditMode && (!fileNoToUse || !String(fileNoToUse).trim())) {
+            try {
+                const fileNumberData = {
+                    SubCategory: subCategory,
+                    gloss: gloss,
+                    matt: gloss,
+                    additiveId: selectedAdditiveId,
+                    AdditivePercentage: additivePercentageInput,
+                    subcategories: subCategoryOptions,
+                    additives: rawAdditives,
+                };
+                const result = await FileNumberService.generateFileNo(
+                    fileNumberData,
+                    true,
+                );
+                fileNoToUse = result.fileNo || String(result.labelFileNo);
+                setMeta((prev) => ({ ...prev, fileNo: fileNoToUse, file_no: fileNoToUse }));
+                setLabelFileNo(result.labelFileNo);
+                setFormattedFileNo(result.fileNo || fileNoToUse);
+            } catch (err) {
+                console.error("File number generation failed", err);
+                fileNoToUse = String(Math.floor(Date.now() / 1000) % 1000000);
+                setMeta((prev) => ({ ...prev, fileNo: fileNoToUse, file_no: fileNoToUse }));
+                setLabelFileNo(fileNoToUse);
+                setFormattedFileNo(fileNoToUse);
+            }
+        }
+        if (!fileNoToUse || !String(fileNoToUse).trim()) {
+            alert("Please set or generate a File Number before saving.");
+            setIsSaving(false);
+            return;
+        }
+
+        // Build payload with resolved file number
+        const metaWithFileNo = { ...meta, fileNo: fileNoToUse, file_no: fileNoToUse };
+
         // Construct the complete formula payload
         const payload = {
             // Basic metadata (customer info, project details)
-            meta,
+            meta: metaWithFileNo,
 
             // Formula header information
             header: { category, subCategory, gloss },
@@ -1860,20 +2006,42 @@ const CreateFormula = () => {
 
             // Attachment is sent as file in same request when present (see createFormula)
             attachment: uploadedAttachment || undefined,
+            clearAttachment: attachmentRemoved || undefined,
         };
 
         try {
             // Send formula (and optional file) in one request; file only submitted on save
-            const res = await FormulaService.createFormula(payload, attachment?.file || null);
-
-            if (res?.status) {
-                alert("Formula saved successfully");
+            if (isEditMode && formulaId) {
+                const res = await FormulaService.updateFormula(
+                    formulaId,
+                    payload,
+                    attachment?.file || null,
+                );
+                if (res?.status === "success") {
+                    alert("Formula updated successfully");
+                    navigate("/formulas");
+                } else {
+                    alert(res?.message || "Update failed");
+                }
             } else {
-                alert(res?.message || "Save failed");
+                const res = await FormulaService.createFormula(
+                    payload,
+                    attachment?.file || null,
+                );
+                if (res?.status === "success") {
+                    alert("Formula saved successfully");
+                    navigate("/formulas");
+                } else {
+                    alert(res?.message || "Save failed");
+                }
             }
         } catch (e) {
             console.error("Save error", e);
-            alert("Save failed");
+            const msg =
+                e?.response?.data?.message ||
+                e?.message ||
+                (isEditMode ? "Update failed" : "Save failed");
+            alert(msg);
         } finally {
             setIsSaving(false);
         }
@@ -1888,24 +2056,32 @@ const CreateFormula = () => {
 
             {/* Loading overlay for async operations */}
             <LoadingOverlay
-                isLoading={loadingMasters || isSaving || isUploading}
+                isLoading={loadingMasters || isSaving || isUploading || loadingFormula}
                 message={
-                    loadingMasters
-                        ? "Loading master data..."
-                        : isSaving
-                          ? "Saving formula..."
-                          : isUploading
-                            ? "Uploading attachment..."
-                            : "Loading..."
+                    loadingFormula
+                        ? "Loading formula..."
+                        : loadingMasters
+                          ? "Loading master data..."
+                          : isSaving
+                            ? "Saving formula..."
+                            : isUploading
+                              ? "Uploading attachment..."
+                              : "Loading..."
                 }
             />
+
+            {formulaLoadError && (
+                <div className="mx-4 mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
+                    {formulaLoadError}
+                </div>
+            )}
 
             {/* Page Toolbar - Main actions and title */}
             <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                 <div className="flex items-center justify-between">
                     {/* Page title */}
                     <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Create Formula
+                        {isEditMode ? "Edit Formula" : "Create Formula"}
                     </h1>
 
                     {/* Action buttons */}
@@ -1923,7 +2099,10 @@ const CreateFormula = () => {
                         <button
                             onClick={save}
                             disabled={
-                                hasBlockingErrors || isSaving || isUploading
+                                hasBlockingErrors ||
+                                isSaving ||
+                                isUploading ||
+                                loadingFormula
                             }
                             className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                         >
@@ -2142,29 +2321,76 @@ const CreateFormula = () => {
                                 />
 
                                 {/* Clickable upload area */}
-                                <label
-                                    htmlFor="attachment"
-                                    className="cursor-pointer"
-                                >
-                                    {attachment.preview ? (
-                                        // Show image preview if file is selected
-                                        <img
-                                            src={attachment.preview}
-                                            alt="preview"
-                                            className="w-full h-24 object-cover rounded"
-                                        />
-                                    ) : (
-                                        // Show upload prompt if no file selected
+                                {(() => {
+                                    const backendBase = (apiConfig?.baseURL || "").replace(/\/api\/?$/, "") || "";
+                                    const existingPreviewUrl =
+                                        uploadedAttachment?.url && !attachmentRemoved
+                                            ? `${backendBase}${uploadedAttachment.url.startsWith("/") ? "" : "/"}${uploadedAttachment.url}`
+                                            : null;
+                                    const showNewPreview = !!attachment.preview;
+                                    const showExistingPreview = !!existingPreviewUrl;
+                                    const hasPreview = showNewPreview || showExistingPreview;
+                                    const isImage = (url) =>
+                                        /\.(jpe?g|png|gif|webp)$/i.test(url || "") ||
+                                        (url || "").includes("data:image");
+                                    return (
                                         <>
-                                            <div className="text-2xl text-gray-400 mb-2">
-                                                📁
-                                            </div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                Click to upload image
-                                            </div>
+                                            <label
+                                                htmlFor="attachment"
+                                                className="cursor-pointer block"
+                                            >
+                                                {showNewPreview ? (
+                                                    <img
+                                                        src={attachment.preview}
+                                                        alt="preview"
+                                                        className="w-full h-24 object-cover rounded"
+                                                    />
+                                                ) : showExistingPreview ? (
+                                                    isImage(existingPreviewUrl) ? (
+                                                        <img
+                                                            src={existingPreviewUrl}
+                                                            alt="Current attachment"
+                                                            className="w-full h-24 object-cover rounded"
+                                                        />
+                                                    ) : (
+                                                        <div className="text-left text-sm text-gray-600 dark:text-gray-400">
+                                                            <span className="font-medium">Current file:</span>{" "}
+                                                            {uploadedAttachment.originalName || uploadedAttachment.filename || "Attachment"}
+                                                            <br />
+                                                            <a
+                                                                href={existingPreviewUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-600 dark:text-blue-400 underline"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                Open file
+                                                            </a>
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <>
+                                                        <div className="text-2xl text-gray-400 mb-2">
+                                                            📁
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Click to upload image
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </label>
+                                            {hasPreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={onRemoveAttachment}
+                                                    className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline"
+                                                >
+                                                    Remove attachment
+                                                </button>
+                                            )}
                                         </>
-                                    )}
-                                </label>
+                                    );
+                                })()}
                             </div>
                         </div>
 

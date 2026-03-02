@@ -40,6 +40,9 @@ const UserHeader = () => {
                             >
                                 Create Formula
                             </NavLink>
+                            <NavLink to="/formulas" className={navLinkClass}>
+                                Formulas
+                            </NavLink>
                             <NavLink to="/order" className={navLinkClass}>
                                 Order
                             </NavLink>

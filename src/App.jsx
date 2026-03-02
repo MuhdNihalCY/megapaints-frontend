@@ -38,6 +38,7 @@ import ControlledAccess from "./features/admin/new/ControlledAccess";
 import UserProtectedRoute from "./components/UserProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import CreateFormula from "./features/user/CreateFormula";
+import FormulationsList from "./features/user/FormulationsList";
 import Order from "./features/user/Order";
 import Orders from "./features/user/Orders";
 import KanbanDashboard from "./features/kanban/pages/KanbanDashboard";
@@ -105,6 +106,22 @@ function App() {
                                         element={
                                             <UserProtectedRoute>
                                                 <CreateFormula />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/create-formula/:id"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <CreateFormula />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/formulas"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <FormulationsList />
                                             </UserProtectedRoute>
                                         }
                                     />
