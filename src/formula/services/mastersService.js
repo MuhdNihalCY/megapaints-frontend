@@ -382,7 +382,9 @@ export async function fetchMastersFresh() {
         if (!existingSub) {
           subCategoriesByCategory[parentCategoryId].push({
             id: subCategoryId,
-            name: subName
+            name: subName,
+            // Suffix used for file number formatting (DB-driven)
+            suffix: sub?.suffix || sub?.Suffix || sub?.Products?.suffix || sub?.Products?.Suffix || ''
           });
           // Subcategory mapped successfully
         }

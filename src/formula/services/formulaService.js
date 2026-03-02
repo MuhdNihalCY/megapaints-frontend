@@ -78,13 +78,15 @@ export const FormulaService = {
         return res.data;
     },
 
-    async fetchAllFormulas() {
+    async fetchAllFormulas(params = {}) {
         const res = await api.get("/user/formulas", {
             params: {
                 page: 1,
-                limit: 10000,
-                sortBy: "FileNo",
+                limit: 50,
+                sortBy: "updatedAt",
                 sortOrder: "desc",
+                search: "",
+                ...params,
             },
         });
         return res.data;

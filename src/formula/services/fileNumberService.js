@@ -62,10 +62,24 @@ function incrementSuffix(fileNo) {
   return `${base}.${nextSuffix}`;
 }
 
+function pad2(value) {
+  const x = String(value ?? '').trim();
+  if (!x) return '';
+  const n = parseInt(x, 10);
+  if (!Number.isFinite(n)) return x;
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function getLabelFromStoredFileNo(stored) {
+  // Extract numeric base + optional .A/.AA suffix from the beginning
+  const m = String(stored ?? '').match(/^(\d+(?:\.[A-Z]+)?)/);
+  return m ? m[1] : '';
+}
+
 /**
  * Formats a file number with subcategory suffix, gloss, and additive information
  * @param {string} fileNo - Base file number
- * @param {string} subcategoryID - Subcategory ID for suffix lookup
+ * @param {string} subcategoryID - Subcategory name or ID (used for suffix lookup)
  * @param {string|number} gloss - Gloss level
  * @param {string} additiveID - Additive ID
  * @param {string|number} additivePercentage - Additive percentage
@@ -77,40 +91,42 @@ function formulaFileFormat(fileNo, subcategoryID, gloss, additiveID, additivePer
   let result = String(fileNo || '');
 
   // Add subcategory suffix if available
+  let subSuffix = '';
   if (subcategoryID && subcategories) {
-    const subcategory = subcategories.find(sub => 
-      sub._id === subcategoryID || 
-      sub.SubCategory_Id === subcategoryID ||
-      sub.Subcategory_Id === subcategoryID
-    );
-    
-    if (subcategory && subcategory.Suffix) {
-      result = `${result}-${subcategory.Suffix}`;
+    const key = String(subcategoryID);
+    const subcategory = subcategories.find((sub) => {
+      if (!sub) return false;
+      const id = sub.id || sub._id || sub.SubCategory_Id || sub.Subcategory_Id || '';
+      const name = sub.name || sub.SubCategory || sub.Subcategory_Name || sub.label || '';
+      return String(id) === key || String(name) === key;
+    });
+    if (subcategory) {
+      subSuffix = String(subcategory.suffix || subcategory.Suffix || '').trim();
     }
   }
+  if (subSuffix) {
+    result = `${result}-${subSuffix}`;
+  }
 
-  // Add gloss if available (ensure it's a string with two digits)
-  if (gloss !== undefined && gloss !== null && gloss !== '') {
-    let glossStr = String(gloss);
-    if (parseInt(glossStr) && parseInt(glossStr) < 10) {
-      glossStr = '0' + glossStr; // Ensure two digits for gloss
-    }
-    result = `${result}${String(result).includes('-') ? '' : '-'}${glossStr}`;
+  // Add gloss/matt if available (2 digits), dash-separated
+  const glossStr = pad2(gloss);
+  if (glossStr && parseInt(glossStr, 10) > 0) {
+    result = `${result}-${glossStr}`;
   }
 
   // Add additive information if both additive and percentage are available
-  if (additiveID && additivePercentage && additives) {
-    const additive = additives.find(add => 
-      add._id === additiveID || 
-      add.Additive_Id === additiveID
+  const pctStr = pad2(additivePercentage);
+  if (additiveID && pctStr && parseInt(pctStr, 10) > 0 && additives) {
+    const addKey = String(additiveID);
+    const additive = additives.find((add) =>
+      String(add?._id || '') === addKey ||
+      String(add?.Additive_Id || '') === addKey ||
+      String(add?.id || '') === addKey
     );
-    
-    if (additive && additive.Suffix) {
-      let percentageStr = String(additivePercentage);
-      if (parseInt(percentageStr) && parseInt(percentageStr) < 10) {
-        percentageStr = '0' + percentageStr; // Ensure two digits for additivePercentage
-      }
-      result = `${result}-${additive.Suffix}${percentageStr}`;
+    const addSuffix = String(additive?.Suffix || additive?.suffix || '').trim();
+    if (addSuffix) {
+      // Same as old: suffix + pct are glued together, but the segment itself is dash-separated
+      result = `${result}-${addSuffix}${pctStr}`;
     }
   }
 
@@ -128,8 +144,11 @@ async function generateFileNo(data, isNewFormula = true) {
     // Fetch existing formulas to check for duplicates
     const res = await FormulaService.fetchAllFormulas();
     const formulasList = res?.data ?? res?.formulas ?? [];
-    const existingFileNumbers = new Set(
-      formulasList.map(doc => (doc.labelFileNo ?? doc.file_no ?? doc.FileNo)).filter(Boolean)
+    // We don't store labelFileNo in DB; derive it from stored file numbers (leading digits + optional .A/.AA).
+    const existingLabelFileNos = new Set(
+      formulasList
+        .map((doc) => getLabelFromStoredFileNo(doc?.labelFileNo ?? doc?.file_no ?? doc?.FileNo))
+        .filter(Boolean)
     );
 
     let labelFileNo;
@@ -140,9 +159,8 @@ async function generateFileNo(data, isNewFormula = true) {
       let candidateFileNo = data.newFileNumber;
 
       while (
-        existingFileNumbers.has(candidateFileNo) ||
-        existingFileNumbers.has(String(candidateFileNo)) ||
-        existingFileNumbers.has(Number(candidateFileNo))
+        existingLabelFileNos.has(candidateFileNo) ||
+        existingLabelFileNos.has(String(candidateFileNo))
       ) {
         console.log("File number already exists, incrementing...");
         candidateFileNo = incrementSuffix(candidateFileNo);
@@ -204,13 +222,13 @@ async function validateFileNumber(fileNo) {
   try {
     const res = await FormulaService.fetchAllFormulas();
     const formulasList = res?.data ?? res?.formulas ?? [];
-    const existingFileNumbers = new Set(
-      formulasList.map(doc => (doc.labelFileNo ?? doc.file_no ?? doc.FileNo)).filter(Boolean)
+    const existingLabelFileNos = new Set(
+      formulasList
+        .map((doc) => getLabelFromStoredFileNo(doc?.labelFileNo ?? doc?.file_no ?? doc?.FileNo))
+        .filter(Boolean)
     );
-
-    return !existingFileNumbers.has(fileNo) && 
-           !existingFileNumbers.has(String(fileNo)) && 
-           !existingFileNumbers.has(Number(fileNo));
+    const candidate = String(fileNo || '').trim();
+    return candidate ? !existingLabelFileNos.has(candidate) : true;
   } catch (error) {
     console.error('Error validating file number:', error);
     return true; // Assume unique if validation fails

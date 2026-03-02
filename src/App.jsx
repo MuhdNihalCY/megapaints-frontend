@@ -110,7 +110,7 @@ function App() {
                                         }
                                     />
                                     <Route
-                                        path="/create-formula/:id"
+                                        path="/edit-formula/:id"
                                         element={
                                             <UserProtectedRoute>
                                                 <CreateFormula />

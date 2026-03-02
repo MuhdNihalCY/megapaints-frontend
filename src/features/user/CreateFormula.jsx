@@ -746,7 +746,10 @@ const CreateFormula = () => {
                 }
                 setRemarks(typeof fd.remarks === "string" ? fd.remarks : "");
                 const fileNo = metaIn.fileNo ?? metaIn.file_no ?? "";
-                setLabelFileNo(fileNo);
+                // Use only the base numeric part for labelFileNo so regeneration builds formatted number correctly (e.g. 100000 not 100000-121212)
+                const baseMatch = String(fileNo).match(/^\d+/);
+                const labelBase = baseMatch ? baseMatch[0] : fileNo;
+                setLabelFileNo(labelBase);
                 setFormattedFileNo(fileNo);
                 if (formulation?.attachment?.url) {
                     setUploadedAttachment(formulation.attachment);
@@ -1904,8 +1907,9 @@ const CreateFormula = () => {
      * Saves the current formula to the server
      * Constructs a comprehensive payload with all formula data
      * Handles success/error states and user feedback
+     * @param {boolean} [saveAsNewVersion=false] - If true, sends saveAsNewVersion flag; backend may create new doc (new file number) or update in place based on subcategory change
      */
-    const save = async () => {
+    const save = async (saveAsNewVersion = false) => {
         setIsSaving(true);
 
         // Ensure we have a file number before save (create mode). Generate if missing so save never fails for empty fileNo.
@@ -2007,6 +2011,7 @@ const CreateFormula = () => {
             // Attachment is sent as file in same request when present (see createFormula)
             attachment: uploadedAttachment || undefined,
             clearAttachment: attachmentRemoved || undefined,
+            ...(saveAsNewVersion ? { saveAsNewVersion: true } : {}),
         };
 
         try {
@@ -2018,7 +2023,7 @@ const CreateFormula = () => {
                     attachment?.file || null,
                 );
                 if (res?.status === "success") {
-                    alert("Formula updated successfully");
+                    alert(saveAsNewVersion ? "Formula saved as new version successfully" : "Formula updated successfully");
                     navigate("/formulas");
                 } else {
                     alert(res?.message || "Update failed");
@@ -2097,7 +2102,7 @@ const CreateFormula = () => {
 
                         {/* Save button - submits formula to server */}
                         <button
-                            onClick={save}
+                            onClick={() => save(false)}
                             disabled={
                                 hasBlockingErrors ||
                                 isSaving ||
@@ -2115,6 +2120,22 @@ const CreateFormula = () => {
                                 "Save"
                             )}
                         </button>
+
+                        {/* Save as new formula version - edit mode only; backend creates new doc if subcategory changed, else updates existing */}
+                        {isEditMode && formulaId && (
+                            <button
+                                onClick={() => save(true)}
+                                disabled={
+                                    hasBlockingErrors ||
+                                    isSaving ||
+                                    isUploading ||
+                                    loadingFormula
+                                }
+                                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Save as new formula version
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
