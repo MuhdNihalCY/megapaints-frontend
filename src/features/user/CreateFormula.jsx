@@ -772,6 +772,27 @@ const CreateFormula = () => {
     }, [formulaId, loadingMasters]);
 
     /**
+     * After formula load (edit mode), backfill productId for tints that have code but no productId.
+     * Matches by code against productsBySubCategory so stored tinters get product_id on next save.
+     */
+    useEffect(() => {
+        if (!isEditMode || !formulaId) return;
+        const available = productsBySubCategory[subCategory] || [];
+        if (available.length === 0) return;
+        const needsBackfill = tints.some(
+            (t) => (t.code && String(t.code).trim()) && !t.productId,
+        );
+        if (!needsBackfill) return;
+        setTints((prev) =>
+            prev.map((t) => {
+                if (!t.code || !String(t.code).trim() || t.productId) return t;
+                const p = available.find((ap) => ap.Product_Id === t.code);
+                return p ? { ...t, productId: p._id } : t;
+            }),
+        );
+    }, [isEditMode, formulaId, subCategory, productsBySubCategory, tints]);
+
+    /**
      * Updates subcategory options when the main category changes
      * Ensures subcategory selection remains valid for the selected category
      */
@@ -1050,6 +1071,7 @@ const CreateFormula = () => {
         updateTint(tintId, "code", product.Product_Id || "");
         updateTint(tintId, "series", product.Abbreviation || ""); // Map Abbreviation to series field
         updateTint(tintId, "name", product.Product_Name || "");
+        updateTint(tintId, "productId", product._id ?? product.id ?? product.Product_Id ?? null);
         updateTint(tintId, "coefficient", Number(product.coefficient || 1));
         updateTint(
             tintId,
@@ -1961,19 +1983,27 @@ const CreateFormula = () => {
             // Core formula components
             tints, // Tinter selections and quantities
 
-            // Calculated binder requirements
-            binders: [
-                {
-                    name: "Binder 1",
-                    grams: binderTotals.binder1,
-                    volume: binderTotals.binder1VolumeL,
-                },
-                {
-                    name: "Binder 2",
-                    grams: binderTotals.binder2,
-                    volume: binderTotals.binder2VolumeL,
-                },
-            ],
+            // Calculated binder requirements - only include binders configured for this subcategory
+            binders: (() => {
+                const list = [];
+                if (selectedBinder1Id) {
+                    list.push({
+                        product_id: selectedBinder1Id,
+                        name: selectedBinderConfig.Binder1Name || "Binder 1",
+                        grams: binderTotals.binder1,
+                        volume: binderTotals.binder1VolumeL,
+                    });
+                }
+                if (selectedBinder2Id) {
+                    list.push({
+                        product_id: selectedBinder2Id,
+                        name: selectedBinderConfig.Binder2Name || "Binder 2",
+                        grams: binderTotals.binder2,
+                        volume: binderTotals.binder2VolumeL,
+                    });
+                }
+                return list;
+            })(),
 
             // Additive selections and percentages
             additives,
@@ -2013,6 +2043,30 @@ const CreateFormula = () => {
             clearAttachment: attachmentRemoved || undefined,
             ...(saveAsNewVersion ? { saveAsNewVersion: true } : {}),
         };
+
+        // Pre-save validation: total formula weight must be > 0 for ratio storage
+        const totalGrams = Number(payload?.totals?.final?.grams ?? 0) || 0;
+        if (totalGrams <= 0) {
+            alert(
+                "Cannot save: formula total weight must be greater than zero. Add tinters, binders, or ensure totals are calculated.",
+            );
+            setIsSaving(false);
+            return;
+        }
+
+        // Optional: warn if component ratios would not sum to 1.0 (backend will reject)
+        const tinterTotal = Number(payload?.totals?.tinter?.grams ?? 0) || 0;
+        const binderTotal = Number(payload?.totals?.binder?.grams ?? 0) || 0;
+        const additiveTotal = Number(payload?.totals?.additive?.grams ?? 0) || 0;
+        const sumParts = tinterTotal + binderTotal + additiveTotal;
+        const ratioSum = totalGrams > 0 ? sumParts / totalGrams : 0;
+        if (Math.abs(ratioSum - 1) > 1e-4) {
+            console.warn(
+                "[CreateFormula] Component ratio sum is",
+                ratioSum.toFixed(6),
+                "(expected 1.0). Save may be rejected by server.",
+            );
+        }
 
         try {
             // Send formula (and optional file) in one request; file only submitted on save
