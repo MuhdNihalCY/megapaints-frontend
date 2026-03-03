@@ -42,6 +42,8 @@ import FormulationsList from "./features/user/FormulationsList";
 import Order from "./features/user/Order";
 import Orders from "./features/user/Orders";
 import KanbanDashboard from "./features/kanban/pages/KanbanDashboard";
+import CRMDashboard from "./features/crm/CRMDashboard";
+import CRMCustomerPage from "./features/crm/CRMCustomerPage";
 
 // Create query client
 const queryClient = new QueryClient({
@@ -138,6 +140,22 @@ function App() {
                                         element={
                                             <UserProtectedRoute>
                                                 <Orders />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/crm"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <CRMDashboard />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/crm/customer/:id"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <CRMCustomerPage />
                                             </UserProtectedRoute>
                                         }
                                     />

@@ -24,7 +24,7 @@ const KanbanDashboard = () => {
                     {/* API Status Notification */}
                     <ApiStatusNotification />
 
-                    {/* Main Kanban Board */}
+                    {/* Main Kanban Board (includes Customer Management with "Add Customer follow-up" button) */}
                     <div className="flex-1 overflow-hidden">
                         <KanbanBoard />
                     </div>

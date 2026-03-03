@@ -49,6 +49,9 @@ const UserHeader = () => {
                             <NavLink to="/orders" className={navLinkClass}>
                                 Orders
                             </NavLink>
+                            <NavLink to="/crm" className={navLinkClass}>
+                                CRM
+                            </NavLink>
                         </nav>
                     </div>
                     <div className="flex items-center space-x-4">

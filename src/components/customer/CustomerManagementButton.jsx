@@ -6,15 +6,15 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Users, Plus, Calendar, Search } from "lucide-react";
+import { Users, Plus } from "lucide-react";
 import CustomerManagementModal from "./CustomerManagementModal";
-import CustomerFollowupModal from "./CustomerFollowupModal";
+import AddFollowupModal from "../../features/crm/components/AddFollowupModal";
 
 const CustomerManagementButton = ({ user, className = "" }) => {
     const [showCustomerModal, setShowCustomerModal] = useState(false);
     const [showCreateCustomerModal, setShowCreateCustomerModal] =
         useState(false);
-    const [showFollowupModal, setShowFollowupModal] = useState(false);
+    const [showAddFollowupModal, setShowAddFollowupModal] = useState(false);
     const [activeAction, setActiveAction] = useState(null);
 
     // Check if user has permission to manage customers
@@ -37,8 +37,8 @@ const CustomerManagementButton = ({ user, className = "" }) => {
             case "create-customer":
                 setShowCreateCustomerModal(true);
                 break;
-            case "create-followup":
-                setShowFollowupModal(true);
+            case "add-followup":
+                setShowAddFollowupModal(true);
                 break;
             case "manage-customers":
                 setShowCustomerModal(true);
@@ -65,14 +65,14 @@ const CustomerManagementButton = ({ user, className = "" }) => {
                     </motion.button>
 
                     <motion.button
-                        onClick={() => handleCustomerAction("create-followup")}
+                        onClick={() => handleCustomerAction("add-followup")}
                         className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        title="Schedule Follow-up"
+                        title="Add Customer follow-up"
                     >
-                        <Calendar className="w-4 h-4" />
-                        <span>Follow-up</span>
+                        <Plus className="w-4 h-4" />
+                        <span>Add Customer follow-up</span>
                     </motion.button>
 
                     <motion.button
@@ -113,15 +113,14 @@ const CustomerManagementButton = ({ user, className = "" }) => {
                 }}
             />
 
-            {/* Customer Follow-up Modal */}
-            <CustomerFollowupModal
-                isOpen={showFollowupModal}
+            {/* Add Customer follow-up (log-style) - same modal as CRM */}
+            <AddFollowupModal
+                isOpen={showAddFollowupModal}
                 onClose={() => {
-                    setShowFollowupModal(false);
+                    setShowAddFollowupModal(false);
                     setActiveAction(null);
                 }}
-                user={user}
-                mode="create"
+                onSuccess={() => setShowAddFollowupModal(false)}
             />
         </>
     );
