@@ -351,6 +351,29 @@ class UserApiService {
     }
 
     /**
+     * Create formula order (from formula)
+     * @param {Object} orderData - { customer_id, formula_id, quantities: { requested, unit }, pricing: { total }, branch_id, ... }
+     * @returns {Promise<Object>} Created formula order
+     */
+    async createFormulaOrder(orderData) {
+        return await this.apiRequest("/user/orders/formula", {
+            method: "POST",
+            body: JSON.stringify(orderData),
+        });
+    }
+
+    /**
+     * Stock out a formula order (deduct inventory for order components)
+     * @param {string} orderId - Formula order ID
+     * @returns {Promise<Object>} Stock-out result
+     */
+    async stockOutFormulaOrder(orderId) {
+        return await this.apiRequest(`/user/orders/formula/${orderId}/stock-out`, {
+            method: "POST",
+        });
+    }
+
+    /**
      * Get Order by ID
      * @param {string} orderId - Order ID
      * @returns {Promise<Object>} Order data
