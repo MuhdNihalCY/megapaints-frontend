@@ -43,9 +43,6 @@ const UserHeader = () => {
                             <NavLink to="/formulas" className={navLinkClass}>
                                 Formulas
                             </NavLink>
-                            <NavLink to="/order" className={navLinkClass}>
-                                Order
-                            </NavLink>
                             <NavLink to="/orders" className={navLinkClass}>
                                 Orders
                             </NavLink>

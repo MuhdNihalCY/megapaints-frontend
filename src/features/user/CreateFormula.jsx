@@ -26,6 +26,7 @@ import Header from "./components/Header";
 import { LoadingOverlay } from "../../components";
 import FileNumberModal from "./components/FileNumberModal";
 import AccessKeyModal from "./components/AccessKeyModal";
+import CustomerDropdown from "../../components/customer/CustomerDropdown";
 
 // Service imports for API calls and data management
 import { FormulaService } from "../../formula/services/formulaService";
@@ -174,12 +175,16 @@ const CreateFormula = () => {
     const [meta, setMeta] = useState({
         date: formatDDMMYYYY(new Date()), // Formula date (dd/mm/yyyy)
         fileNo: "", // File number
+        customerId: "", // Selected customer id (for stable re-selection)
         customerName: "", // Customer name
         colorCode: "", // Color code
         colorName: "", // Color name
         customerRef: "", // Customer reference
         projectNo: "", // Project number
     });
+
+    // Selected customer object for dropdown display (formula-level customer)
+    const [selectedFormulaCustomer, setSelectedFormulaCustomer] = useState(null);
 
     // Core formula components
     const [tints, setTints] = useState([createEmptyTint(1)]); // Tinters (colorants) array
@@ -693,15 +698,23 @@ const CreateFormula = () => {
                     return;
                 }
                 const metaIn = fd.meta || {};
-                setMeta({
+                const hydratedMeta = {
                     date: formatDDMMYYYY(metaIn.date) || formatDDMMYYYY(new Date()),
                     fileNo: metaIn.fileNo ?? metaIn.file_no ?? "",
+                    customerId: metaIn.customerId ?? metaIn.customer_id ?? "",
                     customerName: metaIn.customerName ?? metaIn.customer_name ?? "",
                     colorCode: metaIn.colorCode ?? metaIn.color_code ?? "",
                     colorName: metaIn.colorName ?? metaIn.color_name ?? "",
                     customerRef: metaIn.customerRef ?? metaIn.customer_ref ?? "",
                     projectNo: metaIn.projectNo ?? metaIn.project_no ?? "",
-                });
+                };
+                setMeta(hydratedMeta);
+                if (hydratedMeta.customerId || hydratedMeta.customerName) {
+                    setSelectedFormulaCustomer({
+                        _id: hydratedMeta.customerId || undefined,
+                        name: hydratedMeta.customerName || undefined,
+                    });
+                }
                 const header = fd.header || {};
                 setCategory(header.category ?? "");
                 setSubCategory(header.subCategory ?? header.sub_category ?? "");
@@ -1636,6 +1649,25 @@ const CreateFormula = () => {
         setAttachmentRemoved(true);
     };
 
+    const handleFormulaCustomerSelect = (customer) => {
+        setSelectedFormulaCustomer(customer);
+        const id =
+            customer?._id ||
+            customer?.id ||
+            (customer && typeof customer === "object" && customer.customer_id) ||
+            "";
+        const name =
+            customer?.name ||
+            customer?.company ||
+            (typeof customer === "string" ? customer : "") ||
+            "";
+        setMeta((prev) => ({
+            ...prev,
+            customerId: id || prev.customerId,
+            customerName: name || prev.customerName,
+        }));
+    };
+
     // ===== FORM RESET & CLEARING =====
 
     /**
@@ -1647,6 +1679,7 @@ const CreateFormula = () => {
         setMeta({
             date: formatDDMMYYYY(new Date()),
             fileNo: "",
+            customerId: "",
             customerName: "",
             colorCode: "",
             colorName: "",
@@ -1681,6 +1714,8 @@ const CreateFormula = () => {
         setAttachment({ file: null, preview: "" });
         setUploadedAttachment(null);
         setAttachmentRemoved(false);
+        setSelectedFormulaCustomer(null);
+        setSelectedFormulaCustomer(null);
     };
 
     // ===== DERIVED COMPUTATIONS =====
@@ -1777,7 +1812,14 @@ const CreateFormula = () => {
         // Binder configuration loaded for subcategory
 
         return config;
-    }, [binderConfigBySubCategory, subCategory, gloss]);
+    }, [
+        binderConfigBySubCategory,
+        subCategory,
+        gloss,
+        selectedBinder1Id,
+        selectedBinder2Id,
+        rawBinders,
+    ]);
 
     /**
      * Calculates binder requirements based on tinter totals and configuration
@@ -2289,16 +2331,19 @@ const CreateFormula = () => {
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Customer Name
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={meta.customerName}
-                                        onChange={(e) =>
-                                            updateMeta(
-                                                "customerName",
-                                                e.target.value,
-                                            )
+                                    <CustomerDropdown
+                                        selectedCustomer={
+                                            selectedFormulaCustomer ||
+                                            (meta.customerName
+                                                ? { name: meta.customerName }
+                                                : null)
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                                        customerId={meta.customerId || null}
+                                        onCustomerSelect={
+                                            handleFormulaCustomerSelect
+                                        }
+                                        placeholder="Select customer..."
+                                        className="w-full"
                                     />
                                 </div>
 
