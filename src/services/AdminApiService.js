@@ -106,23 +106,24 @@ class AdminApiService {
             }
 
             if (!response.ok) {
-                // Include validation details if available
+                // Include validation details if available (object for field-level, or array)
                 const errorMessage =
                     data?.message ||
                     `HTTP ${response.status}: ${response.statusText}`;
-                const errorDetails = data?.details || [];
-                // Ensure errorDetails is an array
-                const detailsArray = Array.isArray(errorDetails)
-                    ? errorDetails
-                    : errorDetails
-                      ? [errorDetails]
-                      : [];
+                const rawDetails = data?.details;
+                const detailsArray = Array.isArray(rawDetails)
+                    ? rawDetails
+                    : rawDetails && typeof rawDetails === 'object'
+                      ? Object.entries(rawDetails).map(([k, v]) => `${k}: ${v}`)
+                      : rawDetails
+                        ? [rawDetails]
+                        : [];
                 const fullErrorMessage =
                     detailsArray.length > 0
-                        ? `${errorMessage}: ${detailsArray.join(", ")}`
+                        ? `${errorMessage} (${detailsArray.join(", ")})`
                         : errorMessage;
                 const error = new Error(fullErrorMessage);
-                error.details = detailsArray;
+                error.details = rawDetails; // preserve object or array for form
                 error.status = response.status;
                 throw error;
             }

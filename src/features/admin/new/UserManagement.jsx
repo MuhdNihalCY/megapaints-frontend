@@ -3,6 +3,15 @@ import { useAuth } from "../../../contexts/AuthContext";
 import apiServiceFactory from "../../../services/ApiServiceFactory.js";
 import UserForm from "./components/UserForm.jsx";
 
+/** Format user created/updated date for table display. Handles createdAt, created_at, updatedAt and invalid values. */
+function formatUserDate(user) {
+    const raw = user?.createdAt ?? user?.created_at ?? user?.updatedAt;
+    if (raw == null || raw === "") return "—";
+    const d = new Date(typeof raw === "number" ? raw : raw);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -269,11 +278,7 @@ const UserManagement = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
-                                                    {user.created_at
-                                                        ? new Date(
-                                                              user.created_at,
-                                                          ).toLocaleDateString()
-                                                        : "-"}
+                                                    {formatUserDate(user)}
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <div className="flex justify-end space-x-1 sm:space-x-2">

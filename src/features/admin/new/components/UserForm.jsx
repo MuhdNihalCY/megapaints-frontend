@@ -129,10 +129,6 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             errors.first_name = "First name is required";
         }
 
-        if (!formData.last_name.trim()) {
-            errors.last_name = "Last name is required";
-        }
-
         if (!formData.designation.trim()) {
             errors.designation = "Designation is required";
         }
@@ -267,7 +263,11 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             }
         } catch (err) {
             console.error("User operation failed:", err);
-            setError(err.message || "Operation failed");
+            const message = err.message || "Operation failed";
+            setError(message);
+            if (err.details && typeof err.details === "object" && !Array.isArray(err.details)) {
+                setValidationErrors((prev) => ({ ...prev, ...err.details }));
+            }
         } finally {
             setLoading(false);
         }
@@ -443,7 +443,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Last Name *
+                                    Last Name
                                 </label>
                                 <input
                                     type="text"

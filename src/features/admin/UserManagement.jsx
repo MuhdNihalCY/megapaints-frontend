@@ -21,6 +21,15 @@ import {
     ArrowDown,
 } from "lucide-react";
 
+/** Format user created/updated date for table display. Handles createdAt, created_at, updatedAt and invalid values. */
+function formatUserDate(user) {
+    const raw = user?.createdAt ?? user?.created_at ?? user?.updatedAt;
+    if (raw == null || raw === "") return "—";
+    const d = new Date(typeof raw === "number" ? raw : raw);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -292,8 +301,10 @@ const UserManagement = () => {
                     bValue = b.is_active ? 1 : 0;
                     break;
                 case "created":
-                    aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    aValue = (a.createdAt ?? a.created_at) ? new Date(a.createdAt ?? a.created_at).getTime() : 0;
+                    bValue = (b.createdAt ?? b.created_at) ? new Date(b.createdAt ?? b.created_at).getTime() : 0;
+                    aValue = Number.isNaN(aValue) ? 0 : aValue;
+                    bValue = Number.isNaN(bValue) ? 0 : bValue;
                     break;
                 default:
                     aValue = (a.username || "").toLowerCase();
@@ -619,11 +630,7 @@ const UserManagement = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 hidden xl:table-cell">
-                                                    {user.createdAt
-                                                        ? new Date(
-                                                              user.createdAt,
-                                                          ).toLocaleDateString()
-                                                        : "-"}
+                                                    {formatUserDate(user)}
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <div className="flex items-center justify-end space-x-1 sm:space-x-2">
