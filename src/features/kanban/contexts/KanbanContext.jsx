@@ -1186,19 +1186,35 @@ export const KanbanProvider = ({ children, user }) => {
                 );
 
                 if (result) {
+                    // Backend returns { data: { checklist } }; normalize for frontend (use .id)
+                    const raw =
+                        result?.data?.checklist ?? result;
+                    const checklist = raw
+                        ? {
+                            ...raw,
+                            id: raw.id ?? raw._id,
+                            items: (raw.items || []).map((it) => ({
+                                ...it,
+                                id: it.id ?? it._id,
+                                name: it.name ?? it.text,
+                            })),
+                        }
+                        : null;
+                    if (!checklist) return result;
+
                     // Optimistically update card with new checklist
                     const card = state.cards.find((c) => c.id === cardId);
                     if (card) {
                         const updatedCard = {
                             ...card,
-                            checklists: [...(card.checklists || []), result],
+                            checklists: [...(card.checklists || []), checklist],
                         };
                         dispatch({
                             type: ACTION_TYPES.UPDATE_CARD,
                             payload: updatedCard,
                         });
                     }
-                    return result;
+                    return checklist;
                 }
             } catch (error) {
                 dispatch({

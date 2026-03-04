@@ -19,7 +19,7 @@
 
 // React hooks and core dependencies
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
 // Component imports
 import Header from "./components/Header";
@@ -121,6 +121,7 @@ function formatDDMMYYYY(d) {
 const CreateFormula = () => {
     const { id: formulaId } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const isEditMode = Boolean(formulaId);
 
     // ===== FORMULA HEADER STATE =====
@@ -2130,8 +2131,30 @@ const CreateFormula = () => {
                     attachment?.file || null,
                 );
                 if (res?.status === "success") {
-                    alert("Formula saved successfully");
-                    navigate("/formulas");
+                    const fromKanban = searchParams.get("from") === "kanban";
+                    const cardId = searchParams.get("cardId");
+                    const productionItemIndex = searchParams.get("productionItemIndex");
+                    const newFormulaId = res?.data?._id || res?.data?.id;
+
+                    if (
+                        fromKanban &&
+                        cardId &&
+                        productionItemIndex != null &&
+                        newFormulaId
+                    ) {
+                        alert("Formula saved successfully. Returning to card.");
+                        navigate("/dashboard", {
+                            replace: true,
+                            state: {
+                                cardId,
+                                newFormulaId,
+                                productionItemIndex: parseInt(productionItemIndex, 10),
+                            },
+                        });
+                    } else {
+                        alert("Formula saved successfully");
+                        navigate("/formulas");
+                    }
                 } else {
                     alert(res?.message || "Save failed");
                 }

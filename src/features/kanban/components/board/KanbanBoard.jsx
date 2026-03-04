@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, Filter, HelpCircle, Settings } from "lucide-react";
 
@@ -28,6 +29,8 @@ import {
  * Kanban Board Component with Enhanced Drag and Drop
  */
 const KanbanBoard = ({ onCardClick, onCreateCard }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const {
         loading,
         error,
@@ -61,6 +64,32 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     const [selectedCard, setSelectedCard] = useState(null);
     const [isCardModalOpen, setIsCardModalOpen] = useState(false);
     const [isEditingCard, setIsEditingCard] = useState(false);
+
+    // Open card modal when returning from CreateFormula with newFormulaId (to attach formula to production item)
+    useEffect(() => {
+        const state = location.state;
+        const cardId = state?.cardId;
+        const newFormulaId = state?.newFormulaId;
+        const productionItemIndex = state?.productionItemIndex;
+        if (!cardId || newFormulaId == null || productionItemIndex == null) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const result = await kanbanService.getTask(cardId);
+                if (cancelled) return;
+                if (result?.status === "success") {
+                    const taskData = result.data?.task || result.data;
+                    const fullCard = kanbanService.transformCardData(taskData);
+                    setSelectedCard(fullCard);
+                    setIsCardModalOpen(true);
+                }
+            } catch (err) {
+                if (!cancelled) console.error("Error opening card after formula create:", err);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [location.state]);
 
     // Refs
     const boardRef = useRef(null);
@@ -791,6 +820,21 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     onMove={(card) => {}}
                     onCopy={(card) => {}}
                     isNewCard={false}
+                    pendingNewFormula={
+                        location.state?.newFormulaId != null
+                            ? {
+                                  newFormulaId: location.state.newFormulaId,
+                                  productionItemIndex:
+                                      location.state.productionItemIndex,
+                              }
+                            : null
+                    }
+                    onClearPendingFormula={() => {
+                        navigate(location.pathname, {
+                            replace: true,
+                            state: {},
+                        });
+                    }}
                 />
             </div>
         </>

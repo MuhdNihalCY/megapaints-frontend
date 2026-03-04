@@ -291,6 +291,16 @@ class KanbanService {
                     taskData.reservationId ||
                     taskData.reservation_id ||
                     null,
+                ready_products:
+                    transformedData.ready_products ||
+                    taskData.ready_products ||
+                    taskData.readyProducts ||
+                    [],
+                production_items:
+                    transformedData.production_items ||
+                    taskData.production_items ||
+                    taskData.productionItems ||
+                    [],
             };
 
             // Remove null/undefined values
@@ -1942,6 +1952,15 @@ class KanbanService {
         ) {
             apiData.ready_products =
                 frontendTask.readyProducts || frontendTask.ready_products || [];
+        }
+        if (
+            frontendTask.productionItems !== undefined ||
+            frontendTask.production_items !== undefined
+        ) {
+            apiData.production_items =
+                frontendTask.productionItems ??
+                frontendTask.production_items ??
+                [];
         }
         if (frontendTask.attachments !== undefined)
             apiData.attachments = frontendTask.attachments || [];

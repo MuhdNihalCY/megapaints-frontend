@@ -44,10 +44,8 @@ import CommentsSection from "../comments/CommentsSection";
 import ActivityLog from "../activity/ActivityLog";
 import TrelloChecklist from "./TrelloChecklist";
 import TrelloAttachments from "./TrelloAttachments";
-import CustomFieldsManager from "./CustomFieldsManager";
 import ReadyProductsManager from "./ReadyProductsManager";
 import ProductionItemsManager from "./ProductionItemsManager";
-import { DEFAULT_CUSTOM_FIELDS } from "../../types/customFields";
 import CustomerDropdown from "../../../../components/customer/CustomerDropdown";
 import CustomerManagementModal from "../../../../components/customer/CustomerManagementModal";
 import {
@@ -59,6 +57,7 @@ import {
     generateCustomerSlug,
 } from "../../utils/cardTitleUtils";
 import { kanbanService } from "../../services/kanbanService";
+import FormulaService from "../../../../formula/services/formulaService";
 
 const TrelloCardModal = ({
     card,
@@ -70,6 +69,8 @@ const TrelloCardModal = ({
     onCopy,
     isNewCard = false,
     reservation = null,
+    pendingNewFormula = null,
+    onClearPendingFormula = null,
 }) => {
     const {
         users,
@@ -185,7 +186,6 @@ const TrelloCardModal = ({
             "customer",
             "readyProducts",
             "ready_products",
-            "customFields",
             "closed",
             "is_archived",
             "column_id",
@@ -222,7 +222,7 @@ const TrelloCardModal = ({
             "labels",
             "customer",
             "ready_products",
-            "custom_fields",
+            "production_items",
             "is_archived",
             "estimated_hours",
             "actual_hours",
@@ -368,13 +368,13 @@ const TrelloCardModal = ({
                 cardData.readyProducts || cardData.ready_products || [];
         }
 
-        // Custom fields - use custom_fields (snake_case) for backend
+        // Production items (item_name, quantity, unit, formulas, etc.)
         if (
-            cardData.customFields !== undefined ||
-            cardData.custom_fields !== undefined
+            cardData.productionItems !== undefined ||
+            cardData.production_items !== undefined
         ) {
-            transformed.custom_fields =
-                cardData.customFields || cardData.custom_fields || [];
+            transformed.production_items =
+                cardData.productionItems ?? cardData.production_items ?? [];
         }
 
         // Archive status
@@ -637,6 +637,8 @@ const TrelloCardModal = ({
         // Only initialize when modal is open
         if (!isOpen) return;
 
+        let checklistFetchCancelled = false;
+
         if (card) {
             // Determine the identifier from multiple sources - prioritize direct sources before parsing
             // Priority: card.identifier > card._identifier > reservation.identifier > parsed from title
@@ -766,7 +768,7 @@ const TrelloCardModal = ({
                 dueDate: formattedDueDate,
                 attachments: transformedAttachments,
                 checklists: card.checklists || [],
-                customFields: card.customFields || card.custom_fields || [],
+                customFields: [],
                 readyProducts: card.readyProducts || card.ready_products || [],
                 priority: card.priority || "medium",
                 customer: card.customer || null,
@@ -774,7 +776,26 @@ const TrelloCardModal = ({
 
             setFormData(updatedFormData);
 
-            // Initialize customer if present - handle both object and ID formats
+            // Load checklists from Checklist API (they live in a separate collection from Card)
+            const cardIdForFetch = card.id || card._id;
+            if (cardIdForFetch) {
+                kanbanService.getChecklists(cardIdForFetch).then((res) => {
+                    if (checklistFetchCancelled) return;
+                    const list = res?.data?.checklists ?? res?.checklists ?? [];
+                    const normalized = (Array.isArray(list) ? list : []).map((cl) => ({
+                        ...cl,
+                        id: cl.id ?? cl._id,
+                        items: (cl.items || []).map((it) => ({
+                            ...it,
+                            id: it.id ?? it._id,
+                            name: it.name ?? it.text,
+                        })),
+                    }));
+                    setFormData((prev) => (prev && (prev.id === card.id || prev._id === card._id) ? { ...prev, checklists: normalized } : prev));
+                }).catch(() => {});
+            }
+
+            // Initialize customer if present - handle object and ID formats
             // Reset the ref when card changes to allow fetching again
             customerFetchRef.current = false;
 
@@ -1068,6 +1089,7 @@ const TrelloCardModal = ({
         // Reset customer fetch flag when card changes
         return () => {
             customerFetchRef.current = false;
+            checklistFetchCancelled = true;
         };
     }, [card, isNewCard, reservation, isOpen]);
 
@@ -1096,6 +1118,79 @@ const TrelloCardModal = ({
             }
         }
     }, [isOpen, currentUser, fetchLabelsByBranch]);
+
+    // Apply pending formula from CreateFormula redirect (add to production item and clear state)
+    useEffect(() => {
+        if (
+            !isOpen ||
+            !formData ||
+            !pendingNewFormula?.newFormulaId ||
+            pendingNewFormula.productionItemIndex == null ||
+            typeof onClearPendingFormula !== "function"
+        ) {
+            return;
+        }
+        const cardId = formData.id || formData._id;
+        if (!cardId) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await FormulaService.fetchFormulaById(
+                    pendingNewFormula.newFormulaId,
+                );
+                if (cancelled) return;
+                const formula = res?.data ?? res?.formula ?? res;
+                if (!formula) return;
+
+                const productionItems =
+                    formData.productionItems ?? formData.production_items ?? [];
+                const idx = pendingNewFormula.productionItemIndex;
+                if (idx < 0 || idx >= productionItems.length) {
+                    onClearPendingFormula();
+                    return;
+                }
+
+                const item = productionItems[idx];
+                const formulas = Array.isArray(item.formulas) ? [...item.formulas] : [];
+                const fid = formula._id || formula.id;
+                if (formulas.some((f) => (f.formula_id || f._id) === fid)) {
+                    onClearPendingFormula();
+                    return;
+                }
+                formulas.push({
+                    formula_id: fid,
+                    file_no: formula.file_no ?? formula.FileNo ?? "",
+                    name: formula.name ?? formula.color_name ?? formula.file_no ?? "Formula",
+                });
+                const updatedItems = productionItems.map((it, i) =>
+                    i === idx ? { ...it, formulas } : it,
+                );
+
+                setFormData((prev) => ({
+                    ...prev,
+                    productionItems: updatedItems,
+                    production_items: updatedItems,
+                }));
+                await handleCardUpdate(
+                    { production_items: updatedItems },
+                    { updateLocalState: false, logActivity: true },
+                );
+            } catch (err) {
+                console.error("Failed to add formula to production item:", err);
+            } finally {
+                if (!cancelled) onClearPendingFormula();
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [
+        isOpen,
+        formData?.id,
+        formData?._id,
+        pendingNewFormula?.newFormulaId,
+        pendingNewFormula?.productionItemIndex,
+        onClearPendingFormula,
+    ]);
 
     // Handle ESC key to close
     useEffect(() => {
@@ -1642,10 +1737,16 @@ const TrelloCardModal = ({
                                         backgroundColor:
                                             formData?.coverImage?.color ||
                                             undefined,
-                                        backgroundImage: formData?.coverImage
-                                            ?.url
-                                            ? `url(${formData?.coverImage?.url})`
-                                            : undefined,
+                                        backgroundImage: (() => {
+                                            const u = formData?.coverImage?.url;
+                                            if (!u) return undefined;
+                                            const baseURL = import.meta.env.DEV
+                                                ? "http://localhost:3000"
+                                                : "";
+                                            const imageUrl =
+                                                u.startsWith("http") ? u : `${baseURL}${u.startsWith("/") ? "" : "/"}${u}`;
+                                            return `url(${imageUrl})`;
+                                        })(),
                                         backgroundSize: "cover",
                                         backgroundPosition: "center",
                                     }}
@@ -2259,8 +2360,19 @@ const TrelloCardModal = ({
                                                 return;
                                             }
 
+                                            // Normalize URL to path-only for reliable matching (full URL vs relative)
+                                            const toPath = (u) => {
+                                                if (!u || typeof u !== "string") return "";
+                                                try {
+                                                    if (u.startsWith("http")) return new URL(u).pathname || u;
+                                                    return u.startsWith("/") ? u : `/${u}`;
+                                                } catch {
+                                                    return u;
+                                                }
+                                            };
+                                            const attachmentPath = toPath(attachment.url);
+
                                             // Get the real MongoDB ObjectId for the attachment
-                                            // Check if attachment.id is a valid MongoDB ObjectId (24 hex characters)
                                             const isValidObjectId =
                                                 /^[0-9a-fA-F]{24}$/.test(
                                                     attachment.id,
@@ -2268,9 +2380,26 @@ const TrelloCardModal = ({
 
                                             let attachmentId = attachment.id;
 
-                                            // If not a valid ObjectId, try to find the attachment by URL or _id
-                                            if (!isValidObjectId) {
-                                                // Try to find the attachment in the context cards
+                                            // If not a valid ObjectId, or id might be stale, resolve from formData first then context
+                                            if (!isValidObjectId || !attachmentId) {
+                                                // Prefer formData.attachments (source of truth for what's displayed)
+                                                const formAttachment =
+                                                    formData.attachments?.find(
+                                                        (att) =>
+                                                            toPath(att.url) === attachmentPath ||
+                                                            att.url === attachment.url ||
+                                                            (att.original_name && attachment.name && att.original_name === attachment.name) ||
+                                                            (att.name && attachment.name && att.name === attachment.name),
+                                                    );
+                                                if (formAttachment) {
+                                                    attachmentId =
+                                                        formAttachment._id?.toString() ||
+                                                        formAttachment.id?.toString();
+                                                }
+                                            }
+
+                                            if (!/^[0-9a-fA-F]{24}$/.test(attachmentId)) {
+                                                // Try context card
                                                 const card = contextCards?.find(
                                                     (c) => c.id === cardId,
                                                 );
@@ -2278,48 +2407,15 @@ const TrelloCardModal = ({
                                                     const matchingAttachment =
                                                         card.attachments.find(
                                                             (att) =>
-                                                                att.url ===
-                                                                    attachment.url ||
-                                                                att._id?.toString() ===
-                                                                    attachment.id ||
-                                                                (att.id &&
-                                                                    att.id ===
-                                                                        attachment.id &&
-                                                                    /^[0-9a-fA-F]{24}$/.test(
-                                                                        att.id,
-                                                                    )),
+                                                                toPath(att.url) === attachmentPath ||
+                                                                att.url === attachment.url ||
+                                                                att._id?.toString() === attachmentId ||
+                                                                (att.original_name && attachment.name && att.original_name === attachment.name),
                                                         );
                                                     if (matchingAttachment) {
                                                         attachmentId =
                                                             matchingAttachment._id?.toString() ||
                                                             matchingAttachment.id?.toString();
-                                                    }
-                                                }
-
-                                                // If still not valid, try to get from formData attachments
-                                                if (
-                                                    !/^[0-9a-fA-F]{24}$/.test(
-                                                        attachmentId,
-                                                    )
-                                                ) {
-                                                    const formAttachment =
-                                                        formData.attachments?.find(
-                                                            (att) =>
-                                                                att.url ===
-                                                                    attachment.url ||
-                                                                att._id?.toString() ===
-                                                                    attachment.id ||
-                                                                (att.id &&
-                                                                    att.id ===
-                                                                        attachment.id &&
-                                                                    /^[0-9a-fA-F]{24}$/.test(
-                                                                        att.id,
-                                                                    )),
-                                                        );
-                                                    if (formAttachment) {
-                                                        attachmentId =
-                                                            formAttachment._id?.toString() ||
-                                                            formAttachment.id?.toString();
                                                     }
                                                 }
                                             }
@@ -2335,10 +2431,15 @@ const TrelloCardModal = ({
                                                 );
                                             }
 
+                                            // Use display-ready URL (with origin if relative) for cover image
+                                            const displayUrl = attachment.url?.startsWith("http")
+                                                ? attachment.url
+                                                : `${import.meta.env.DEV ? "http://localhost:3000" : ""}${attachment.url?.startsWith("/") ? "" : "/"}${attachment.url || ""}`;
+
                                             // Transform to backend format: attachment_id (snake_case) instead of attachmentId
                                             const coverData = {
-                                                attachment_id: attachmentId, // Backend expects snake_case and valid MongoDB ObjectId
-                                                url: attachment.url,
+                                                attachment_id: attachmentId,
+                                                url: displayUrl,
                                                 color: null,
                                                 size: "normal",
                                             };
@@ -2346,9 +2447,9 @@ const TrelloCardModal = ({
                                             // Call backend API via context
                                             await contextSetCardCover(
                                                 cardId,
-                                                coverData,
+                                                { ...coverData, url: attachment.url },
                                             );
-                                            // Update local state
+                                            // Update local state with display URL so cover image loads
                                             setFormData((prev) => ({
                                                 ...prev,
                                                 coverImage: coverData,
@@ -2402,7 +2503,8 @@ const TrelloCardModal = ({
                                                     // Call backend API via context
                                                     await contextUpdateChecklist(
                                                         cardId,
-                                                        checklist.id,
+                                                        updatedChecklist.id ??
+                                                            updatedChecklist._id,
                                                         updatedChecklist,
                                                     );
                                                     // Update local state
@@ -2534,6 +2636,7 @@ const TrelloCardModal = ({
                                 {/* Production Items Section */}
                                 <ProductionItemsManager
                                     card={formData}
+                                    cardId={getCardId()}
                                     onUpdate={async (productionItems) => {
                                         try {
                                             // Update local state optimistically
@@ -2575,87 +2678,6 @@ const TrelloCardModal = ({
                                                     (error.message ||
                                                         "Unknown error"),
                                             );
-                                        }
-                                    }}
-                                    currentUser={currentUser}
-                                />
-
-                                {/* Custom Fields Section */}
-                                <CustomFieldsManager
-                                    card={formData}
-                                    customFieldDefinitions={
-                                        DEFAULT_CUSTOM_FIELDS
-                                    }
-                                    onUpdate={async (fieldId, value) => {
-                                        try {
-                                            // Update custom field value
-                                            const existingFields =
-                                                formData?.customFields || [];
-                                            const existingIndex =
-                                                existingFields.findIndex(
-                                                    (cf) =>
-                                                        cf.fieldId === fieldId,
-                                                );
-
-                                            let updatedFields;
-                                            if (existingIndex >= 0) {
-                                                updatedFields = [
-                                                    ...existingFields,
-                                                ];
-                                                updatedFields[existingIndex] = {
-                                                    fieldId,
-                                                    value,
-                                                    updatedAt:
-                                                        new Date().toISOString(),
-                                                    updatedBy: currentUser?.id,
-                                                };
-                                            } else {
-                                                updatedFields = [
-                                                    ...existingFields,
-                                                    {
-                                                        fieldId,
-                                                        value,
-                                                        updatedAt:
-                                                            new Date().toISOString(),
-                                                        updatedBy:
-                                                            currentUser?.id,
-                                                    },
-                                                ];
-                                            }
-
-                                            // Update local state optimistically
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                customFields: updatedFields,
-                                            }));
-
-                                            // Update backend
-                                            await handleCardUpdate(
-                                                { customFields: updatedFields },
-                                                {
-                                                    updateLocalState: false, // Already updated above
-                                                    logActivity: true,
-                                                    activityType:
-                                                        "custom_field_updated",
-                                                    activityDescription: `updated custom field ${fieldId}`,
-                                                    activityMetadata: {
-                                                        fieldId,
-                                                        value,
-                                                    },
-                                                },
-                                            );
-                                        } catch (error) {
-                                            console.error(
-                                                "Failed to update custom field:",
-                                                error,
-                                            );
-                                            // Revert state on error
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                customFields:
-                                                    formData?.customFields ||
-                                                    [],
-                                            }));
                                         }
                                     }}
                                     currentUser={currentUser}
@@ -2754,26 +2776,6 @@ const TrelloCardModal = ({
                                         >
                                             <Paperclip className="w-4 h-4" />
                                             Attachment
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setActiveSection("cover");
-                                            }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
-                                        >
-                                            <ImageIcon className="w-4 h-4" />
-                                            Cover
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setActiveSection(
-                                                    "custom-fields",
-                                                );
-                                            }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
-                                        >
-                                            <Hash className="w-4 h-4" />
-                                            Custom Fields
                                         </button>
                                     </div>
                                 </div>

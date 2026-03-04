@@ -1,126 +1,142 @@
 /**
  * ProductionItemsManager Component
- * Manage production items on Trello-style cards with checklist functionality
- * Horizontal form layout: Product Name | Quantity | Unit | Add Button
- * Each item has a checkbox for completion tracking
+ * Manage production items on Trello-style cards with checklist functionality.
+ * No product search: add by item name, quantity, unit. Each item is expandable
+ * to search/select formulas and create new formulas (auto-added to item).
  */
 
-import React, { useState, useEffect, useRef } from "react";
-import { Check, Trash2, Edit2, ChevronDown } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { Check, Trash2, Edit2, ChevronDown, ChevronRight, Plus, X, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import productSearchService from "../../services/productSearchService";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { format } from "date-fns";
+import FormulaService from "../../../../formula/services/formulaService";
 
 const UNITS = ["kg", "g", "L", "mL", "Liter", "piece", "set", "box", "unit"];
 
-const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
-    const { user } = useAuth();
+const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
     const [items, setItems] = useState(() => {
         const productionItems =
             card?.productionItems || card?.production_items || [];
-        return Array.isArray(productionItems) ? productionItems : [];
+        const list = Array.isArray(productionItems) ? productionItems : [];
+        return list.map((it) => ({
+            ...it,
+            formulas: Array.isArray(it.formulas) ? it.formulas : [],
+        }));
     });
 
-    // Form state
-    const [productName, setProductName] = useState("");
+    // Add form state (no product search)
+    const [itemName, setItemName] = useState("");
     const [quantity, setQuantity] = useState("0.00");
     const [unit, setUnit] = useState("Liter");
-    const [selectedProduct, setSelectedProduct] = useState(null);
 
-    // Search state
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [isInputFocused, setIsInputFocused] = useState(false);
+    // Expand state: which item index is expanded (null = none)
+    const [expandedIndex, setExpandedIndex] = useState(null);
 
     // Edit state
     const [editingIndex, setEditingIndex] = useState(null);
     const [editQuantity, setEditQuantity] = useState("");
     const [editUnit, setEditUnit] = useState("");
 
-    const searchRef = useRef(null);
-    const dropdownRef = useRef(null);
+    // Formula search state (per expanded item)
+    const [formulaSearchQuery, setFormulaSearchQuery] = useState("");
+    const [formulaSearchResults, setFormulaSearchResults] = useState([]);
+    const [formulaSearching, setFormulaSearching] = useState(false);
+    const [formulaSearchDropdownOpen, setFormulaSearchDropdownOpen] = useState(false);
+    const formulaSearchRef = useRef(null);
+    const formulaDropdownRef = useRef(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
-    // Sync items when card changes
+    // Sync items when card changes (e.g. from location.state newFormulaId)
     useEffect(() => {
         const productionItems =
             card?.productionItems || card?.production_items || [];
         if (Array.isArray(productionItems)) {
-            setItems(productionItems);
+            setItems(
+                productionItems.map((it) => ({
+                    ...it,
+                    formulas: Array.isArray(it.formulas) ? it.formulas : [],
+                })),
+            );
         }
     }, [card]);
 
-    // Get branch ID from user
-    const getBranchId = () => {
-        if (user?.branches && user.branches.length > 0) {
-            const firstBranch = user.branches[0];
-            return typeof firstBranch === "string"
-                ? firstBranch
-                : firstBranch?._id || firstBranch?.id || firstBranch;
-        }
-        return null;
-    };
-
-    // Debounced search for product name
+    // Debounced formula search
     useEffect(() => {
-        if (!productName.trim()) {
-            setSearchResults([]);
-            setSelectedProduct(null);
+        if (expandedIndex === null) return;
+
+        const query = (formulaSearchQuery || "").trim();
+        if (!query) {
+            setFormulaSearchResults([]);
             return;
         }
 
         const timeoutId = setTimeout(async () => {
-            setIsSearching(true);
+            setFormulaSearching(true);
             try {
-                const branchId = getBranchId();
-                const results = await productSearchService.searchProducts(
-                    productName,
-                    branchId,
-                    { limit: 10 },
-                );
-                setSearchResults(results || []);
-                setShowDropdown(true);
-            } catch (error) {
-                console.error("Product search error:", error);
-                setSearchResults([]);
-                if (isInputFocused) {
-                    setShowDropdown(true);
-                }
+                const res = await FormulaService.fetchAllFormulas({
+                    search: query,
+                    limit: 10,
+                    page: 1,
+                });
+                const list = res?.data ?? res?.formulas ?? [];
+                setFormulaSearchResults(Array.isArray(list) ? list : []);
+                setFormulaSearchDropdownOpen(true);
+            } catch (err) {
+                console.error("Formula search error:", err);
+                setFormulaSearchResults([]);
             } finally {
-                setIsSearching(false);
+                setFormulaSearching(false);
             }
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [productName, user, isInputFocused]);
+    }, [formulaSearchQuery, expandedIndex]);
 
-    // Handle product selection from dropdown
-    const handleProductSelect = (product) => {
-        setSelectedProduct(product);
-        setProductName(product.name);
-        setQuantity((product.standard_quantity || 1).toFixed(2));
-        setUnit(product.unit || product.standard_quantity_unit || "Liter");
-        setShowDropdown(false);
-        setSearchResults([]);
-    };
+    // Click outside to close formula dropdown
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (
+                formulaSearchRef.current &&
+                !formulaSearchRef.current.contains(e.target) &&
+                formulaDropdownRef.current &&
+                !formulaDropdownRef.current.contains(e.target)
+            ) {
+                setFormulaSearchDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
-    // Handle add item
-    const handleAddItem = () => {
-        if (!selectedProduct) {
-            alert("Please select a product from the dropdown");
-            return;
+    // Position formula dropdown using input's bounding rect (for portal)
+    const updateDropdownPosition = useCallback(() => {
+        if (formulaSearchRef.current) {
+            const rect = formulaSearchRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom,
+                left: rect.left,
+                width: rect.width,
+            });
         }
+    }, []);
 
-        // Check if product is already added
-        const isAlreadyAdded = items.some(
-            (item) => (item.product_id || item._id) === selectedProduct._id,
-        );
+    useEffect(() => {
+        if (!formulaSearchDropdownOpen) return;
+        updateDropdownPosition();
+        const onScrollOrResize = () => updateDropdownPosition();
+        window.addEventListener("scroll", onScrollOrResize, true);
+        window.addEventListener("resize", onScrollOrResize);
+        return () => {
+            window.removeEventListener("scroll", onScrollOrResize, true);
+            window.removeEventListener("resize", onScrollOrResize);
+        };
+    }, [formulaSearchDropdownOpen, updateDropdownPosition]);
 
-        if (isAlreadyAdded) {
-            alert(
-                "This product is already added. Please edit the existing entry.",
-            );
+    const handleAddItem = useCallback(() => {
+        const name = (itemName || "").trim();
+        if (!name) {
+            alert("Please enter an item name");
             return;
         }
 
@@ -131,12 +147,11 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
         }
 
         const newItem = {
-            product_id: selectedProduct._id,
-            product_name: selectedProduct.name,
-            product_code: selectedProduct.code,
+            item_name: name,
             quantity: qty,
             unit: unit,
             is_completed: false,
+            formulas: [],
             added_at: new Date().toISOString(),
             added_by: currentUser?.id || currentUser?._id,
         };
@@ -145,189 +160,141 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
         setItems(updatedItems);
         onUpdate(updatedItems);
 
-        // Reset form
-        setProductName("");
+        setItemName("");
         setQuantity("0.00");
         setUnit("Liter");
-        setSelectedProduct(null);
-    };
+    }, [itemName, quantity, unit, items, currentUser, onUpdate]);
 
-    // Handle toggle completion
-    const handleToggleCompletion = (index) => {
-        const updatedItems = [...items];
-        const item = updatedItems[index];
-        const isCompleted = !item.is_completed;
+    const handleToggleCompletion = useCallback(
+        (index) => {
+            const updatedItems = [...items];
+            const item = updatedItems[index];
+            const isCompleted = !item.is_completed;
+            updatedItems[index] = {
+                ...item,
+                is_completed: isCompleted,
+                completed_at: isCompleted ? new Date().toISOString() : null,
+                completed_by: isCompleted
+                    ? currentUser?.id || currentUser?._id
+                    : null,
+            };
+            setItems(updatedItems);
+            onUpdate(updatedItems);
+        },
+        [items, currentUser, onUpdate],
+    );
 
-        updatedItems[index] = {
-            ...item,
-            is_completed: isCompleted,
-            completed_at: isCompleted ? new Date().toISOString() : null,
-            completed_by: isCompleted
-                ? currentUser?.id || currentUser?._id
-                : null,
-        };
+    const handleRemoveItem = useCallback(
+        (index) => {
+            const updatedItems = items.filter((_, i) => i !== index);
+            if (expandedIndex === index) setExpandedIndex(null);
+            else if (expandedIndex !== null && expandedIndex > index)
+                setExpandedIndex(expandedIndex - 1);
+            setItems(updatedItems);
+            onUpdate(updatedItems);
+        },
+        [items, expandedIndex, onUpdate],
+    );
 
-        setItems(updatedItems);
-        onUpdate(updatedItems);
-    };
-
-    // Handle remove item
-    const handleRemoveItem = (index) => {
-        const updatedItems = items.filter((_, i) => i !== index);
-        setItems(updatedItems);
-        onUpdate(updatedItems);
-    };
-
-    // Handle start edit
-    const handleStartEdit = (index) => {
+    const handleStartEdit = useCallback((index) => {
         const item = items[index];
         setEditingIndex(index);
-        setEditQuantity(item.quantity.toString());
-        setEditUnit(item.unit);
-    };
+        setEditQuantity(String(item.quantity ?? ""));
+        setEditUnit(item.unit || "Liter");
+    }, [items]);
 
-    // Handle save edit
-    const handleSaveEdit = () => {
+    const handleSaveEdit = useCallback(() => {
         if (editingIndex === null) return;
-
         const qty = parseFloat(editQuantity);
         if (isNaN(qty) || qty < 0) {
             alert("Please enter a valid quantity (>= 0)");
             return;
         }
-
         if (!editUnit.trim()) {
             alert("Please enter a unit");
             return;
         }
-
         const updatedItems = [...items];
         updatedItems[editingIndex] = {
             ...updatedItems[editingIndex],
             quantity: qty,
             unit: editUnit.trim(),
         };
-
         setItems(updatedItems);
         onUpdate(updatedItems);
         setEditingIndex(null);
         setEditQuantity("");
         setEditUnit("");
-    };
+    }, [editingIndex, editQuantity, editUnit, items, onUpdate]);
 
-    // Handle cancel edit
-    const handleCancelEdit = () => {
+    const handleCancelEdit = useCallback(() => {
         setEditingIndex(null);
         setEditQuantity("");
         setEditUnit("");
-    };
-
-    // Handle input focus
-    const handleInputFocus = () => {
-        setIsInputFocused(true);
-        setShowDropdown(true);
-    };
-
-    // Handle input blur
-    const handleInputBlur = () => {
-        setIsInputFocused(false);
-        setTimeout(() => {
-            if (!isInputFocused) {
-                setShowDropdown(false);
-            }
-        }, 200);
-    };
-
-    // Click outside to close dropdown
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target) &&
-                searchRef.current &&
-                !searchRef.current.contains(event.target)
-            ) {
-                setShowDropdown(false);
-                setIsInputFocused(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const handleToggleExpand = useCallback((index) => {
+        setExpandedIndex((prev) => (prev === index ? null : index));
+        if (expandedIndex !== index) {
+            setFormulaSearchQuery("");
+            setFormulaSearchResults([]);
+            setFormulaSearchDropdownOpen(false);
+        }
+    }, [expandedIndex]);
+
+    const addFormulaToItem = useCallback(
+        (index, formula) => {
+            const item = items[index];
+            const formulas = Array.isArray(item.formulas) ? [...item.formulas] : [];
+            const id = formula._id || formula.id;
+            if (formulas.some((f) => (f.formula_id || f._id) === id)) return;
+            formulas.push({
+                formula_id: id,
+                file_no: formula.file_no ?? formula.FileNo ?? "",
+                name: formula.name ?? formula.color_name ?? formula.file_no ?? "Formula",
+            });
+            const updatedItems = [...items];
+            updatedItems[index] = { ...item, formulas };
+            setItems(updatedItems);
+            onUpdate(updatedItems);
+            setFormulaSearchDropdownOpen(false);
+            setFormulaSearchQuery("");
+            setFormulaSearchResults([]);
+        },
+        [items, onUpdate],
+    );
+
+    const removeFormulaFromItem = useCallback(
+        (itemIndex, formulaIndex) => {
+            const updatedItems = [...items];
+            const item = updatedItems[itemIndex];
+            const formulas = [...(item.formulas || [])];
+            formulas.splice(formulaIndex, 1);
+            updatedItems[itemIndex] = { ...item, formulas };
+            setItems(updatedItems);
+            onUpdate(updatedItems);
+        },
+        [items, onUpdate],
+    );
+
+    const getDisplayName = (item) =>
+        item.item_name || item.product_name || item.name || "Unnamed item";
 
     return (
         <div className="mb-6">
-            {/* Title */}
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Production Items
             </h3>
 
-            {/* Horizontal Form */}
-            <div className="flex items-center gap-2 mb-4" ref={searchRef}>
-                {/* Product Name Input */}
-                <div className="flex-1 relative">
-                    <input
-                        type="text"
-                        value={productName}
-                        onChange={(e) => {
-                            setProductName(e.target.value);
-                            setSelectedProduct(null);
-                        }}
-                        onFocus={handleInputFocus}
-                        onBlur={handleInputBlur}
-                        placeholder="Product Name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    />
-
-                    {/* Search Results Dropdown */}
-                    <AnimatePresence>
-                        {showDropdown && (
-                            <motion.div
-                                ref={dropdownRef}
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                            >
-                                {isSearching ? (
-                                    <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        Searching...
-                                    </div>
-                                ) : searchResults.length === 0 ? (
-                                    <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        {productName.trim()
-                                            ? "No products found"
-                                            : "Start typing to search products"}
-                                    </div>
-                                ) : (
-                                    searchResults.map((product) => (
-                                        <button
-                                            key={product._id}
-                                            onClick={() =>
-                                                handleProductSelect(product)
-                                            }
-                                            onMouseDown={(e) =>
-                                                e.preventDefault()
-                                            }
-                                            className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                        >
-                                            <div className="font-medium text-sm text-gray-900 dark:text-white">
-                                                {product.name}
-                                            </div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                {product.code} • {product.unit}
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Quantity Input */}
+            {/* Add form: Item name | Quantity | Unit | Add (no product search) */}
+            <div className="flex items-center gap-2 mb-4">
+                <input
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="Item name"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
                 <div className="w-24">
                     <input
                         type="number"
@@ -335,12 +302,10 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
                         onChange={(e) => setQuantity(e.target.value)}
                         min="0"
                         step="0.01"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                         placeholder="0.00"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
-
-                {/* Unit Dropdown */}
                 <div className="w-32 relative">
                     <select
                         value={unit}
@@ -353,11 +318,10 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
-
-                {/* Add Button */}
                 <button
+                    type="button"
                     onClick={handleAddItem}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
@@ -365,7 +329,6 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
                 </button>
             </div>
 
-            {/* Items List */}
             {items.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                     No production items added yet
@@ -379,141 +342,330 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser }) => {
                         const completedDate = item.completed_at
                             ? new Date(item.completed_at)
                             : null;
+                        const isExpanded = expandedIndex === index;
+                        const itemFormulas = Array.isArray(item.formulas)
+                            ? item.formulas
+                            : [];
 
                         return (
                             <div
                                 key={itemKey}
-                                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                                    isCompleted
-                                        ? "bg-gray-100 dark:bg-gray-800/50 opacity-75"
-                                        : "bg-gray-50 dark:bg-gray-800"
-                                }`}
+                                className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
                             >
-                                {editingIndex === index ? (
-                                    <div className="flex-1 flex items-center gap-2">
-                                        <input
-                                            type="number"
-                                            value={editQuantity}
-                                            onChange={(e) =>
-                                                setEditQuantity(e.target.value)
-                                            }
-                                            min="0"
-                                            step="0.01"
-                                            className="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                            placeholder="Qty"
-                                        />
-                                        <div className="w-32 relative">
-                                            <select
-                                                value={editUnit}
+                                <div
+                                    className={`flex items-center gap-3 p-3 transition-colors ${
+                                        isCompleted
+                                            ? "bg-gray-100 dark:bg-gray-800/50 opacity-75"
+                                            : "bg-gray-50 dark:bg-gray-800"
+                                    }`}
+                                >
+                                    {editingIndex === index ? (
+                                        <div className="flex-1 flex items-center gap-2 flex-wrap">
+                                            <input
+                                                type="number"
+                                                value={editQuantity}
                                                 onChange={(e) =>
-                                                    setEditUnit(e.target.value)
+                                                    setEditQuantity(e.target.value)
                                                 }
-                                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none pr-8"
-                                            >
-                                                {UNITS.map((u) => (
-                                                    <option key={u} value={u}>
-                                                        {u}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                                        </div>
-                                        <button
-                                            onClick={handleSaveEdit}
-                                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                        >
-                                            Save
-                                        </button>
-                                        <button
-                                            onClick={handleCancelEdit}
-                                            className="px-2 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Checkbox */}
-                                        <button
-                                            onClick={() =>
-                                                handleToggleCompletion(index)
-                                            }
-                                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                                isCompleted
-                                                    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
-                                                    : "border-gray-300 dark:border-gray-600 hover:border-blue-500 bg-white dark:bg-gray-700"
-                                            }`}
-                                            title={
-                                                isCompleted
-                                                    ? "Mark as incomplete"
-                                                    : "Mark as complete"
-                                            }
-                                        >
-                                            {isCompleted && (
-                                                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                            )}
-                                        </button>
-
-                                        {/* Item Details */}
-                                        <div className="flex-1 min-w-0">
-                                            <div
-                                                className={`text-sm font-medium ${
-                                                    isCompleted
-                                                        ? "line-through text-gray-500 dark:text-gray-400"
-                                                        : "text-gray-900 dark:text-white"
-                                                }`}
-                                            >
-                                                {item.product_name ||
-                                                    item.name ||
-                                                    "Unknown Product"}
+                                                min="0"
+                                                step="0.01"
+                                                className="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                placeholder="Qty"
+                                            />
+                                            <div className="w-32 relative">
+                                                <select
+                                                    value={editUnit}
+                                                    onChange={(e) =>
+                                                        setEditUnit(e.target.value)
+                                                    }
+                                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none pr-8"
+                                                >
+                                                    {UNITS.map((u) => (
+                                                        <option key={u} value={u}>
+                                                            {u}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                                             </div>
-                                            <div
-                                                className={`text-xs ${
-                                                    isCompleted
-                                                        ? "text-gray-400 dark:text-gray-500"
-                                                        : "text-gray-500 dark:text-gray-400"
-                                                }`}
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveEdit}
+                                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                                             >
-                                                {item.product_code ||
-                                                    item.code ||
-                                                    "N/A"}{" "}
-                                                • {item.quantity || 0}{" "}
-                                                {item.unit || "unit"}
-                                                {completedDate && (
-                                                    <span className="ml-2">
-                                                        • Completed{" "}
-                                                        {format(
-                                                            completedDate,
-                                                            "MMM d, yyyy",
-                                                        )}
-                                                    </span>
+                                                Save
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleCancelEdit}
+                                                className="px-2 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleToggleCompletion(index)
+                                                }
+                                                className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                                    isCompleted
+                                                        ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
+                                                        : "border-gray-300 dark:border-gray-600 hover:border-blue-500 bg-white dark:bg-gray-700"
+                                                }`}
+                                                title={
+                                                    isCompleted
+                                                        ? "Mark as incomplete"
+                                                        : "Mark as complete"
+                                                }
+                                            >
+                                                {isCompleted && (
+                                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
                                                 )}
-                                            </div>
-                                        </div>
+                                            </button>
 
-                                        {/* Action Buttons */}
-                                        <div className="flex items-center gap-1">
                                             <button
+                                                type="button"
                                                 onClick={() =>
-                                                    handleStartEdit(index)
+                                                    handleToggleExpand(index)
                                                 }
-                                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                                title="Edit"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    handleRemoveItem(index)
+                                                className="flex-shrink-0 p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                                title={
+                                                    isExpanded
+                                                        ? "Collapse formulas"
+                                                        : "Expand formulas"
                                                 }
-                                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                                title="Remove"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                {isExpanded ? (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronRight className="w-4 h-4" />
+                                                )}
                                             </button>
-                                        </div>
-                                    </>
-                                )}
+
+                                            <div className="flex-1 min-w-0">
+                                                <div
+                                                    className={`text-sm font-medium ${
+                                                        isCompleted
+                                                            ? "line-through text-gray-500 dark:text-gray-400"
+                                                            : "text-gray-900 dark:text-white"
+                                                    }`}
+                                                >
+                                                    {getDisplayName(item)}
+                                                </div>
+                                                <div
+                                                    className={`text-xs ${
+                                                        isCompleted
+                                                            ? "text-gray-400 dark:text-gray-500"
+                                                            : "text-gray-500 dark:text-gray-400"
+                                                    }`}
+                                                >
+                                                    {item.product_code || "—"} •{" "}
+                                                    {item.quantity ?? 0} {item.unit || "unit"}
+                                                    {completedDate && (
+                                                        <span className="ml-2">
+                                                            • Completed{" "}
+                                                            {format(
+                                                                completedDate,
+                                                                "MMM d, yyyy",
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleStartEdit(index)
+                                                    }
+                                                    className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleRemoveItem(index)
+                                                    }
+                                                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                                    title="Remove"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Expanded: formula search, select, list, create link */}
+                                <AnimatePresence>
+                                    {isExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 overflow-hidden"
+                                        >
+                                            <div className="p-3 space-y-3">
+                                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                                    Formulas
+                                                </div>
+
+                                                {/* Attached formulas */}
+                                                {itemFormulas.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {itemFormulas.map(
+                                                            (f, fi) => (
+                                                                <span
+                                                                    key={
+                                                                        f.formula_id ||
+                                                                        f._id ||
+                                                                        fi
+                                                                    }
+                                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-sm"
+                                                                >
+                                                                    <FileText className="w-3.5 h-3.5 text-gray-500" />
+                                                                    {f.file_no ||
+                                                                        f.name ||
+                                                                        "Formula"}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            removeFormulaFromItem(
+                                                                                index,
+                                                                                fi,
+                                                                            )
+                                                                        }
+                                                                        className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                                                    >
+                                                                        <X className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Search formulas */}
+                                                <div
+                                                    className="relative"
+                                                    ref={formulaSearchRef}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={formulaSearchQuery}
+                                                        onChange={(e) =>
+                                                            setFormulaSearchQuery(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        onFocus={() => {
+                                                            if (formulaSearchRef.current) {
+                                                                const rect = formulaSearchRef.current.getBoundingClientRect();
+                                                                setDropdownPosition({
+                                                                    top: rect.bottom,
+                                                                    left: rect.left,
+                                                                    width: rect.width,
+                                                                });
+                                                            }
+                                                            setFormulaSearchDropdownOpen(true);
+                                                        }}
+                                                        placeholder="Search formulas..."
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                    />
+                                                </div>
+
+                                                {/* Formula list dropdown: render in portal so it is not clipped by parent overflow */}
+                                                {typeof document !== "undefined" &&
+                                                    formulaSearchDropdownOpen &&
+                                                    createPortal(
+                                                        <motion.div
+                                                            ref={formulaDropdownRef}
+                                                            initial={{ opacity: 0, y: -4 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            exit={{ opacity: 0, y: -4 }}
+                                                            style={{
+                                                                position: "fixed",
+                                                                top: dropdownPosition.top + 4,
+                                                                left: dropdownPosition.left,
+                                                                width: Math.max(dropdownPosition.width, 280),
+                                                                zIndex: 9999,
+                                                            }}
+                                                            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                                                        >
+                                                            {formulaSearching ? (
+                                                                <div className="p-3 text-sm text-gray-500">
+                                                                    Searching...
+                                                                </div>
+                                                            ) : formulaSearchResults.length === 0 ? (
+                                                                <div className="p-3 text-sm text-gray-500">
+                                                                    {formulaSearchQuery.trim()
+                                                                        ? "No formulas found"
+                                                                        : "Type to search formulas"}
+                                                                </div>
+                                                            ) : (
+                                                                formulaSearchResults.map((formula) => (
+                                                                    <button
+                                                                        key={formula._id || formula.id}
+                                                                        type="button"
+                                                                        onMouseDown={(e) => e.preventDefault()}
+                                                                        onClick={() =>
+                                                                            addFormulaToItem(index, formula)
+                                                                        }
+                                                                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                                                    >
+                                                                        <span className="font-medium text-gray-900 dark:text-white">
+                                                                            {formula.file_no ||
+                                                                                formula.FileNo ||
+                                                                                formula.name ||
+                                                                                "—"}
+                                                                        </span>
+                                                                        {(formula.color_name ||
+                                                                            formula.customer_name) && (
+                                                                            <span className="ml-2 text-xs text-gray-500">
+                                                                                {[formula.color_name, formula.customer_name]
+                                                                                    .filter(Boolean)
+                                                                                    .join(" • ")}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </motion.div>,
+                                                        document.body,
+                                                    )}
+
+                                                {/* Create formula link */}
+                                                <div>
+                                                    <a
+                                                        href={
+                                                            cardId
+                                                                ? `/create-formula?from=kanban&cardId=${encodeURIComponent(cardId)}&productionItemIndex=${index}`
+                                                                : "/create-formula"
+                                                        }
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                                    >
+                                                        <Plus className="w-4 h-4" />
+                                                        Create formula
+                                                    </a>
+                                                    {!cardId && (
+                                                        <span className="ml-1 text-xs text-gray-400">
+                                                            (Save card first to link new formula to this item)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         );
                     })}
