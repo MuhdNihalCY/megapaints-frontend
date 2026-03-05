@@ -18,8 +18,6 @@ import {
     Image as ImageIcon,
     AlignLeft,
     Plus,
-    Eye,
-    EyeOff,
     Archive,
     Copy,
     Move,
@@ -78,8 +76,6 @@ const TrelloCardModal = ({
         addAttachment: contextAddAttachment,
         deleteAttachment: contextDeleteAttachment,
         setCardCover: contextSetCardCover,
-        watchCard: contextWatchCard,
-        unwatchCard: contextUnwatchCard,
         addComment: contextAddComment,
         updateComment: contextUpdateComment,
         deleteComment: contextDeleteComment,
@@ -1597,45 +1593,6 @@ const TrelloCardModal = ({
         }
     };
 
-    // Handle watch/unwatch
-    const handleWatch = async () => {
-        const currentSubscriptions =
-            formData?.subscriptions || formData?.watchers || [];
-        const isWatching = currentSubscriptions.includes(currentUser?.id);
-
-        try {
-            const cardId = getCardId();
-            if (isWatching) {
-                // Unwatch card
-                await contextUnwatchCard(cardId);
-                setFormData((prev) => ({
-                    ...prev,
-                    subscriptions: currentSubscriptions.filter(
-                        (id) => id !== currentUser?.id,
-                    ),
-                    watchers: currentSubscriptions.filter(
-                        (id) => id !== currentUser?.id,
-                    ),
-                }));
-            } else {
-                // Watch card
-                await contextWatchCard(cardId);
-                setFormData((prev) => ({
-                    ...prev,
-                    subscriptions: [...currentSubscriptions, currentUser?.id],
-                    watchers: [...currentSubscriptions, currentUser?.id],
-                }));
-            }
-            setActiveSection(null);
-        } catch (error) {
-            console.error("Failed to toggle watch status:", error);
-            setError(
-                "Failed to toggle watch status: " +
-                    (error.message || "Unknown error"),
-            );
-        }
-    };
-
     const badges = calculateCardBadges(formData);
     // Find current column - check multiple possible ID fields
     const currentColumn = columns?.find(
@@ -1670,12 +1627,6 @@ const TrelloCardModal = ({
             });
         })
         .filter(Boolean);
-
-    const isWatching = (
-        formData?.subscriptions ||
-        formData?.watchers ||
-        []
-    ).includes(currentUser?.id);
 
     if (!isOpen) return null;
 
@@ -2728,24 +2679,6 @@ const TrelloCardModal = ({
                                         </button>
                                         <button
                                             onClick={() => {
-                                                handleWatch();
-                                            }}
-                                            disabled={isNewCard}
-                                            className={`w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors ${
-                                                isNewCard
-                                                    ? "opacity-50 cursor-not-allowed"
-                                                    : ""
-                                            }`}
-                                        >
-                                            {isWatching ? (
-                                                <EyeOff className="w-4 h-4" />
-                                            ) : (
-                                                <Eye className="w-4 h-4" />
-                                            )}
-                                            {isWatching ? "Unwatch" : "Watch"}
-                                        </button>
-                                        <button
-                                            onClick={() => {
                                                 handleArchive();
                                             }}
                                             disabled={isNewCard}
@@ -2786,15 +2719,6 @@ const TrelloCardModal = ({
                                                 Delete
                                             </button>
                                         )}
-                                        <button
-                                            onClick={() => {
-                                                setActiveSection("share");
-                                            }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
-                                        >
-                                            <Share2 className="w-4 h-4" />
-                                            Share
-                                        </button>
                                     </div>
                                 </div>
                             </div>

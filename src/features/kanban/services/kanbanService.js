@@ -335,6 +335,11 @@ class KanbanService {
                         : taskData.position !== undefined
                           ? taskData.position
                           : 0,
+                subcolumn_id:
+                    transformedData.subcolumn_id ??
+                    taskData.subcolumn_id ??
+                    taskData.subcolumnId ??
+                    null,
                 priority:
                     transformedData.priority || taskData.priority || "medium",
                 due_date: transformedData.due_date || null,

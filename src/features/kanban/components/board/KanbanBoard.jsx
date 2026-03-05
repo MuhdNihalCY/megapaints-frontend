@@ -17,6 +17,8 @@ import FiltersPanel from "../ui/FiltersPanel";
 import HelpPanel from "../ui/HelpPanel";
 import KeyboardShortcuts from "../ui/KeyboardShortcuts";
 import TrelloCardModal from "../cards/TrelloCardModal";
+import MoveCardModal from "../cards/MoveCardModal";
+import CopyCardModal from "../cards/CopyCardModal";
 import { kanbanService } from "../../services/kanbanService";
 import toast from "react-hot-toast";
 
@@ -64,6 +66,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     const [selectedCard, setSelectedCard] = useState(null);
     const [isCardModalOpen, setIsCardModalOpen] = useState(false);
     const [isEditingCard, setIsEditingCard] = useState(false);
+    const [cardToMove, setCardToMove] = useState(null);
+    const [cardToCopy, setCardToCopy] = useState(null);
 
     // Open card modal when returning from CreateFormula with newFormulaId (to attach formula to production item)
     useEffect(() => {
@@ -293,17 +297,21 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     );
 
     // Handle delete card
-    const handleDeleteCard = useCallback(async () => {
-        try {
-            if (selectedCard) {
-                await deleteCard(selectedCard.id);
-                setIsCardModalOpen(false);
-                setSelectedCard(null);
+    const handleDeleteCard = useCallback(
+        async (cardId) => {
+            try {
+                const id = cardId ?? selectedCard?.id ?? selectedCard?._id;
+                if (id) {
+                    await deleteCard(id);
+                    setIsCardModalOpen(false);
+                    setSelectedCard(null);
+                }
+            } catch (error) {
+                toast.error(error?.message || "Failed to delete card");
             }
-        } catch (error) {
-            // Error deleting card
-        }
-    }, [selectedCard, deleteCard]);
+        },
+        [selectedCard, deleteCard],
+    );
 
     // Handle search
     const handleSearch = (query) => {
@@ -317,6 +325,33 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         setSelectedCard(null);
         setIsEditingCard(false);
     }, []);
+
+    // Handle move card from modal: open MoveCardModal, then on destination pick call moveCard
+    const handleMoveCard = useCallback(
+        async (cardId, moveData) => {
+            try {
+                await moveCard(cardId, moveData);
+                setCardToMove(null);
+                if (
+                    selectedCard &&
+                    (String(selectedCard.id) === String(cardId) ||
+                        String(selectedCard._id) === String(cardId))
+                ) {
+                    const result = await kanbanService.getTask(cardId);
+                    if (result?.status === "success") {
+                        const taskData = result.data?.task || result.data;
+                        setSelectedCard(
+                            kanbanService.transformCardData(taskData),
+                        );
+                    }
+                }
+                toast.success("Card moved");
+            } catch (err) {
+                toast.error(err?.message || "Failed to move card");
+            }
+        },
+        [moveCard, selectedCard],
+    );
 
     // Handle card move with DnD rules
     const handleCardMove = async (
@@ -817,8 +852,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     onClose={handleCloseModal}
                     onUpdate={handleSaveCard}
                     onDelete={handleDeleteCard}
-                    onMove={(card) => {}}
-                    onCopy={(card) => {}}
+                    onMove={(card) => setCardToMove(card)}
+                    onCopy={(card) => setCardToCopy(card)}
                     isNewCard={false}
                     pendingNewFormula={
                         location.state?.newFormulaId != null
@@ -836,6 +871,35 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                         });
                     }}
                 />
+                {cardToMove && (
+                    <MoveCardModal
+                        card={cardToMove}
+                        columns={columns}
+                        onMove={handleMoveCard}
+                        onClose={() => setCardToMove(null)}
+                        getCardsByColumn={getCardsByColumn}
+                        getCardsBySubcolumn={getCardsBySubcolumn}
+                        isMoveAllowed={isMoveAllowed}
+                    />
+                )}
+                {cardToCopy && (
+                    <CopyCardModal
+                        card={cardToCopy}
+                        columns={columns}
+                        boardId={boardId}
+                        onConfirm={(created) => {
+                            setCardToCopy(null);
+                            if (created) {
+                                setSelectedCard(created);
+                                setIsCardModalOpen(true);
+                                toast.success("Card copied");
+                            }
+                        }}
+                        onClose={() => setCardToCopy(null)}
+                        getCardsByColumn={getCardsByColumn}
+                        createCard={createCard}
+                    />
+                )}
             </div>
         </>
     );
