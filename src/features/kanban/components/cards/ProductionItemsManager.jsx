@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Check, Trash2, Edit2, ChevronDown, ChevronRight, Plus, X, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, Trash2, Edit2, ChevronDown, ChevronRight, Plus, X, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import FormulaService from "../../../../formula/services/formulaService";
@@ -15,6 +16,7 @@ import FormulaService from "../../../../formula/services/formulaService";
 const UNITS = ["kg", "g", "L", "mL", "Liter", "piece", "set", "box", "unit"];
 
 const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
+    const navigate = useNavigate();
     const [items, setItems] = useState(() => {
         const productionItems =
             card?.productionItems || card?.production_items || [];
@@ -252,6 +254,10 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
                 formula_id: id,
                 file_no: formula.file_no ?? formula.FileNo ?? "",
                 name: formula.name ?? formula.color_name ?? formula.file_no ?? "Formula",
+                color_name: formula.color_name ?? "",
+                color_code: formula.color_code ?? "",
+                subcategory: formula.subcategory ?? "",
+                gloss: formula.gloss != null ? formula.gloss : undefined,
             });
             const updatedItems = [...items];
             updatedItems[index] = { ...item, formulas };
@@ -517,38 +523,80 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
                                                     Formulas
                                                 </div>
 
-                                                {/* Attached formulas */}
+                                                {/* Attached formulas: vertical list, each formula shows label + value rows */}
                                                 {itemFormulas.length > 0 && (
-                                                    <div className="flex flex-col flex-wrap gap-2">
-                                                        {itemFormulas.map(
-                                                            (f, fi) => (
-                                                                <span
-                                                                    key={
-                                                                        f.formula_id ||
-                                                                        f._id ||
-                                                                        fi
-                                                                    }
-                                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-sm"
+                                                    <div className="space-y-2 w-full min-w-0">
+                                                        {itemFormulas.map((f, fi) => {
+                                                            const formulaId = f.formula_id || f._id;
+                                                            const glossVal = f.gloss;
+                                                            const mattGlossDisplay =
+                                                                glossVal != null && glossVal !== ""
+                                                                    ? Number(glossVal) === 0 || (typeof glossVal === "number" && glossVal < 10)
+                                                                        ? "Matt"
+                                                                        : typeof glossVal === "number"
+                                                                          ? `Gloss ${glossVal}`
+                                                                          : String(glossVal)
+                                                                    : "—";
+                                                            return (
+                                                                <div
+                                                                    key={formulaId || fi}
+                                                                    className="rounded bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 text-sm overflow-hidden min-w-0"
                                                                 >
-                                                                    <FileText className="w-3.5 h-3.5 text-gray-500" />
-                                                                    {f.file_no ||
-                                                                        f.name ||
-                                                                        "Formula"}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            removeFormulaFromItem(
-                                                                                index,
-                                                                                fi,
-                                                                            )
-                                                                        }
-                                                                        className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                                                                    >
-                                                                        <X className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </span>
-                                                            ),
-                                                        )}
+                                                                    <div className="p-2 space-y-1.5">
+                                                                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                                                            {/* Column 1 */}
+                                                                            <div className="flex-1 min-w-0 space-y-1.5">
+                                                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">File no</span>
+                                                                                    <span className="font-mono text-gray-900 dark:text-white break-all" title={f.file_no || "—"}>{f.file_no || "—"}</span>
+                                                                                </div>
+                                                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Color name</span>
+                                                                                    <span className="text-gray-700 dark:text-gray-300 break-all" title={f.name || f.color_name || "—"}>{f.name || f.color_name || "—"}</span>
+                                                                                </div>
+                                                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Color code</span>
+                                                                                    <span className="text-gray-600 dark:text-gray-400 break-all" title={f.color_code || "—"}>{f.color_code || "—"}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Column 2 */}
+                                                                            <div className="flex-1 min-w-0 space-y-1.5">
+                                                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Subcategory</span>
+                                                                                    <span className="text-gray-600 dark:text-gray-400 break-all" title={f.subcategory || "—"}>{f.subcategory || "—"}</span>
+                                                                                </div>
+                                                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Matt/Gloss</span>
+                                                                                    <span className="text-gray-600 dark:text-gray-400">{mattGlossDisplay}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 border-t border-gray-200/60 dark:border-gray-600/60 justify-end">
+                                                                            {/* <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Actions</span> */}
+                                                                            <div className="flex items-center gap-1 flex-wrap">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => navigate(`/order?formula_id=${formulaId}`)}
+                                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                                                                                    title="Place order"
+                                                                                >
+                                                                                    <ShoppingCart className="w-3.5 h-3.5" />
+                                                                                    Place order
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => removeFormulaFromItem(index, fi)}
+                                                                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+                                                                                    title="Remove"
+                                                                                >
+                                                                                    <X className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
 

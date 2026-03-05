@@ -1161,6 +1161,10 @@ const TrelloCardModal = ({
                     formula_id: fid,
                     file_no: formula.file_no ?? formula.FileNo ?? "",
                     name: formula.name ?? formula.color_name ?? formula.file_no ?? "Formula",
+                    color_name: formula.color_name ?? formula.formulation_data?.meta?.colorName ?? "",
+                    color_code: formula.color_code ?? formula.formulation_data?.meta?.colorCode ?? "",
+                    subcategory: formula.subcategory ?? formula.formulation_data?.meta?.subcategory ?? "",
+                    gloss: formula.gloss ?? formula.formulation_data?.header?.gloss ?? undefined,
                 });
                 const updatedItems = productionItems.map((it, i) =>
                     i === idx ? { ...it, formulas } : it,
