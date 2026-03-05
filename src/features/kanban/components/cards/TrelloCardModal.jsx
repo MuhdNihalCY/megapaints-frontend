@@ -35,6 +35,7 @@ import {
     Edit2,
     Save,
     Hash,
+    MessageSquare,
 } from "lucide-react";
 import { useKanban } from "../../contexts/KanbanContext";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -2686,30 +2687,14 @@ const TrelloCardModal = ({
                                     currentUser={currentUser}
                                 />
 
-                                {/* Activity Section */}
+                                {/* Comments Section */}
                                 <div className="mb-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                Activity
-                                            </h3>
-                                        </div>
-                                        <button
-                                            onClick={() =>
-                                                setShowActivityDetails(
-                                                    !showActivityDetails,
-                                                )
-                                            }
-                                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                        >
-                                            {showActivityDetails
-                                                ? "Hide Details"
-                                                : "Show Details"}
-                                        </button>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                            Comments
+                                        </h3>
                                     </div>
-
-                                    {/* Comments Section */}
                                     <CommentsSection
                                         card={formData}
                                         onUpdate={onUpdate}
@@ -2747,6 +2732,30 @@ const TrelloCardModal = ({
                                             });
                                         }}
                                     />
+                                </div>
+
+                                {/* Activity Section */}
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between mb-4 py-6">
+                                        <div className="flex items-center gap-2">
+                                            <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                Activity
+                                            </h3>
+                                        </div>
+                                        <button
+                                            onClick={() =>
+                                                setShowActivityDetails(
+                                                    !showActivityDetails,
+                                                )
+                                            }
+                                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                                        >
+                                            {showActivityDetails
+                                                ? "Hide Details"
+                                                : "Show Details"}
+                                        </button>
+                                    </div>
 
                                     {/* Activity Log */}
                                     {showActivityDetails && (

@@ -623,7 +623,7 @@ const CommentsSection = ({
 
             {/* Enhanced Add Comment Form */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <form onSubmit={handleSubmitComment} className="space-y-3">
+                <form onSubmit={handleSubmitComment} className="space-y-3 py-6">
                     {replyingToCommentId && (
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                             <span>Replying to:</span>
