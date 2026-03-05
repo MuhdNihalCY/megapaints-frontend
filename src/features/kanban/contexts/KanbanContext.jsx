@@ -549,6 +549,34 @@ export const KanbanProvider = ({ children, user }) => {
         [state.user, state.labels],
     );
 
+    // Copy card (backend copies production items, ready products, comments; production items set to InComplete)
+    const copyCard = useCallback(
+        async (cardId) => {
+            try {
+                dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+                const result = await kanbanService.copyCard(cardId);
+                if (result && result.status === 'success') {
+                    const taskData = result.data?.task || result.data;
+                    const transformedCard = kanbanService.transformCardData(taskData);
+                    dispatch({
+                        type: ACTION_TYPES.ADD_CARD,
+                        payload: transformedCard,
+                    });
+                    return transformedCard;
+                }
+                throw new Error(result?.message || 'Failed to copy card');
+            } catch (error) {
+                console.error('Error in KanbanContext.copyCard', error);
+                dispatch({
+                    type: ACTION_TYPES.SET_ERROR,
+                    payload: error.message,
+                });
+                throw error;
+            }
+        },
+        [],
+    );
+
     // Update card
     const updateCard = useCallback(
         async (cardId, updates) => {
@@ -1416,6 +1444,7 @@ export const KanbanProvider = ({ children, user }) => {
 
         // Actions
         createCard,
+        copyCard,
         updateCard,
         deleteCard,
         moveCard,

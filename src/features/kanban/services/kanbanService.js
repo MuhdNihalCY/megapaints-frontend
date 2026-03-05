@@ -353,12 +353,12 @@ class KanbanService {
                 labels: transformedData.labels || [],
                 checklists:
                     transformedData.checklists || taskData.checklists || [],
-                customer_id:
-                    transformedData.customer ||
-                    taskData.customer_id ||
-                    taskData.customer?.id ||
-                    taskData.customer?._id ||
-                    null,
+                customer:
+                    transformedData.customer != null
+                        ? transformedData.customer
+                        : taskData.customer_id ||
+                          (taskData.customer && (taskData.customer._id || taskData.customer.id)) ||
+                          null,
                 identifier:
                     transformedData.identifier || taskData.identifier || null,
                 reservation_id:
@@ -1624,18 +1624,50 @@ class KanbanService {
     // ==================== SEARCH ====================
 
     /**
-     * Search tasks
+     * Search tasks (cards) with optional filters.
      * GET /api/kanban/search/tasks
+     * @param {string} query - Search text (q)
+     * @param {Object} params - { board_id, search_mode?: 'all'|'customer', include_archived?: boolean }
+     * @returns {Promise<{ status, data: { tasks } }>} tasks are minimal card shapes for list/modal
      */
     async searchTasks(query, params = {}) {
         try {
             const response = await api.get(
                 `${this.baseURL}/kanban/search/tasks`,
                 {
-                    params: { q: query, ...params },
+                    params: {
+                        q: query,
+                        board_id: params.board_id,
+                        search_mode: params.search_mode || "all",
+                        include_archived:
+                            params.include_archived !== false,
+                    },
                 },
             );
-            return this.handleResponse(response);
+            const result = this.handleResponse(response);
+            if (!result || !result.data) return result;
+            const tasks = (result.data.tasks || []).map((t) => ({
+                id: t._id || t.id,
+                _id: t._id || t.id,
+                title: t.title,
+                identifier: t.identifier,
+                columnId: t.column_id,
+                column_id: t.column_id,
+                subcolumnId: t.subcolumn_id || null,
+                is_archived: t.is_archived,
+                priority: t.priority,
+                due_date: t.due_date,
+                dueDate: t.due_date,
+                customer: t.customer,
+                customerName:
+                    t.customer && typeof t.customer === "object"
+                        ? t.customer.name
+                        : null,
+            }));
+            return {
+                ...result,
+                data: { ...result.data, tasks },
+            };
         } catch (error) {
             this.handleError(error);
         }
@@ -2007,16 +2039,25 @@ class KanbanService {
             });
         }
 
-        // Customer field
+        // Customer field - ensure we send a string id or null for the API
         if (frontendTask.customer !== undefined) {
             if (
                 frontendTask.customer &&
                 typeof frontendTask.customer === "object"
             ) {
-                apiData.customer =
+                const id =
                     frontendTask.customer._id || frontendTask.customer.id;
+                apiData.customer = id != null ? String(id) : null;
+            } else if (
+                frontendTask.customer !== null &&
+                frontendTask.customer !== undefined
+            ) {
+                apiData.customer =
+                    typeof frontendTask.customer === "string"
+                        ? frontendTask.customer
+                        : String(frontendTask.customer);
             } else {
-                apiData.customer = frontendTask.customer;
+                apiData.customer = null;
             }
         }
 
@@ -2411,6 +2452,24 @@ class KanbanService {
      */
     transformCardToApi(frontendCard) {
         return this.transformTaskToApi(frontendCard);
+    }
+
+    /**
+     * Copy card: new identifier (today prefix + next free 001,002...), title = identifier + customer name,
+     * production items all InComplete, ready products and comments copied.
+     * @param {string} cardId - Source card ID
+     * @returns {Promise<{ status: string, data: { task } }>}
+     */
+    async copyCard(cardId) {
+        const endpoint = `POST /api/kanban/cards/${cardId}/copy`;
+        try {
+            const response = await api.post(
+                `${this.baseURL}/kanban/cards/${cardId}/copy`,
+            );
+            return this.handleResponse(response, endpoint);
+        } catch (error) {
+            this.handleError(error, endpoint);
+        }
     }
 }
 

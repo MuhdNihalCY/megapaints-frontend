@@ -16,6 +16,7 @@ const CopyCardModal = ({
     onClose,
     getCardsByColumn,
     createCard,
+    copyCard,
 }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -42,7 +43,27 @@ const CopyCardModal = ({
         targetColumn?.name ?? targetColumn?.title ?? "Sales";
 
     const handleCreateCopy = async () => {
-        if (!targetColumnId || !boardId || !createCard) return;
+        if (!boardId) return;
+        const sourceCardId = card?._id || card?.id;
+        if (!sourceCardId) {
+            setError("Card ID is required to copy");
+            return;
+        }
+        if (copyCard) {
+            setLoading(true);
+            setError(null);
+            try {
+                const created = await copyCard(sourceCardId);
+                onConfirm?.(created);
+                onClose();
+            } catch (err) {
+                setError(err?.message ?? "Failed to create copy");
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+        if (!targetColumnId || !createCard) return;
         setLoading(true);
         setError(null);
         try {
@@ -125,9 +146,11 @@ const CopyCardModal = ({
                     </div>
                     <div className="p-4 space-y-4">
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                            The new card will be created in <strong>{targetColumnName}</strong> (first column) with the same title as the original.
+                            {copyCard
+                                ? "The new card will be created in the first column (Sales) with a new identifier. Ready products, production items (all unchecked), comments, and attachments will be copied."
+                                : <>The new card will be created in <strong>{targetColumnName}</strong> (first column) with the same title as the original.</>}
                         </p>
-                        {!targetColumnId && (
+                        {!targetColumnId && !copyCard && (
                             <p className="text-sm text-amber-600 dark:text-amber-400">
                                 No target column available. Please try again.
                             </p>
@@ -146,7 +169,7 @@ const CopyCardModal = ({
                             <button
                                 type="button"
                                 onClick={handleCreateCopy}
-                                disabled={!targetColumnId || loading}
+                                disabled={loading || (!copyCard && !targetColumnId)}
                                 className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {loading ? (

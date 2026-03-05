@@ -338,13 +338,18 @@ const TrelloCardModal = ({
                 .filter((label) => label && label.label_id); // Remove any null/undefined entries
         }
 
-        // Customer field - convert to ID if object
+        // Customer field - convert to ID if object (always send string for API)
         if (cardData.customer !== undefined) {
             if (cardData.customer && typeof cardData.customer === "object") {
+                const id = cardData.customer._id || cardData.customer.id;
+                transformed.customer = id != null ? String(id) : null;
+            } else if (cardData.customer !== null && cardData.customer !== undefined) {
                 transformed.customer =
-                    cardData.customer._id || cardData.customer.id;
-            } else if (cardData.customer !== null) {
-                transformed.customer = cardData.customer;
+                    typeof cardData.customer === "string"
+                        ? cardData.customer
+                        : String(cardData.customer);
+            } else {
+                transformed.customer = null;
             }
         }
 

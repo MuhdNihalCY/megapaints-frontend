@@ -7,15 +7,12 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Filter, HelpCircle, Settings } from "lucide-react";
+import { Plus, Search, X, User } from "lucide-react";
 
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useKanban } from "../../contexts/KanbanContext";
 import PragmaticKanbanCard from "../cards/PragmaticKanbanCard";
 import KanbanColumn from "../columns/KanbanColumn";
-import FiltersPanel from "../ui/FiltersPanel";
-import HelpPanel from "../ui/HelpPanel";
-import KeyboardShortcuts from "../ui/KeyboardShortcuts";
 import TrelloCardModal from "../cards/TrelloCardModal";
 import MoveCardModal from "../cards/MoveCardModal";
 import CopyCardModal from "../cards/CopyCardModal";
@@ -42,6 +39,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         user: currentUser,
         moveCard,
         createCard,
+        copyCard,
         updateCard,
         deleteCard,
         updateCardPositionsOptimistic,
@@ -56,11 +54,17 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     const boardId = board?.id || board?._id || null;
 
     // UI State
-    const [showFilters, setShowFilters] = useState(false);
-    const [showHelp, setShowHelp] = useState(false);
     const [searchQuery, setSearchQuery] = useState(searchTerm || "");
     const [isMoving, setIsMoving] = useState(false);
     const [isReordering, setIsReordering] = useState(false);
+
+    // Search modal (server search with debounce)
+    const [searchInputValue, setSearchInputValue] = useState("");
+    const [searchResults, setSearchResults] = useState(null); // null = not searched, [] = no results, [...] = results
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchMode, setSearchMode] = useState("all"); // 'all' | 'customer'
+    const searchDebounceRef = useRef(null);
+    const searchAbortRef = useRef(false);
 
     // Card Modal State
     const [selectedCard, setSelectedCard] = useState(null);
@@ -318,6 +322,72 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         setSearchQuery(query);
         setSearchTerm(query);
     };
+
+    // Debounced server search for modal (include archived, single API call)
+    useEffect(() => {
+        const trimmed = (searchInputValue || "").trim();
+        if (searchDebounceRef.current) {
+            clearTimeout(searchDebounceRef.current);
+            searchDebounceRef.current = null;
+        }
+        if (!trimmed) {
+            setSearchResults(null);
+            setSearchLoading(false);
+            return;
+        }
+        searchDebounceRef.current = setTimeout(async () => {
+            if (!boardId) {
+                setSearchResults([]);
+                setSearchLoading(false);
+                return;
+            }
+            searchAbortRef.current = false;
+            setSearchLoading(true);
+            setSearchResults(null);
+            try {
+                const result = await kanbanService.searchTasks(trimmed, {
+                    board_id: boardId,
+                    search_mode: searchMode,
+                    include_archived: true,
+                });
+                if (searchAbortRef.current) return;
+                const tasks = result?.data?.tasks ?? [];
+                setSearchResults(Array.isArray(tasks) ? tasks : []);
+            } catch (err) {
+                if (!searchAbortRef.current) {
+                    setSearchResults([]);
+                    toast.error(err?.message || "Search failed");
+                }
+            } finally {
+                if (!searchAbortRef.current) setSearchLoading(false);
+            }
+        }, 350);
+        return () => {
+            if (searchDebounceRef.current) {
+                clearTimeout(searchDebounceRef.current);
+            }
+            searchAbortRef.current = true;
+        };
+    }, [searchInputValue, searchMode, boardId]);
+
+    // Close search modal and optionally open card
+    const handleSearchResultSelect = useCallback(
+        (card) => {
+            setSearchInputValue("");
+            setSearchResults(null);
+            handleCardClick(card);
+        },
+        [handleCardClick],
+    );
+
+    const closeSearchModal = useCallback(() => {
+        setSearchInputValue("");
+        setSearchResults(null);
+    }, []);
+
+    const showSearchModal =
+        (searchInputValue || "").trim() !== "" &&
+        (searchLoading || searchResults !== null);
 
     // Handle close modal
     const handleCloseModal = useCallback(() => {
@@ -679,44 +749,34 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            {/* Search */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Search cards..."
-                                    value={searchQuery}
+                            {/* Search (server search → results in modal) */}
+                            <div className="relative flex items-center gap-1">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search cards..."
+                                        value={searchInputValue}
+                                        onChange={(e) =>
+                                            setSearchInputValue(e.target.value)
+                                        }
+                                        className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 w-56"
+                                    />
+                                </div>
+                                <select
+                                    value={searchMode}
                                     onChange={(e) =>
-                                        handleSearch(e.target.value)
+                                        setSearchMode(e.target.value)
                                     }
-                                    className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                />
+                                    className="py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+                                    title="Search mode"
+                                >
+                                    <option value="all">All cards</option>
+                                    <option value="customer">
+                                        Customer name
+                                    </option>
+                                </select>
                             </div>
-
-                            {/* Filters */}
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={`p-2 rounded-lg transition-colors ${
-                                    showFilters
-                                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                                        : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
-                                }`}
-                            >
-                                <Filter className="w-4 h-4" />
-                            </button>
-
-                            {/* Help */}
-                            <button
-                                onClick={() => setShowHelp(!showHelp)}
-                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
-                            >
-                                <HelpCircle className="w-4 h-4" />
-                            </button>
-
-                            {/* Settings */}
-                            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                                <Settings className="w-4 h-4" />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -725,7 +785,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="flex-1 overflow-hidden">
                         <div className="h-full overflow-x-auto">
-                            <div className="flex gap-6 lg:gap-10 p-4 lg:p-6 h-full ">
+                            <div className="flex gap-2 lg:gap-2 p-4 lg:p-6 h-full ">
                                 {activeColumns.map((column) => {
                                     const columnCards = getCardsByColumn(
                                         column.id,
@@ -781,69 +841,127 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     </div>
                 </DragDropContext>
 
-                {/* Filters Panel */}
+                {/* Search Results Modal */}
                 <AnimatePresence>
-                    {showFilters && (
+                    {showSearchModal && (
                         <motion.div
-                            className="absolute inset-0 bg-black bg-opacity-50 z-40"
+                            className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20 pb-10 px-4"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowFilters(false)}
+                            onClick={closeSearchModal}
                         >
                             <motion.div
-                                className="absolute right-0 top-0 h-full w-80 bg-white shadow-xl"
-                                initial={{ x: 320 }}
-                                animate={{ x: 0 }}
-                                exit={{ x: 320 }}
-                                transition={{
-                                    type: "spring",
-                                    damping: 25,
-                                    stiffness: 200,
-                                }}
+                                className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl max-h-[70vh] flex flex-col"
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
+                                transition={{ duration: 0.2 }}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <FiltersPanel
-                                    filters={filters}
-                                    onFiltersChange={setFilters}
-                                    onClearFilters={clearFilters}
-                                    onClose={() => setShowFilters(false)}
-                                />
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                        Search results
+                                        {searchMode === "customer" && (
+                                            <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                                                (by customer name)
+                                            </span>
+                                        )}
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={closeSearchModal}
+                                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+                                        aria-label="Close"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-2">
+                                    {searchLoading ? (
+                                        <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                                            Searching...
+                                        </div>
+                                    ) : searchResults !== null &&
+                                      searchResults.length === 0 ? (
+                                        <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                                            No cards found
+                                        </div>
+                                    ) : searchResults !== null &&
+                                      searchResults.length > 0 ? (
+                                        <ul className="space-y-1">
+                                            {searchResults.map((card) => {
+                                                const columnTitle =
+                                                    columns.find(
+                                                        (c) =>
+                                                            c.id ===
+                                                            (card.columnId ||
+                                                                card.column_id),
+                                                    )?.title ||
+                                                    card.columnId ||
+                                                    "—";
+                                                return (
+                                                    <li key={card.id || card._id}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleSearchResultSelect(
+                                                                    card,
+                                                                )
+                                                            }
+                                                            className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                                                        >
+                                                            <span className="font-medium text-gray-900 dark:text-white truncate flex-1">
+                                                                {card.title ||
+                                                                    "Untitled"}
+                                                            </span>
+                                                            {card.identifier && (
+                                                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                                                    {
+                                                                        card.identifier
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                            <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                                                                {columnTitle}
+                                                            </span>
+                                                            {(card.customerName ||
+                                                                (card.customer &&
+                                                                    typeof card
+                                                                        .customer ===
+                                                                        "object" &&
+                                                                    card.customer
+                                                                        .name)) && (
+                                                                <span className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 truncate max-w-[140px]">
+                                                                    <User className="w-3.5 h-3.5 flex-shrink-0" />
+                                                                    {card.customerName ||
+                                                                        (card.customer &&
+                                                                            card
+                                                                                .customer
+                                                                                .name)}
+                                                                </span>
+                                                            )}
+                                                            {card.is_archived && (
+                                                                <span className="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 flex-shrink-0">
+                                                                    Archived
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <div className="py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                            Type to search (includes archived
+                                            cards)
+                                        </div>
+                                    )}
+                                </div>
                             </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>
-
-                {/* Help Panel */}
-                <AnimatePresence>
-                    {showHelp && (
-                        <motion.div
-                            className="absolute inset-0 bg-black bg-opacity-50 z-40"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowHelp(false)}
-                        >
-                            <motion.div
-                                className="absolute right-0 top-0 h-full w-80 bg-white shadow-xl"
-                                initial={{ x: 320 }}
-                                animate={{ x: 0 }}
-                                exit={{ x: 320 }}
-                                transition={{
-                                    type: "spring",
-                                    damping: 25,
-                                    stiffness: 200,
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <HelpPanel onClose={() => setShowHelp(false)} />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Keyboard Shortcuts */}
-                <KeyboardShortcuts />
 
                 {/* Card Modal */}
                 <TrelloCardModal
@@ -898,6 +1016,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                         onClose={() => setCardToCopy(null)}
                         getCardsByColumn={getCardsByColumn}
                         createCard={createCard}
+                        copyCard={copyCard}
                     />
                 )}
             </div>
