@@ -49,13 +49,13 @@ export const usePriorityDisplay = (priority) => {
 
 /**
  * Hook for managing labels display
- * @param {Array} labels - Array of label objects
- * @param {Array} availableLabels - Array of available labels
+ * @param {Array} cardLabels - Array of label objects { id, name?, color? } or primitive label ids
+ * @param {Array} availableLabels - Board labels for resolving name/color when card has only id or empty name
  * @returns {Object} Labels display information
  */
-export const useLabelsDisplay = (labels, availableLabels = []) => {
+export const useLabelsDisplay = (cardLabels, availableLabels = []) => {
     return useMemo(() => {
-        if (!labels || labels.length === 0) {
+        if (!cardLabels || cardLabels.length === 0) {
             return {
                 labels: [],
                 hasLabels: false,
@@ -63,16 +63,37 @@ export const useLabelsDisplay = (labels, availableLabels = []) => {
             };
         }
 
-        const labelInfo = labels.map((label) => {
+        const normalizeId = (id) => {
+            if (id == null) return null;
+            if (typeof id === "string") return id;
+            if (typeof id === "object" && (id.id || id._id)) return id.id || id._id;
+            return String(id);
+        };
+
+        const labelInfo = cardLabels.map((item) => {
+            const isObject = typeof item === "object" && item !== null && (item.id != null || item._id != null || item.label_id != null);
+            const id = isObject ? (item.label_id || item.id || item._id) : item;
+            const normalizedId = normalizeId(id);
             const availableLabel = availableLabels.find(
-                (al) => al.id === label.id,
+                (al) => normalizeId(al.id || al._id) === normalizedId,
             );
+
+            if (isObject) {
+                return {
+                    id: id,
+                    name: (item.name && item.name.trim()) ? item.name : (availableLabel?.name || "Unknown"),
+                    color: item.color || availableLabel?.color || "#6b7280",
+                    bgColor: `${item.color || availableLabel?.color || "#6b7280"}20`,
+                    textColor: item.color || availableLabel?.color || "#6b7280",
+                };
+            }
+
             return {
-                id: label.id,
-                name: label.name || availableLabel?.name || "Unknown",
-                color: label.color || availableLabel?.color || "#6b7280",
-                bgColor: `${label.color || availableLabel?.color || "#6b7280"}20`,
-                textColor: label.color || availableLabel?.color || "#6b7280",
+                id: id,
+                name: availableLabel?.name || "Unknown",
+                color: availableLabel?.color || "#6b7280",
+                bgColor: `${availableLabel?.color || "#6b7280"}20`,
+                textColor: availableLabel?.color || "#6b7280",
             };
         });
 
@@ -81,5 +102,5 @@ export const useLabelsDisplay = (labels, availableLabels = []) => {
             hasLabels: true,
             labelCount: labelInfo.length,
         };
-    }, [labels, availableLabels]);
+    }, [cardLabels, availableLabels]);
 };

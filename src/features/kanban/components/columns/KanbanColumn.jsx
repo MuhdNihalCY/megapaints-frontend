@@ -25,6 +25,7 @@ const KanbanColumn = ({
         toggleColumnActivation,
         canPerformAction,
         user: currentUser,
+        labels,
     } = useKanban();
     const [isHovered, setIsHovered] = useState(false);
 
@@ -279,6 +280,7 @@ const KanbanColumn = ({
                                                     >
                                                         <CardComponent
                                                             card={card}
+                                                            labels={labels}
                                                             onCardClick={
                                                                 onCardClick
                                                             }
@@ -344,6 +346,7 @@ const KanbanColumn = ({
                                     >
                                         <CardComponent
                                             card={card}
+                                            labels={labels}
                                             onCardClick={onCardClick}
                                             onClick={() => onCardClick?.(card)}
                                             onDragEnd={onDragEnd}

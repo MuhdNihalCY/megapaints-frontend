@@ -519,7 +519,7 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
 
                                                 {/* Attached formulas */}
                                                 {itemFormulas.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="flex flex-col flex-wrap gap-2">
                                                         {itemFormulas.map(
                                                             (f, fi) => (
                                                                 <span

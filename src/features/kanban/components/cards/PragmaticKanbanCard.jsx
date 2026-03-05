@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { usePriorityDisplay, useLabelsDisplay } from "../../hooks/useKanban";
+import { useKanban } from "../../contexts/KanbanContext";
 
 /**
  * Pragmatic Drag and Drop Kanban Card Component
@@ -32,16 +33,21 @@ const PragmaticKanbanCard = ({
     getDragStyles = () => ({}),
     getDropZoneStyles = () => ({}),
     onDragEnd = null,
+    labels: labelsProp,
 }) => {
     const cardRef = useRef(null);
-
+    const { labels: boardLabels } = useKanban();
     const [isHovered, setIsHovered] = useState(false);
 
     // Get priority configuration
     const priorityConfig = usePriorityDisplay(card.priority);
 
-    // Get label configurations
-    const labelConfigs = useLabelsDisplay(card.labels || []);
+    // Get label configurations: use embedded labelObjects when present, else label ids; resolve names from board labels (prop or context)
+    const availableLabels = labelsProp ?? boardLabels ?? [];
+    const labelConfigs = useLabelsDisplay(
+        card.labelObjects?.length ? card.labelObjects : (card.labels || []),
+        availableLabels,
+    );
 
     // Cover image/color - use coverImage if set, otherwise use first image attachment (Trello behavior)
     let coverImage = card.coverImage;

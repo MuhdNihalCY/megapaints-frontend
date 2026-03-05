@@ -18,6 +18,7 @@ import {
     logCardMoved,
     logCardDeleted,
 } from "../utils/activityLogger";
+import { normalizeComment } from "../utils/commentUtils";
 import { canPerformAction as checkPermission } from "../utils/permissions";
 
 // Initial state
@@ -791,20 +792,22 @@ export const KanbanProvider = ({ children, user }) => {
                 );
 
                 if (result.status === "success") {
-                    // Update card with new comment
-                    const card = state.cards.find((c) => c.id === cardId);
+                    const rawComment = result.data?.comment ?? result.data;
+                    const normalized = normalizeComment(rawComment);
+                    const card = state.cards.find(
+                        (c) => c.id === cardId || c._id === cardId,
+                    );
                     if (card) {
                         const updatedCard = {
                             ...card,
-                            comments: [...(card.comments || []), result.data],
+                            comments: [...(card.comments || []), normalized],
                         };
                         dispatch({
                             type: ACTION_TYPES.UPDATE_CARD,
                             payload: updatedCard,
                         });
                     }
-
-                    return result.data;
+                    return normalized;
                 } else {
                     throw new Error(result.error || "Failed to add comment");
                 }
@@ -830,27 +833,30 @@ export const KanbanProvider = ({ children, user }) => {
                 );
 
                 if (result.status === "success") {
-                    // Update card with updated comment
+                    const rawComment = result.data?.comment ?? result.data;
+                    const normalized = normalizeComment(rawComment);
                     const card = state.cards.find(
                         (c) => c.id === cardId || c._id === cardId,
                     );
                     if (card) {
+                        const commentIdStr = String(commentId);
                         const updatedCard = {
                             ...card,
-                            comments: card.comments.map((comment) =>
-                                comment.id === commentId ||
-                                comment._id === commentId
-                                    ? { ...comment, ...updates }
-                                    : comment,
-                            ),
+                            comments: (card.comments || []).map((comment) => {
+                                const cid =
+                                    comment.id ?? comment._id?.toString?.();
+                                if (String(cid) === commentIdStr) {
+                                    return { ...comment, ...normalized };
+                                }
+                                return comment;
+                            }),
                         };
                         dispatch({
                             type: ACTION_TYPES.UPDATE_CARD,
                             payload: updatedCard,
                         });
                     }
-
-                    return result.data;
+                    return normalized;
                 } else {
                     throw new Error(result.error || "Failed to update comment");
                 }

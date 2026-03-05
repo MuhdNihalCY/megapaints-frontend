@@ -4,6 +4,7 @@
  */
 
 import api from "../../../utils/api";
+import { normalizeComment } from "../utils/commentUtils";
 
 /**
  * Kanban Board Service Class
@@ -1636,13 +1637,13 @@ class KanbanService {
             return assignee._id || assignee.id || assignee;
         });
 
-        // Extract labels to array of label IDs
+        // Extract labels to array of label IDs (use label_id = actual label ref, not assignment _id)
         const labelIds = (apiTask.labels || []).map((label) => {
             if (
                 typeof label === "object" &&
-                (label._id || label.id || label.label_id)
+                (label.label_id || label.id || label._id)
             ) {
-                return label._id || label.id || label.label_id;
+                return label.label_id || label.id || label._id;
             }
             return label;
         });
@@ -1675,7 +1676,7 @@ class KanbanService {
             priority: apiTask.priority || "medium",
             labels: labelIds, // Array of label IDs
             labelObjects: (apiTask.labels || []).map((label) => ({
-                id: label._id || label.id || label.label_id,
+                id: label.label_id || label.id || label._id,
                 name: label.name || label.text || "",
                 color: label.color || "#6b7280",
             })),
@@ -1695,7 +1696,7 @@ class KanbanService {
             createdBy: apiTask.created_by || apiTask.createdBy,
             // Additional fields
             attachments: apiTask.attachments || [],
-            comments: apiTask.comments || [],
+            comments: (apiTask.comments || []).map(normalizeComment),
             activities: apiTask.activity_log || apiTask.activities || [],
             activityLog: apiTask.activity_log || apiTask.activities || [],
             checklists: apiTask.checklists || [],

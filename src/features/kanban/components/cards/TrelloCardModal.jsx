@@ -48,14 +48,12 @@ import ReadyProductsManager from "./ReadyProductsManager";
 import ProductionItemsManager from "./ProductionItemsManager";
 import CustomerDropdown from "../../../../components/customer/CustomerDropdown";
 import CustomerManagementModal from "../../../../components/customer/CustomerManagementModal";
-import {
-    generateCardTitle,
-    parseCardTitle,
-    formatCardTitleForDisplay,
-    formatIdentifierForDisplay,
-    getCardTitleComponents,
+import { getCardTitleComponents,
     generateCustomerSlug,
+    formatIdentifierForDisplay,
+    formatCardTitleForDisplay,
 } from "../../utils/cardTitleUtils";
+import { normalizeComment } from "../../utils/commentUtils";
 import { kanbanService } from "../../services/kanbanService";
 import FormulaService from "../../../../formula/services/formulaService";
 
@@ -776,9 +774,10 @@ const TrelloCardModal = ({
 
             setFormData(updatedFormData);
 
-            // Load checklists from Checklist API (they live in a separate collection from Card)
+            // Use embedded checklists from card when present (comments/checklists are now in card document)
             const cardIdForFetch = card.id || card._id;
-            if (cardIdForFetch) {
+            const hasChecklists = Array.isArray(card.checklists) && card.checklists.length > 0;
+            if (cardIdForFetch && !hasChecklists) {
                 kanbanService.getChecklists(cardIdForFetch).then((res) => {
                     if (checklistFetchCancelled) return;
                     const list = res?.data?.checklists ?? res?.checklists ?? [];
@@ -2710,6 +2709,39 @@ const TrelloCardModal = ({
                                     <CommentsSection
                                         card={formData}
                                         onUpdate={onUpdate}
+                                        onCommentAdded={(comment) => {
+                                            const normalized = normalizeComment(comment);
+                                            setFormData((prev) =>
+                                                prev && (prev.id === formData?.id || prev._id === formData?._id)
+                                                    ? { ...prev, comments: [...(prev.comments || []), normalized] }
+                                                    : prev
+                                            );
+                                        }}
+                                        onCommentUpdated={(commentId, updatedComment) => {
+                                            const normalized = normalizeComment(updatedComment);
+                                            setFormData((prev) => {
+                                                if (!prev || (prev.id !== formData?.id && prev._id !== formData?._id)) return prev;
+                                                return {
+                                                    ...prev,
+                                                    comments: (prev.comments || []).map((c) =>
+                                                        (c.id || c._id) === commentId || String(c.id || c._id) === String(commentId)
+                                                            ? { ...c, ...normalized }
+                                                            : c
+                                                    ),
+                                                };
+                                            });
+                                        }}
+                                        onCommentDeleted={(commentId) => {
+                                            setFormData((prev) => {
+                                                if (!prev || (prev.id !== formData?.id && prev._id !== formData?._id)) return prev;
+                                                return {
+                                                    ...prev,
+                                                    comments: (prev.comments || []).filter(
+                                                        (c) => (c.id || c._id) !== commentId && String(c.id || c._id) !== String(commentId)
+                                                    ),
+                                                };
+                                            });
+                                        }}
                                     />
 
                                     {/* Activity Log */}
