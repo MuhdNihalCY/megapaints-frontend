@@ -259,21 +259,7 @@ const PragmaticKanbanCard = ({
                         </div>
                     )}
 
-                    {/* Checklist Progress */}
-                    {card.checklist && card.checklist.length > 0 && (
-                        <div className="flex items-center">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            <span>
-                                {
-                                    card.checklist.filter(
-                                        (item) => item.completed,
-                                    ).length
-                                }
-                                /{card.checklist.length}
-                            </span>
-                        </div>
-                    )}
-                </div>
+                    </div>
 
                 {/* Comments Count */}
                 {card.comments && card.comments.length > 0 && (

@@ -2,7 +2,7 @@
  * TrelloCardModal Component
  * Complete Trello-style card modal matching exact specifications
  * - 768px width modal with 552px left column + 168px sidebar
- * - Full feature set: members, labels, dates, attachments, checklists, custom fields
+ * - Full feature set: members, labels, dates, attachments, custom fields
  * - Activity log and comments system
  * - Sidebar actions menu
  */
@@ -15,9 +15,7 @@ import {
     User,
     Tag,
     Clock,
-    Paperclip,
     Image as ImageIcon,
-    CheckSquare,
     AlignLeft,
     Plus,
     Eye,
@@ -43,7 +41,6 @@ import { calculateCardBadges, addActivity } from "../../types/cardModel";
 import toast from "react-hot-toast";
 import CommentsSection from "../comments/CommentsSection";
 import ActivityLog from "../activity/ActivityLog";
-import TrelloChecklist from "./TrelloChecklist";
 import TrelloAttachments from "./TrelloAttachments";
 import ReadyProductsManager from "./ReadyProductsManager";
 import ProductionItemsManager from "./ProductionItemsManager";
@@ -81,9 +78,6 @@ const TrelloCardModal = ({
         addAttachment: contextAddAttachment,
         deleteAttachment: contextDeleteAttachment,
         setCardCover: contextSetCardCover,
-        addChecklist: contextAddChecklist,
-        updateChecklist: contextUpdateChecklist,
-        deleteChecklist: contextDeleteChecklist,
         watchCard: contextWatchCard,
         unwatchCard: contextUnwatchCard,
         addComment: contextAddComment,
@@ -636,8 +630,6 @@ const TrelloCardModal = ({
         // Only initialize when modal is open
         if (!isOpen) return;
 
-        let checklistFetchCancelled = false;
-
         if (card) {
             // Determine the identifier from multiple sources - prioritize direct sources before parsing
             // Priority: card.identifier > card._identifier > reservation.identifier > parsed from title
@@ -775,26 +767,7 @@ const TrelloCardModal = ({
 
             setFormData(updatedFormData);
 
-            // Use embedded checklists from card when present (comments/checklists are now in card document)
-            const cardIdForFetch = card.id || card._id;
-            const hasChecklists = Array.isArray(card.checklists) && card.checklists.length > 0;
-            if (cardIdForFetch && !hasChecklists) {
-                kanbanService.getChecklists(cardIdForFetch).then((res) => {
-                    if (checklistFetchCancelled) return;
-                    const list = res?.data?.checklists ?? res?.checklists ?? [];
-                    const normalized = (Array.isArray(list) ? list : []).map((cl) => ({
-                        ...cl,
-                        id: cl.id ?? cl._id,
-                        items: (cl.items || []).map((it) => ({
-                            ...it,
-                            id: it.id ?? it._id,
-                            name: it.name ?? it.text,
-                        })),
-                    }));
-                    setFormData((prev) => (prev && (prev.id === card.id || prev._id === card._id) ? { ...prev, checklists: normalized } : prev));
-                }).catch(() => {});
-            }
-
+            // (checklists removed from UI - data still in card if needed)
             // Initialize customer if present - handle object and ID formats
             // Reset the ref when card changes to allow fetching again
             customerFetchRef.current = false;
@@ -1089,7 +1062,6 @@ const TrelloCardModal = ({
         // Reset customer fetch flag when card changes
         return () => {
             customerFetchRef.current = false;
-            checklistFetchCancelled = true;
         };
     }, [card, isNewCard, reservation, isOpen]);
 
@@ -1858,7 +1830,7 @@ const TrelloCardModal = ({
                                                 }
                                                 className="px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                                             >
-                                                Manage
+                                                Manage Customer
                                             </button>
                                         </div>
 
@@ -2472,123 +2444,6 @@ const TrelloCardModal = ({
                                     }}
                                 />
 
-                                {/* Checklists Section */}
-                                {(formData?.checklists || []).map(
-                                    (checklist, index) => (
-                                        <TrelloChecklist
-                                            key={
-                                                checklist.id ||
-                                                `checklist-${index}`
-                                            }
-                                            checklist={checklist}
-                                            onUpdate={async (
-                                                updatedChecklist,
-                                            ) => {
-                                                try {
-                                                    const cardId = getCardId();
-
-                                                    if (!cardId) {
-                                                        // For new cards, just update local state
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            checklists: (
-                                                                prev.checklists ||
-                                                                []
-                                                            ).map((c) =>
-                                                                c.id ===
-                                                                updatedChecklist.id
-                                                                    ? updatedChecklist
-                                                                    : c,
-                                                            ),
-                                                        }));
-                                                        return;
-                                                    }
-
-                                                    // Call backend API via context
-                                                    await contextUpdateChecklist(
-                                                        cardId,
-                                                        updatedChecklist.id ??
-                                                            updatedChecklist._id,
-                                                        updatedChecklist,
-                                                    );
-                                                    // Update local state
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        checklists: (
-                                                            prev.checklists ||
-                                                            []
-                                                        ).map((c) =>
-                                                            c.id ===
-                                                            updatedChecklist.id
-                                                                ? updatedChecklist
-                                                                : c,
-                                                        ),
-                                                    }));
-                                                } catch (error) {
-                                                    console.error(
-                                                        "Failed to update checklist:",
-                                                        error,
-                                                    );
-                                                    setError(
-                                                        "Failed to update checklist: " +
-                                                            (error.message ||
-                                                                "Unknown error"),
-                                                    );
-                                                }
-                                            }}
-                                            onDelete={async (checklistId) => {
-                                                try {
-                                                    const cardId = getCardId();
-
-                                                    if (!cardId) {
-                                                        // For new cards, just update local state
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            checklists: (
-                                                                prev.checklists ||
-                                                                []
-                                                            ).filter(
-                                                                (c) =>
-                                                                    c.id !==
-                                                                    checklistId,
-                                                            ),
-                                                        }));
-                                                        return;
-                                                    }
-
-                                                    // Call backend API via context
-                                                    await contextDeleteChecklist(
-                                                        cardId,
-                                                        checklistId,
-                                                    );
-                                                    // Update local state
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        checklists: (
-                                                            prev.checklists ||
-                                                            []
-                                                        ).filter(
-                                                            (c) =>
-                                                                c.id !==
-                                                                checklistId,
-                                                        ),
-                                                    }));
-                                                } catch (error) {
-                                                    console.error(
-                                                        "Failed to delete checklist:",
-                                                        error,
-                                                    );
-                                                    setError(
-                                                        "Failed to delete checklist: " +
-                                                            (error.message ||
-                                                                "Unknown error"),
-                                                    );
-                                                }
-                                            }}
-                                        />
-                                    ),
-                                )}
-
                                 {/* Ready Products Section */}
                                 <ReadyProductsManager
                                     card={formData}
@@ -2736,34 +2591,36 @@ const TrelloCardModal = ({
 
                                 {/* Activity Section */}
                                 <div className="mb-6">
-                                    <div className="flex items-center justify-between mb-4 py-6">
-                                        <div className="flex items-center gap-2">
-                                            <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                Activity
-                                            </h3>
+                                    <div className="py-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <AlignLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                    Activity
+                                                </h3>
+                                            </div>
+                                            <button
+                                                onClick={() =>
+                                                    setShowActivityDetails(
+                                                        !showActivityDetails,
+                                                    )
+                                                }
+                                                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                                            >
+                                                {showActivityDetails
+                                                    ? "Hide Details"
+                                                    : "Show Details"}
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() =>
-                                                setShowActivityDetails(
-                                                    !showActivityDetails,
-                                                )
-                                            }
-                                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                        >
-                                            {showActivityDetails
-                                                ? "Hide Details"
-                                                : "Show Details"}
-                                        </button>
-                                    </div>
 
-                                    {/* Activity Log */}
-                                    {showActivityDetails && (
-                                        <ActivityLog
-                                            card={formData}
-                                            users={users}
-                                        />
-                                    )}
+                                        {/* Activity Log */}
+                                        {showActivityDetails && (
+                                            <ActivityLog
+                                                card={formData}
+                                                users={users}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -2795,30 +2652,12 @@ const TrelloCardModal = ({
                                         </button>
                                         <button
                                             onClick={() => {
-                                                setActiveSection("checklist");
-                                            }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
-                                        >
-                                            <CheckSquare className="w-4 h-4" />
-                                            Checklist
-                                        </button>
-                                        <button
-                                            onClick={() => {
                                                 setActiveSection("dates");
                                             }}
                                             className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
                                         >
                                             <Clock className="w-4 h-4" />
                                             Dates
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setActiveSection("attachment");
-                                            }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm text-left transition-colors"
-                                        >
-                                            <Paperclip className="w-4 h-4" />
-                                            Attachment
                                         </button>
                                     </div>
                                 </div>
@@ -3493,203 +3332,6 @@ const TrelloCardModal = ({
                                                 );
                                             })
                                         )}
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {activeSection === "checklist" && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="fixed md:absolute right-4 md:right-4 top-20 md:top-auto md:bottom-auto w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 md:z-10 p-4 max-h-[calc(100vh-120px)] md:max-h-96 overflow-y-auto"
-                                    style={{
-                                        top: "80px",
-                                        right: "16px",
-                                    }}
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="text-sm font-semibold">
-                                            Add Checklist
-                                        </h3>
-                                        <button
-                                            onClick={() =>
-                                                setActiveSection(null)
-                                            }
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                Title
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Checklist"
-                                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700"
-                                                onKeyDown={async (e) => {
-                                                    if (e.key === "Enter") {
-                                                        try {
-                                                            const title =
-                                                                e.target.value.trim() ||
-                                                                "Checklist";
-                                                            const cardId =
-                                                                getCardId();
-
-                                                            if (!cardId) {
-                                                                // For new cards, create checklist locally
-                                                                const newChecklist =
-                                                                    {
-                                                                        id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                                        title,
-                                                                        position:
-                                                                            (
-                                                                                formData?.checklists ||
-                                                                                []
-                                                                            )
-                                                                                .length,
-                                                                        items: [],
-                                                                    };
-                                                                setFormData(
-                                                                    (prev) => ({
-                                                                        ...prev,
-                                                                        checklists:
-                                                                            [
-                                                                                ...(prev.checklists ||
-                                                                                    []),
-                                                                                newChecklist,
-                                                                            ],
-                                                                    }),
-                                                                );
-                                                                e.target.value =
-                                                                    "";
-                                                                setActiveSection(
-                                                                    null,
-                                                                );
-                                                                return;
-                                                            }
-
-                                                            // Create checklist via backend
-                                                            const newChecklist =
-                                                                await contextAddChecklist(
-                                                                    cardId,
-                                                                    {
-                                                                        title,
-                                                                        position:
-                                                                            (
-                                                                                formData.checklists ||
-                                                                                []
-                                                                            )
-                                                                                .length,
-                                                                        items: [],
-                                                                    },
-                                                                );
-
-                                                            // Update local state
-                                                            setFormData(
-                                                                (prev) => ({
-                                                                    ...prev,
-                                                                    checklists:
-                                                                        [
-                                                                            ...(prev.checklists ||
-                                                                                []),
-                                                                            newChecklist,
-                                                                        ],
-                                                                }),
-                                                            );
-
-                                                            // Clear input
-                                                            e.target.value = "";
-                                                            setActiveSection(
-                                                                null,
-                                                            );
-                                                        } catch (error) {
-                                                            console.error(
-                                                                "Failed to add checklist:",
-                                                                error,
-                                                            );
-                                                        }
-                                                    }
-                                                }}
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={async (e) => {
-                                                try {
-                                                    const input =
-                                                        e.target.parentElement.parentElement.querySelector(
-                                                            "input",
-                                                        );
-                                                    const title =
-                                                        input.value.trim() ||
-                                                        "Checklist";
-                                                    const cardId = getCardId();
-
-                                                    if (!cardId) {
-                                                        // For new cards, create checklist locally
-                                                        const newChecklist = {
-                                                            id: `checklist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                            title,
-                                                            position: (
-                                                                formData.checklists ||
-                                                                []
-                                                            ).length,
-                                                            items: [],
-                                                        };
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            checklists: [
-                                                                ...(prev.checklists ||
-                                                                    []),
-                                                                newChecklist,
-                                                            ],
-                                                        }));
-                                                        input.value = "";
-                                                        setActiveSection(null);
-                                                        return;
-                                                    }
-
-                                                    // Create checklist via backend
-                                                    const newChecklist =
-                                                        await contextAddChecklist(
-                                                            cardId,
-                                                            {
-                                                                title,
-                                                                position: (
-                                                                    formData.checklists ||
-                                                                    []
-                                                                ).length,
-                                                                items: [],
-                                                            },
-                                                        );
-
-                                                    // Update local state
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        checklists: [
-                                                            ...(prev.checklists ||
-                                                                []),
-                                                            newChecklist,
-                                                        ],
-                                                    }));
-
-                                                    // Clear input
-                                                    input.value = "";
-                                                    setActiveSection(null);
-                                                } catch (error) {
-                                                    console.error(
-                                                        "Failed to add checklist:",
-                                                        error,
-                                                    );
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                                        >
-                                            Add
-                                        </button>
                                     </div>
                                 </motion.div>
                             )}

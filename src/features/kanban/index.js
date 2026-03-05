@@ -20,7 +20,6 @@ export { default as ColumnSearch } from "./components/search/ColumnSearch";
 export { default as TrelloCardModal } from "./components/cards/TrelloCardModal";
 export { default as TrelloCardFront } from "./components/cards/TrelloCardFront";
 export { default as TrelloAttachments } from "./components/cards/TrelloAttachments";
-export { default as TrelloChecklist } from "./components/cards/TrelloChecklist";
 export { default as CustomFieldsManager } from "./components/cards/CustomFieldsManager";
 
 // Common Components

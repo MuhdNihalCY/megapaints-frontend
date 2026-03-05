@@ -3,7 +3,7 @@
  * Card display in list view matching Trello specifications
  * - Cover image/color support
  * - Label display (up to 6, then "+X more")
- * - Card badges (description, comments, attachments, checklist, due date, members)
+ * - Card badges (description, comments, attachments, due date, members)
  * - Hover and drag states
  */
 
@@ -12,7 +12,6 @@ import {
     FileText,
     MessageSquare,
     Paperclip,
-    CheckSquare,
     Clock,
     Eye,
 } from "lucide-react";
@@ -108,14 +107,6 @@ const TrelloCardFront = ({
         return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
     };
 
-    // Checklist color (green when 100%)
-    const getChecklistColor = () => {
-        if (badges.checklist.percentage === 100) {
-            return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-        }
-        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
-    };
-
     return (
         <div
             {...dragHandleProps}
@@ -204,19 +195,6 @@ const TrelloCardFront = ({
                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
                             <Paperclip className="w-3 h-3" />
                             <span>{badges.attachments}</span>
-                        </div>
-                    )}
-
-                    {/* Checklist */}
-                    {badges.checklist.total > 0 && (
-                        <div
-                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${getChecklistColor()}`}
-                        >
-                            <CheckSquare className="w-3 h-3" />
-                            <span>
-                                {badges.checklist.completed}/
-                                {badges.checklist.total}
-                            </span>
                         </div>
                     )}
 

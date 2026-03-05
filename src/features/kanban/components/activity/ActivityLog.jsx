@@ -193,9 +193,15 @@ const ActivityLog = ({ card, users = [] }) => {
         const { type, user } = activity;
         const data = activity.data || {};
 
+        // Safe string for interpolation (never show "undefined")
+        const safe = (v, fallback = "") => {
+            if (v == null || v === "") return fallback;
+            return String(v);
+        };
+
         switch (type) {
             case "card_created":
-                return `Card "${data.title}" was created`;
+                return `Card "${safe(data.title) || activity.description || data.description || "Untitled"}" was created`;
 
             case "card_updated":
                 // Prefer backend-generated description (includes exact change, e.g. "Production items: added 2 (A, B); removed 1 (C)")
@@ -207,13 +213,15 @@ const ActivityLog = ({ card, users = [] }) => {
                 if (changes.length > 1) {
                     return `Card was updated (${changes.length} fields)`;
                 }
-                return "Card was updated";
+                return activity.description || data.description || "Card was updated";
 
             case "card_moved":
-                return `Card moved from "${data.fromColumn}" to "${data.toColumn}"`;
+                return (data.fromColumn != null && data.toColumn != null)
+                    ? `Card moved from "${safe(data.fromColumn)}" to "${safe(data.toColumn)}"`
+                    : (activity.description || data.description || "Card was moved");
 
             case "card_deleted":
-                return `Card "${data.title}" was deleted`;
+                return `Card "${safe(data.title) || activity.description || data.description || "Untitled"}" was deleted`;
 
             case "comment_added": {
                 const text = data.text ?? data.content;
@@ -225,58 +233,95 @@ const ActivityLog = ({ card, users = [] }) => {
             }
 
             case "comment_updated":
-                return `Comment was updated`;
+                return activity.description || data.description || "Comment was updated";
 
             case "comment_deleted":
-                return `Comment was deleted`;
+                return activity.description || data.description || "Comment was deleted";
 
-            case "label_added":
-                return `Label "${data.labelName}" was added`;
+            case "label_added": {
+                const name = data.labelName ?? data.label_name;
+                return name ? `Label "${safe(name)}" was added` : (activity.description || data.description || "Label was added");
+            }
 
-            case "label_removed":
-                return `Label "${data.labelName}" was removed`;
+            case "label_removed": {
+                const name = data.labelName ?? data.label_name;
+                return name ? `Label "${safe(name)}" was removed` : (activity.description || data.description || "Label was removed");
+            }
 
-            case "due_date_changed":
-                return `Due date changed to ${new Date(data.dueDate).toLocaleDateString()}`;
+            case "due_date_changed": {
+                const d = data.dueDate ?? data.due_date;
+                if (d != null && !isNaN(new Date(d).getTime())) {
+                    return `Due date changed to ${new Date(d).toLocaleDateString()}`;
+                }
+                return activity.description || data.description || "Due date was changed";
+            }
 
-            case "assignee_added":
-                return `Assignee "${data.assigneeName}" was added`;
+            case "assignee_added": {
+                const name = data.assigneeName ?? data.assignee_name;
+                return name ? `Assignee "${safe(name)}" was added` : (activity.description || data.description || "Assignee was added");
+            }
 
-            case "assignee_removed":
-                return `Assignee "${data.assigneeName}" was removed`;
+            case "assignee_removed": {
+                const name = data.assigneeName ?? data.assignee_name;
+                return name ? `Assignee "${safe(name)}" was removed` : (activity.description || data.description || "Assignee was removed");
+            }
 
-            case "attachment_added":
-                return `Attachment "${data.fileName}" was added`;
+            case "attachment_added": {
+                const name = data.fileName ?? data.filename ?? data.original_name;
+                return name ? `Attachment "${safe(name)}" was added` : (activity.description || data.description || "Attachment was added");
+            }
 
-            case "attachment_removed":
-                return `Attachment "${data.fileName}" was removed`;
+            case "attachment_removed": {
+                const name = data.fileName ?? data.filename ?? data.original_name;
+                return name ? `Attachment "${safe(name)}" was removed` : (activity.description || data.description || "Attachment was removed");
+            }
 
-            case "checklist_item_added":
-                return `Checklist item "${data.itemText}" was added`;
+            case "checklist_item_added": {
+                const text = data.itemText ?? data.item_text;
+                return text ? `Checklist item "${safe(text)}" was added` : (activity.description || data.description || "Checklist item was added");
+            }
 
-            case "checklist_item_completed":
-                return `Checklist item "${data.itemText}" was completed`;
+            case "checklist_item_completed": {
+                const text = data.itemText ?? data.item_text;
+                return text ? `Checklist item "${safe(text)}" was completed` : (activity.description || data.description || "Checklist item was completed");
+            }
 
-            case "checklist_item_removed":
-                return `Checklist item "${data.itemText}" was removed`;
+            case "checklist_item_removed": {
+                const text = data.itemText ?? data.item_text;
+                return text ? `Checklist item "${safe(text)}" was removed` : (activity.description || data.description || "Checklist item was removed");
+            }
 
-            case "column_toggled":
-                return `Column "${data.columnName}" was ${data.isActive ? "activated" : "deactivated"}`;
+            case "column_toggled": {
+                const colName = data.columnName ?? data.column_name;
+                const active = data.isActive ?? data.is_active;
+                if (colName != null) {
+                    return `Column "${safe(colName)}" was ${active === false ? "deactivated" : "activated"}`;
+                }
+                return activity.description || data.description || "Column was toggled";
+            }
 
-            case "priority_changed":
-                return `Priority changed from "${data.fromPriority}" to "${data.toPriority}"`;
+            case "priority_changed": {
+                const from = data.fromPriority ?? data.from_priority;
+                const to = data.toPriority ?? data.to_priority;
+                if (from != null && to != null) {
+                    return `Priority changed from "${safe(from)}" to "${safe(to)}"`;
+                }
+                return activity.description || data.description || "Priority was changed";
+            }
 
-            case "search_performed":
-                return `Search performed: "${data.query}"`;
+            case "search_performed": {
+                const q = data.query;
+                return q != null && q !== "" ? `Search performed: "${safe(q)}"` : (activity.description || data.description || "Search was performed");
+            }
 
             case "archive":
-                return data.description || "Card was archived";
+                return data.description || activity.description || "Card was archived";
             case "user_watching":
-                return data.description || "Started watching this card";
+                return data.description || activity.description || "Started watching this card";
             case "user_unwatching":
-                return data.description || "Stopped watching this card";
+                return data.description || activity.description || "Stopped watching this card";
             case "cover_set":
-                return data.description || "Card cover was set";
+                return data.description || activity.description || "Card cover was set";
 
             default:
                 return activity.description || data?.description || "Activity occurred";
@@ -301,7 +346,7 @@ const ActivityLog = ({ card, users = [] }) => {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-6">
             {/* Filter */}
             <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -320,7 +365,6 @@ const ActivityLog = ({ card, users = [] }) => {
                     <option value="due_date_changed">Due Dates</option>
                     <option value="assignee_added">Assignees</option>
                     <option value="attachment_added">Attachments</option>
-                    <option value="checklist_item_added">Checklist</option>
                     <option value="column_toggled">Column Changes</option>
                     <option value="priority_changed">Priority</option>
                     <option value="archive">Archived</option>
