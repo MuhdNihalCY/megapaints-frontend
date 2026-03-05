@@ -238,14 +238,18 @@ const PragmaticKanbanCard = ({
             <div className="px-4 pb-4 pt-0">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     {/* Due Date */}
-                    {card.dueDate && (
-                        <div className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            <span>
-                                {new Date(card.dueDate).toLocaleDateString()}
-                            </span>
-                        </div>
-                    )}
+                    {(() => {
+                        const dateValue = card.dueDate?.date ?? card.due_date ?? card.dueDate;
+                        const isValid = dateValue != null && !isNaN(new Date(dateValue).getTime());
+                        return isValid ? (
+                            <div className="flex items-center">
+                                <Calendar className="w-3 h-3 mr-1" />
+                                <span>
+                                    {new Date(dateValue).toLocaleDateString()}
+                                </span>
+                            </div>
+                        ) : null;
+                    })()}
 
                     {/* Assignee */}
                     {card.assignee && (

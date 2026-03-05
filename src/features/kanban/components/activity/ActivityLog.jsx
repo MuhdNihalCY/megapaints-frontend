@@ -27,7 +27,7 @@ import {
     Archive,
 } from "lucide-react";
 
-const ActivityLog = ({ card, users = [] }) => {
+const ActivityLog = ({ card, users = [], columns = [] }) => {
     const [filter, setFilter] = useState("all");
 
     // Use embedded activity from card; resolve user from users when missing
@@ -215,10 +215,40 @@ const ActivityLog = ({ card, users = [] }) => {
                 }
                 return activity.description || data.description || "Card was updated";
 
-            case "card_moved":
-                return (data.fromColumn != null && data.toColumn != null)
-                    ? `Card moved from "${safe(data.fromColumn)}" to "${safe(data.toColumn)}"`
-                    : (activity.description || data.description || "Card was moved");
+            case "card_moved": {
+                const fromColId = data.fromColumn ?? data.from_column;
+                const toColId = data.toColumn ?? data.to_column;
+                const fromSubId = data.fromSubcolumn ?? data.from_subcolumn;
+                const toSubId = data.toSubcolumn ?? data.to_subcolumn;
+                const columnList = Array.isArray(columns) ? columns : [];
+                const getColumnLabel = (colId) => {
+                    if (colId == null) return null;
+                    const col = columnList.find((c) => String(c.id || c._id) === String(colId));
+                    return col ? (col.name ?? col.title ?? colId) : colId;
+                };
+                const getSubcolumnLabel = (colId, subId) => {
+                    if (colId == null || subId == null) return null;
+                    const col = columnList.find((c) => String(c.id || c._id) === String(colId));
+                    const subs = col?.subcolumns ?? col?.sub_columns ?? [];
+                    const sub = subs.find((s) => String(s.id || s._id) === String(subId));
+                    return sub ? (sub.name ?? sub.title ?? subId) : subId;
+                };
+                const formatPlace = (colId, subId) => {
+                    const colLabel = getColumnLabel(colId);
+                    if (colLabel == null) return "?";
+                    const subLabel = getSubcolumnLabel(colId, subId);
+                    if (subLabel != null && String(subLabel) !== "") {
+                        return `${colLabel} › ${subLabel}`;
+                    }
+                    return colLabel;
+                };
+                const fromLabel = formatPlace(fromColId, fromSubId);
+                const toLabel = formatPlace(toColId, toSubId);
+                if (fromColId != null || toColId != null) {
+                    return `Card moved from "${safe(fromLabel, "?")}" to "${safe(toLabel, "?")}"`;
+                }
+                return activity.description || data.description || "Card was moved";
+            }
 
             case "card_deleted":
                 return `Card "${safe(data.title) || activity.description || data.description || "Untitled"}" was deleted`;

@@ -2618,6 +2618,7 @@ const TrelloCardModal = ({
                                             <ActivityLog
                                                 card={formData}
                                                 users={users}
+                                                columns={columns}
                                             />
                                         )}
                                     </div>
