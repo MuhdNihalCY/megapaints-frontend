@@ -3,7 +3,7 @@
  * Comprehensive activity logging with detailed audit trail
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Clock,
@@ -21,35 +21,56 @@ import {
     ToggleRight,
     Filter,
     Search,
+    Eye,
+    EyeOff,
+    Image,
+    Archive,
 } from "lucide-react";
-import { useKanban } from "../../contexts/KanbanContext";
 
-const ActivityLog = ({ card }) => {
-    const { getCardActivity } = useKanban();
-    const [activities, setActivities] = useState([]);
-    const [loading, setLoading] = useState(false);
+const ActivityLog = ({ card, users = [] }) => {
     const [filter, setFilter] = useState("all");
 
-    // Load activities
-    useEffect(() => {
-        loadActivities();
-    }, [card?.id]);
+    // Use embedded activity from card; resolve user from users when missing
+    const activities = useMemo(() => {
+        const log = card?.activityLog || card?.activities || [];
+        const usersById =
+            Array.isArray(users) && users.length > 0
+                ? new Map(
+                      users.map((u) => [
+                          String(u._id || u.id),
+                          {
+                              _id: u._id || u.id,
+                              id: u._id || u.id,
+                              name:
+                                  [u.first_name, u.last_name]
+                                      .filter(Boolean)
+                                      .join(" ") ||
+                                  u.name ||
+                                  u.username ||
+                                  u.email ||
+                                  "Unknown",
+                              username: u.username,
+                              email: u.email,
+                          },
+                      ]),
+                  )
+                : null;
+        return log
+            .map((a) => {
+                if (!a) return null;
+                let user = a.user;
+                if (!user && a.user_id && usersById) {
+                    const id = String(
+                        a.user_id?._id ?? a.user_id?.id ?? a.user_id,
+                    );
+                    user = usersById.get(id) || null;
+                }
+                return { ...a, user: user || a.user };
+            })
+            .filter(Boolean)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }, [card?.activityLog, card?.activities, users]);
 
-    const loadActivities = async () => {
-        if (!card?.id) return;
-
-        setLoading(true);
-        try {
-            const result = await getCardActivity(card.id);
-            setActivities(result || []);
-        } catch (error) {
-            console.error("Error loading activities:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Filter activities
     const filteredActivities = activities.filter((activity) => {
         if (filter === "all") return true;
         return activity.type === filter;
@@ -98,6 +119,14 @@ const ActivityLog = ({ card }) => {
                 return <Filter className="w-4 h-4" />;
             case "search_performed":
                 return <Search className="w-4 h-4" />;
+            case "archive":
+                return <Archive className="w-4 h-4" />;
+            case "user_watching":
+                return <Eye className="w-4 h-4" />;
+            case "user_unwatching":
+                return <EyeOff className="w-4 h-4" />;
+            case "cover_set":
+                return <Image className="w-4 h-4" />;
             default:
                 return <Clock className="w-4 h-4" />;
         }
@@ -146,6 +175,14 @@ const ActivityLog = ({ card }) => {
                 return "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900";
             case "search_performed":
                 return "text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900";
+            case "archive":
+                return "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900";
+            case "user_watching":
+                return "text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900";
+            case "user_unwatching":
+                return "text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900";
+            case "cover_set":
+                return "text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-900";
             default:
                 return "text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900";
         }
@@ -153,18 +190,24 @@ const ActivityLog = ({ card }) => {
 
     // Format activity description
     const formatActivityDescription = (activity) => {
-        const { type, data, user } = activity;
+        const { type, user } = activity;
+        const data = activity.data || {};
 
         switch (type) {
             case "card_created":
                 return `Card "${data.title}" was created`;
 
             case "card_updated":
+                // Prefer backend-generated description (includes exact change, e.g. "Production items: added 2 (A, B); removed 1 (C)")
+                if (data.description) return data.description;
                 const changes = Object.keys(data.changes || {});
                 if (changes.length === 1) {
                     return `Card ${changes[0]} was updated`;
                 }
-                return `Card was updated (${changes.length} fields)`;
+                if (changes.length > 1) {
+                    return `Card was updated (${changes.length} fields)`;
+                }
+                return "Card was updated";
 
             case "card_moved":
                 return `Card moved from "${data.fromColumn}" to "${data.toColumn}"`;
@@ -172,8 +215,14 @@ const ActivityLog = ({ card }) => {
             case "card_deleted":
                 return `Card "${data.title}" was deleted`;
 
-            case "comment_added":
-                return `Comment added: "${data.text?.substring(0, 50)}${data.text?.length > 50 ? "..." : ""}"`;
+            case "comment_added": {
+                const text = data.text ?? data.content;
+                if (text != null && String(text).trim() !== "") {
+                    const preview = String(text).substring(0, 50) + (String(text).length > 50 ? "..." : "");
+                    return `Comment added: "${preview}"`;
+                }
+                return activity.description || data.description || "Comment added";
+            }
 
             case "comment_updated":
                 return `Comment was updated`;
@@ -220,8 +269,17 @@ const ActivityLog = ({ card }) => {
             case "search_performed":
                 return `Search performed: "${data.query}"`;
 
+            case "archive":
+                return data.description || "Card was archived";
+            case "user_watching":
+                return data.description || "Started watching this card";
+            case "user_unwatching":
+                return data.description || "Stopped watching this card";
+            case "cover_set":
+                return data.description || "Card cover was set";
+
             default:
-                return activity.description || "Activity occurred";
+                return activity.description || data?.description || "Activity occurred";
         }
     };
 
@@ -241,14 +299,6 @@ const ActivityLog = ({ card }) => {
 
         return date.toLocaleDateString();
     };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-4">
@@ -273,6 +323,9 @@ const ActivityLog = ({ card }) => {
                     <option value="checklist_item_added">Checklist</option>
                     <option value="column_toggled">Column Changes</option>
                     <option value="priority_changed">Priority</option>
+                    <option value="archive">Archived</option>
+                    <option value="user_watching">Watching</option>
+                    <option value="cover_set">Cover</option>
                 </select>
             </div>
 
@@ -311,8 +364,42 @@ const ActivityLog = ({ card }) => {
                                     {formatActivityDescription(activity)}
                                 </p>
 
-                                {/* Show changes if available */}
-                                {activity.data?.changes && (
+                                {/* Show per-field change details from backend (what exactly was done) */}
+                                {activity.type === "card_updated" &&
+                                    activity.data?.details &&
+                                    Object.keys(activity.data.details).length > 0 && (
+                                        <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs space-y-1">
+                                            {Object.entries(activity.data.details).map(
+                                                ([field, detail]) => (
+                                                    <div
+                                                        key={field}
+                                                        className="text-gray-600 dark:text-gray-400"
+                                                    >
+                                                        {detail && typeof detail === "object" && detail.summary ? (
+                                                            detail.summary
+                                                        ) : detail && typeof detail === "object" && (detail.before !== undefined || detail.after !== undefined) ? (
+                                                            <>
+                                                                <span className="font-medium capitalize">
+                                                                    {field.replace(/_/g, " ")}:
+                                                                </span>{" "}
+                                                                {String(detail.before ?? "—")} → {String(detail.after ?? "—")}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="font-medium capitalize">
+                                                                    {field.replace(/_/g, " ")}:
+                                                                </span>{" "}
+                                                                {String(detail ?? "")}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+
+                                {/* Show changes if available (legacy shape) */}
+                                {activity.data?.changes && !activity.data?.details && (
                                     <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs">
                                         <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Changes:

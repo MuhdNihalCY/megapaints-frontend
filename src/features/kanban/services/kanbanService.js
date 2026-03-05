@@ -6,6 +6,75 @@
 import api from "../../../utils/api";
 import { normalizeComment } from "../utils/commentUtils";
 
+/** Map backend activity_log.action to frontend ActivityLog type */
+const BACKEND_ACTION_TO_TYPE = {
+    task_created: "card_created",
+    task_updated: "card_updated",
+    task_deleted: "card_deleted",
+    task_moved: "card_moved",
+    task_archived: "archive",
+    user_assigned: "assignee_added",
+    user_unassigned: "assignee_removed",
+    user_watching: "user_watching",
+    user_unwatching: "user_unwatching",
+    attachment_added: "attachment_added",
+    attachment_deleted: "attachment_removed",
+    cover_set: "cover_set",
+    comment_edited: "comment_updated",
+};
+
+/**
+ * Normalize a single backend activity_log entry to frontend ActivityLog shape
+ * @param {Object} entry - { action, description, user_id, username, timestamp, metadata }
+ * @param {number} index - index for stable id when backend has no _id
+ * @returns {{ id: string, type: string, data: Object, user: Object, timestamp: string }}
+ */
+function normalizeActivityLogEntry(entry, index) {
+    if (!entry || typeof entry !== "object") return null;
+    const action = entry.action || "card_updated";
+    const type = BACKEND_ACTION_TO_TYPE[action] || action;
+    const timestamp =
+        entry.timestamp instanceof Date
+            ? entry.timestamp.toISOString()
+            : entry.timestamp || new Date().toISOString();
+    let user = null;
+    if (entry.user_id && typeof entry.user_id === "object") {
+        const u = entry.user_id;
+        user = {
+            _id: u._id || u.id,
+            id: u._id || u.id,
+            name:
+                [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+                u.username ||
+                u.email ||
+                "Unknown",
+            username: u.username,
+            email: u.email,
+        };
+    } else if (entry.username) {
+        user = {
+            _id: entry.user_id,
+            id: entry.user_id,
+            name: entry.username,
+            username: entry.username,
+        };
+    }
+    const id =
+        entry._id?.toString?.() ||
+        `activity-${index}-${(timestamp || "").replace(/\D/g, "")}`;
+    return {
+        id,
+        type,
+        data: {
+            description: entry.description || "",
+            ...(entry.metadata || {}),
+        },
+        user,
+        timestamp,
+        description: entry.description, // fallback for default branch in ActivityLog
+    };
+}
+
 /**
  * Kanban Board Service Class
  */
@@ -1697,8 +1766,12 @@ class KanbanService {
             // Additional fields
             attachments: apiTask.attachments || [],
             comments: (apiTask.comments || []).map(normalizeComment),
-            activities: apiTask.activity_log || apiTask.activities || [],
-            activityLog: apiTask.activity_log || apiTask.activities || [],
+            activities: (apiTask.activity_log || apiTask.activities || []).map(
+                (entry, idx) => normalizeActivityLogEntry(entry, idx),
+            ).filter(Boolean),
+            activityLog: (apiTask.activity_log || apiTask.activities || []).map(
+                (entry, idx) => normalizeActivityLogEntry(entry, idx),
+            ).filter(Boolean),
             checklists: apiTask.checklists || [],
             customFields: apiTask.customFields || apiTask.custom_fields || [],
             contacts: apiTask.contacts || [],

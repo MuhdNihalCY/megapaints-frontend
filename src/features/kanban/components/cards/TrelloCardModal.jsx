@@ -2760,9 +2760,7 @@ const TrelloCardModal = ({
                                     {/* Activity Log */}
                                     {showActivityDetails && (
                                         <ActivityLog
-                                            activities={
-                                                formData?.activityLog || []
-                                            }
+                                            card={formData}
                                             users={users}
                                         />
                                     )}
