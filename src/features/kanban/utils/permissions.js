@@ -183,8 +183,8 @@ export const canPerformAction = (
             if (context.fromColumn && context.toColumn) {
                 // Restrict moves to/from < 7 Days and > 7 Days columns
                 const restrictedColumns = [
-                    "less-than-7-days",
-                    "more-than-7-days",
+                    "done-less-7",
+                    "done-more-7",
                 ];
                 if (
                     restrictedColumns.includes(context.fromColumn) ||

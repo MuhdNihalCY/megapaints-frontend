@@ -196,17 +196,22 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     // Check if move is allowed based on DnD rules
     const isMoveAllowed = useCallback(
         (fromColumn, toColumn, fromSubColumn = null, toSubColumn = null) => {
-            // Restrict moves to/from < 7 Days and > 7 Days columns
-            const restrictedSubColumns = [
-                "less-than-7-days",
-                "more-than-7-days",
+            // Done column rules:
+            // - Cards can be moved into Done Today (done-today)
+            // - Cards cannot be moved out of Done Today
+            // - Derived buckets (done-less-7, done-more-7) are read-only (no DnD in/out)
+            const restrictedDestinations = ["done-less-7", "done-more-7"];
+            const restrictedSources = [
+                "done-today",
+                "done-less-7",
+                "done-more-7",
             ];
 
-            if (fromSubColumn && restrictedSubColumns.includes(fromSubColumn)) {
+            if (fromSubColumn && restrictedSources.includes(fromSubColumn)) {
                 return false;
             }
 
-            if (toSubColumn && restrictedSubColumns.includes(toSubColumn)) {
+            if (toSubColumn && restrictedDestinations.includes(toSubColumn)) {
                 return false;
             }
 
@@ -583,9 +588,20 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                     "",
                 );
                 // Find which column this sub-column belongs to
-                const targetColumn = activeColumns.find((col) =>
+                let targetColumn = activeColumns.find((col) =>
                     col.subcolumns?.some((sub) => sub.id === toSubColumnId),
                 );
+                // Fallback: Done Today is rendered with fixed droppableId "subcolumn-done-today"
+                // even when the backend doesn't return that subcolumn (e.g. older boards). Resolve
+                // by column name so moves to Done Today always work.
+                if (!targetColumn && toSubColumnId === "done-today") {
+                    targetColumn = activeColumns.find(
+                        (col) =>
+                            String(col.name || col.title || "")
+                                .trim()
+                                .toLowerCase() === "done",
+                    );
+                }
                 if (targetColumn) {
                     toColumnId = targetColumn.id;
                 }

@@ -1779,6 +1779,7 @@ class KanbanService {
             listId: apiTask.column_id || apiTask.columnId, // Alias for compatibility
             column_id: apiTask.column_id || apiTask.columnId, // Keep original field name for consistency
             subcolumnId: apiTask.subcolumn_id || apiTask.subcolumnId || null,
+            doneTodayAt: apiTask.done_today_at || apiTask.doneTodayAt || null,
             priority: apiTask.priority || "medium",
             labels: labelIds, // Array of label IDs
             labelObjects: (apiTask.labels || []).map((label) => ({
@@ -2161,14 +2162,18 @@ class KanbanService {
         fromSubColumn = null,
         toSubColumn = null,
     ) {
-        // Restrict moves to/from < 7 Days and > 7 Days columns
-        const restrictedSubColumns = ["less-than-7-days", "more-than-7-days"];
+        // Done column rules:
+        // - Cards can be moved into Done Today (done-today)
+        // - Cards cannot be moved out of Done Today
+        // - Derived buckets (done-less-7, done-more-7) are read-only (no DnD in/out)
+        const restrictedDestinations = ["done-less-7", "done-more-7"];
+        const restrictedSources = ["done-today", "done-less-7", "done-more-7"];
 
-        if (fromSubColumn && restrictedSubColumns.includes(fromSubColumn)) {
+        if (fromSubColumn && restrictedSources.includes(fromSubColumn)) {
             return false;
         }
 
-        if (toSubColumn && restrictedSubColumns.includes(toSubColumn)) {
+        if (toSubColumn && restrictedDestinations.includes(toSubColumn)) {
             return false;
         }
 
