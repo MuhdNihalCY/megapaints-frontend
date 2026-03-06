@@ -29,3 +29,43 @@
 .transition-all {
     transition: all 0.2s ease-in-out;
 }
+
+/* Kanban board horizontal scroll: light translucent scrollbar */
+.board-horizontal-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.06);
+}
+
+.dark .board-horizontal-scroll {
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.06);
+}
+
+.board-horizontal-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.board-horizontal-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+}
+
+.board-horizontal-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.board-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.dark .board-horizontal-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.dark .board-horizontal-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.dark .board-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

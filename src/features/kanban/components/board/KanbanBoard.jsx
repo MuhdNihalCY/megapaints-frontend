@@ -129,6 +129,81 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     // Refs
     const boardRef = useRef(null);
     const columnRefs = useRef(new Map());
+    const boardScrollRef = useRef(null);
+    const boardPanAreaRef = useRef(null);
+    const panRef = useRef({ active: false, startX: 0, startScrollLeft: 0 });
+
+    // Pan (click-and-drag) to scroll board horizontally; start on any board area except on cards (cards use DnD)
+    useEffect(() => {
+        const el = boardScrollRef.current;
+        const panArea = boardPanAreaRef.current;
+        if (!el || !panArea) return;
+
+        let rafId = null;
+        const scrollBehaviorOrig = el.style.scrollBehavior;
+
+        const handleMouseDown = (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest("[data-kanban-card]")) return;
+            if (rafId != null) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            panRef.current = {
+                active: true,
+                startX: e.clientX,
+                startScrollLeft: el.scrollLeft,
+            };
+            el.style.cursor = "grabbing";
+            el.style.userSelect = "none";
+            el.style.scrollBehavior = "auto";
+        };
+
+        const handleMouseMove = (e) => {
+            const { active, startX, startScrollLeft } = panRef.current;
+            if (!active) return;
+            const dx = startX - e.clientX;
+            const nextScrollLeft = Math.max(
+                0,
+                Math.min(
+                    el.scrollWidth - el.clientWidth,
+                    startScrollLeft + dx,
+                ),
+            );
+            if (rafId != null) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                el.scrollLeft = nextScrollLeft;
+                rafId = null;
+            });
+        };
+
+        const handleMouseUp = () => {
+            if (!panRef.current.active) return;
+            panRef.current.active = false;
+            if (rafId != null) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            if (el) {
+                el.style.cursor = "";
+                el.style.userSelect = "";
+                el.style.scrollBehavior = scrollBehaviorOrig || "";
+            }
+        };
+
+        el.addEventListener("mousedown", handleMouseDown, { passive: true });
+        document.addEventListener("mousemove", handleMouseMove, {
+            passive: true,
+        });
+        document.addEventListener("mouseup", handleMouseUp, { passive: true });
+
+        return () => {
+            if (rafId != null) cancelAnimationFrame(rafId);
+            el.removeEventListener("mousedown", handleMouseDown);
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, []);
 
     // Get active columns
     const activeColumns = useMemo(() => {
@@ -811,9 +886,14 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 {/* Board Content */}
                 <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="flex-1 overflow-hidden">
-                        <div className="h-full overflow-x-auto">
-                            <div className="flex gap-2 p-3 pr-8">
-                            {/* <div className="flex gap-2 p-3 pr-8 h-full"> */}
+                        <div
+                            ref={boardScrollRef}
+                            className="board-horizontal-scroll h-full overflow-x-auto overflow-y-hidden scroll-smooth cursor-grab"
+                        >
+                            <div
+                                ref={boardPanAreaRef}
+                                className="flex gap-2 p-3 pr-8"
+                            >
                                 {activeColumns.map((column) => {
                                     const columnCards = getCardsByColumn(
                                         column.id,

@@ -134,6 +134,7 @@ const PragmaticKanbanCard = ({
 
     return (
         <motion.div
+            data-kanban-card
             ref={cardRef}
             className={`
         relative bg-white/90 dark:bg-gray-700/90 backdrop-blur-sm rounded-xl shadow-sm border border-blue-100 dark:border-gray-600
