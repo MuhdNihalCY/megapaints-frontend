@@ -206,6 +206,7 @@ const TrelloCardModal = ({
             "description",
             "priority",
             "due_date",
+            "due_date_completed",
             "start_date",
             "column_id",
             "assignees",
@@ -229,6 +230,15 @@ const TrelloCardModal = ({
         if (cardData.dueDate !== undefined) {
             transformed.due_date =
                 cardData.dueDate?.date || cardData.dueDate || null;
+            if (
+                typeof cardData.dueDate === "object" &&
+                cardData.dueDate !== null &&
+                "completed" in cardData.dueDate
+            ) {
+                transformed.due_date_completed = Boolean(
+                    cardData.dueDate.completed,
+                );
+            }
         }
         if (cardData.due_date !== undefined) {
             transformed.due_date = cardData.due_date;

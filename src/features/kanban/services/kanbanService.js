@@ -1917,6 +1917,11 @@ class KanbanService {
                 frontendTask.dueDate.date
             ) {
                 apiData.due_date = frontendTask.dueDate.date;
+                if ("completed" in frontendTask.dueDate) {
+                    apiData.due_date_completed = Boolean(
+                        frontendTask.dueDate.completed,
+                    );
+                }
             } else if (frontendTask.dueDate) {
                 apiData.due_date = frontendTask.dueDate;
             } else {
@@ -1925,6 +1930,11 @@ class KanbanService {
         }
         if (frontendTask.due_date !== undefined) {
             apiData.due_date = frontendTask.due_date;
+        }
+        if (frontendTask.due_date_completed !== undefined) {
+            apiData.due_date_completed = Boolean(
+                frontendTask.due_date_completed,
+            );
         }
 
         if (frontendTask.startDate !== undefined) {
