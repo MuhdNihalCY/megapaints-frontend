@@ -37,6 +37,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         cards,
         board,
         user: currentUser,
+        archivedCards,
         moveCard,
         createCard,
         copyCard,
@@ -48,6 +49,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         filters,
         setFilters,
         clearFilters,
+        searchArchivedCards,
     } = useKanban();
 
     // Use board ID from context; avoid invalid fallbacks that break API validation
@@ -72,6 +74,31 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     const [isEditingCard, setIsEditingCard] = useState(false);
     const [cardToMove, setCardToMove] = useState(null);
     const [cardToCopy, setCardToCopy] = useState(null);
+
+    // Archived column: search-only; debounced search term
+    const [archivedSearchTerm, setArchivedSearchTerm] = useState("");
+    const archivedSearchDebounceRef = useRef(null);
+
+    // Debounced search for archived column: call searchArchivedCards(boardId, term); empty term clears list
+    useEffect(() => {
+        if (archivedSearchDebounceRef.current) {
+            clearTimeout(archivedSearchDebounceRef.current);
+            archivedSearchDebounceRef.current = null;
+        }
+        const term = (archivedSearchTerm || "").trim();
+        if (!boardId) {
+            searchArchivedCards(null, "");
+            return;
+        }
+        archivedSearchDebounceRef.current = setTimeout(() => {
+            searchArchivedCards(boardId, term);
+        }, 350);
+        return () => {
+            if (archivedSearchDebounceRef.current) {
+                clearTimeout(archivedSearchDebounceRef.current);
+            }
+        };
+    }, [archivedSearchTerm, boardId, searchArchivedCards]);
 
     // Open card modal when returning from CreateFormula with newFormulaId (to attach formula to production item)
     useEffect(() => {
@@ -732,7 +759,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
 
             <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
                 {/* Customer Management Actions */}
-                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
+                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3 flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
@@ -752,19 +779,19 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 </div>
 
                 {/* Kanban Board Controls */}
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3 flex-shrink-0">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center space-x-3 min-w-0">
+                            <h1 className="text-xl font-semibold text-gray-800 dark:text-white truncate">
                                 Kanban Board
                             </h1>
-                            <div className="text-sm text-gray-600 dark:text-gray-300">
+                            <div className="text-sm text-gray-600 dark:text-gray-300 flex-shrink-0 hidden sm:inline">
                                 {cards.length} cards across{" "}
                                 {activeColumns.length} columns
                             </div>
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-shrink-0">
                             {/* Search (server search → results in modal) */}
                             <div className="relative flex items-center gap-1">
                                 <div className="relative">
@@ -801,7 +828,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="flex-1 overflow-hidden">
                         <div className="h-full overflow-x-auto">
-                            <div className="flex gap-2 p-3 h-full">
+                            <div className="flex gap-2 p-3 pr-8 h-full">
                                 {activeColumns.map((column) => {
                                     const columnCards = getCardsByColumn(
                                         column.id,
@@ -858,9 +885,82 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                                                 onDragEnd={handleDragEnd}
                                                 boardId={boardId}
                                             />
-                                        </motion.div>
-                                    );
-                                })}
+                                                </motion.div>
+                                            );
+                                        })}
+                                {/* Archived column: always visible, search-only */}
+                                <motion.div
+                                    key="archived"
+                                    className="flex-shrink-0 w-56"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <div className="flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                Archived
+                                            </h3>
+                                        </div>
+                                        <div className="p-2 space-y-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                                            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block">
+                                                Search to show cards
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Search archived..."
+                                                value={archivedSearchTerm}
+                                                onChange={(e) =>
+                                                    setArchivedSearchTerm(e.target.value)
+                                                }
+                                                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                        <div className="space-y-2 min-h-[120px] p-2 overflow-y-auto max-h-[calc(100vh-280px)]">
+                                            {archivedCards.length === 0 ? (
+                                                <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-6">
+                                                    {archivedSearchTerm.trim()
+                                                        ? "No matching archived cards"
+                                                        : "Search to show cards"}
+                                                </div>
+                                            ) : (
+                                                archivedCards.map((card) => (
+                                                    <div
+                                                        key={card.id || card._id}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() =>
+                                                            handleCardClick(card)
+                                                        }
+                                                        onKeyDown={(e) => {
+                                                            if (
+                                                                e.key ===
+                                                                    "Enter" ||
+                                                                e.key === " "
+                                                            ) {
+                                                                e.preventDefault();
+                                                                handleCardClick(
+                                                                    card,
+                                                                );
+                                                            }
+                                                        }}
+                                                        className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500 rounded-lg"
+                                                    >
+                                                        <PragmaticKanbanCard
+                                                            card={card}
+                                                            onCardClick={() =>
+                                                                handleCardClick(
+                                                                    card,
+                                                                )
+                                                            }
+                                                            isDragging={false}
+                                                        />
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
                             </div>
                         </div>
                     </div>

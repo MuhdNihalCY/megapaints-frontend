@@ -24,6 +24,7 @@ import { canPerformAction as checkPermission } from "../utils/permissions";
 // Initial state
 const initialState = {
     cards: [],
+    archivedCards: [],
     columns: [],
     users: [],
     labels: [],
@@ -52,6 +53,7 @@ const ACTION_TYPES = {
     SET_LOADING: "SET_LOADING",
     SET_ERROR: "SET_ERROR",
     SET_CARDS: "SET_CARDS",
+    SET_ARCHIVED_CARDS: "SET_ARCHIVED_CARDS",
     SET_COLUMNS: "SET_COLUMNS",
     SET_USERS: "SET_USERS",
     SET_LABELS: "SET_LABELS",
@@ -84,6 +86,9 @@ const kanbanReducer = (state, action) => {
 
         case ACTION_TYPES.SET_CARDS:
             return { ...state, cards: action.payload };
+
+        case ACTION_TYPES.SET_ARCHIVED_CARDS:
+            return { ...state, archivedCards: action.payload };
 
         case ACTION_TYPES.SET_COLUMNS:
             return { ...state, columns: action.payload };
@@ -311,6 +316,31 @@ export const KanbanProvider = ({ children, user }) => {
                         name: board.name || "Kanban Board",
                         ...board,
                     };
+                    // Fetch full board by ID so we have settings (e.g. show_archived_column).
+                    // List endpoint may return boards without full settings on some code paths.
+                    try {
+                        const fullBoardRes = await kanbanService.getBoard(
+                            board.id || board._id,
+                        );
+                        if (
+                            fullBoardRes?.status === "success" &&
+                            (fullBoardRes?.data?.board || fullBoardRes?.data)
+                        ) {
+                            const fullBoard =
+                                fullBoardRes.data.board || fullBoardRes.data;
+                            if (
+                                fullBoard.settings &&
+                                typeof fullBoard.settings === "object"
+                            ) {
+                                board = {
+                                    ...board,
+                                    settings: fullBoard.settings,
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        // Keep board from list if getBoard fails
+                    }
                 }
             } catch (error) {
                 console.error("🔴 Failed to fetch boards:", error);
@@ -496,6 +526,9 @@ export const KanbanProvider = ({ children, user }) => {
                     });
                     // Continue with empty cards array if fetch fails
                 }
+
+                // Archived column is search-only: do not load archived cards on init; start empty.
+                dispatch({ type: ACTION_TYPES.SET_ARCHIVED_CARDS, payload: [] });
             } else {
             }
 
@@ -538,7 +571,98 @@ export const KanbanProvider = ({ children, user }) => {
         }
     }, []);
 
-    // Create card
+    // Refetch main cards and archived cards (e.g. after archive/unarchive or board settings change)
+    const refetchCardsAndArchived = useCallback(
+        async (boardIdParam) => {
+            const boardId =
+                boardIdParam ||
+                state.board?.id ||
+                state.board?._id;
+            if (!boardId) return;
+            try {
+                const cardsResponse = await kanbanService.getTasks({
+                    board_id: boardId,
+                });
+                let backendCards = [];
+                if (cardsResponse?.status === "success") {
+                    backendCards =
+                        cardsResponse.data?.tasks ||
+                        cardsResponse.data?.cards ||
+                        cardsResponse.data ||
+                        [];
+                } else if (cardsResponse?.data?.tasks) {
+                    backendCards = cardsResponse.data.tasks;
+                } else if (Array.isArray(cardsResponse)) {
+                    backendCards = cardsResponse;
+                }
+                const cards = (backendCards || [])
+                    .map((card) => {
+                        try {
+                            return kanbanService.transformCardData(card);
+                        } catch (e) {
+                            return null;
+                        }
+                    })
+                    .filter(Boolean);
+                dispatch({ type: ACTION_TYPES.SET_CARDS, payload: cards });
+                dispatch({ type: ACTION_TYPES.SET_ARCHIVED_CARDS, payload: [] });
+            } catch (error) {
+                console.error("refetchCardsAndArchived error:", error);
+            }
+        },
+        [state.board],
+    );
+
+    // Search archived cards for the Archived column (search-only; empty term clears the list).
+    const searchArchivedCards = useCallback(
+        async (boardId, searchTerm) => {
+            const term = typeof searchTerm === "string" ? searchTerm.trim() : "";
+            if (!boardId) {
+                dispatch({ type: ACTION_TYPES.SET_ARCHIVED_CARDS, payload: [] });
+                return;
+            }
+            if (!term) {
+                dispatch({ type: ACTION_TYPES.SET_ARCHIVED_CARDS, payload: [] });
+                return;
+            }
+            try {
+                const archivedResponse = await kanbanService.getTasks({
+                    board_id: boardId,
+                    is_archived: true,
+                    search: term,
+                });
+                let backendArchived = [];
+                if (archivedResponse?.status === "success") {
+                    backendArchived =
+                        archivedResponse.data?.tasks ||
+                        archivedResponse.data?.cards ||
+                        archivedResponse.data ||
+                        [];
+                } else if (archivedResponse?.data?.tasks) {
+                    backendArchived = archivedResponse.data.tasks;
+                } else if (Array.isArray(archivedResponse)) {
+                    backendArchived = archivedResponse;
+                }
+                const list = (backendArchived || [])
+                    .map((card) => {
+                        try {
+                            return kanbanService.transformCardData(card);
+                        } catch (e) {
+                            return null;
+                        }
+                    })
+                    .filter(Boolean);
+                dispatch({
+                    type: ACTION_TYPES.SET_ARCHIVED_CARDS,
+                    payload: list,
+                });
+            } catch (err) {
+                console.error("searchArchivedCards error:", err);
+                dispatch({ type: ACTION_TYPES.SET_ARCHIVED_CARDS, payload: [] });
+            }
+        },
+        [],
+    );
     const createCard = useCallback(
         async (cardData) => {
             try {
@@ -658,6 +782,16 @@ export const KanbanProvider = ({ children, user }) => {
                         payload: transformedCard,
                     });
 
+                    // When archive state changed, refetch main and archived lists so card moves to/from Archived column
+                    if (backendUpdates.is_archived !== undefined) {
+                        const boardId =
+                            transformedCard.board_id ||
+                            transformedCard.boardId ||
+                            state.board?.id ||
+                            state.board?._id;
+                        refetchCardsAndArchived(boardId);
+                    }
+
                     // Note: Activity logging is handled in TrelloCardModal
 
                     dispatch({
@@ -677,7 +811,7 @@ export const KanbanProvider = ({ children, user }) => {
                 throw error;
             }
         },
-        [state.user],
+        [state.user, state.board, refetchCardsAndArchived],
     );
 
     // Delete card
@@ -1503,6 +1637,8 @@ export const KanbanProvider = ({ children, user }) => {
         setSearchTerm,
         clearFilters,
         clearError,
+        refetchCardsAndArchived,
+        searchArchivedCards,
 
         // Attachment Actions
         addAttachment,
