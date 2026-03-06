@@ -76,10 +76,7 @@ const CopyCardModal = ({
                 throw new Error("Failed to reserve identifier");
             }
 
-            const cards = getCardsByColumn
-                ? getCardsByColumn(targetColumnId)
-                : [];
-            const position = cards.length * 1000;
+            const position = 0;
 
             const title =
                 card?.title?.trim() ?

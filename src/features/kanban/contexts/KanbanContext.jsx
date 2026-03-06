@@ -101,7 +101,52 @@ const kanbanReducer = (state, action) => {
             return { ...state, board: action.payload };
 
         case ACTION_TYPES.ADD_CARD:
-            return { ...state, cards: [...state.cards, action.payload] };
+            // Backend create/copy inserts at position 0 and shifts existing cards down.
+            // To avoid a transient UI sort tie (two cards at position 0) before refetch,
+            // mirror the shift locally when adding a top-position card.
+            {
+                const newCard = action.payload;
+                const newPosition = newCard?.position ?? 0;
+                const newColumnId =
+                    newCard?.columnId || newCard?.listId || newCard?.column_id;
+                const newSubcolumnId =
+                    newCard?.subcolumnId ?? newCard?.subcolumn_id ?? null;
+
+                const isMainArea =
+                    newSubcolumnId == null || String(newSubcolumnId) === "";
+
+                const shiftedCards =
+                    newPosition === 0 && newColumnId != null
+                        ? state.cards.map((card) => {
+                              const cardColumnId =
+                                  card?.columnId ||
+                                  card?.listId ||
+                                  card?.column_id;
+                              const cardSubcolumnId =
+                                  card?.subcolumnId ??
+                                  card?.subcolumn_id ??
+                                  null;
+                              const cardIsMainArea =
+                                  cardSubcolumnId == null ||
+                                  String(cardSubcolumnId) === "";
+
+                              const sameColumn =
+                                  String(cardColumnId) === String(newColumnId);
+                              const sameArea = isMainArea
+                                  ? cardIsMainArea
+                                  : String(cardSubcolumnId) ===
+                                    String(newSubcolumnId);
+
+                              if (!sameColumn || !sameArea) return card;
+                              return {
+                                  ...card,
+                                  position: (card.position ?? 0) + 1000,
+                              };
+                          })
+                        : state.cards;
+
+                return { ...state, cards: [...shiftedCards, newCard] };
+            }
 
         case ACTION_TYPES.UPDATE_CARD:
             return {
