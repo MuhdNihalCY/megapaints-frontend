@@ -265,7 +265,7 @@ const KanbanColumn = ({
                                         <div
                                             ref={provided.innerRef}
                                             {...provided.droppableProps}
-                                            className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                            className={`space-y-2 min-h-[160px] max-h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden scroll-smooth ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                                         >
                                             {subcolumnCards.map(
                                                 (card, index) => (
@@ -421,7 +421,7 @@ const KanbanColumn = ({
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
-                                    className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                    className={`space-y-2 min-h-[160px] max-h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden scroll-smooth ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                                 >
                                     {doneTodayCards.map((card, index) => (
                                         <CardComponent
@@ -463,7 +463,7 @@ const KanbanColumn = ({
                         </div>
                     </div>
 
-                    <div className="px-3 space-y-2 min-h-[160px]">
+                    <div className="px-3 space-y-2 min-h-[160px] max-h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden scroll-smooth">
                         {less7Cards.map((card, index) => (
                             <CardComponent
                                 key={card.id || card._id}
@@ -508,7 +508,7 @@ const KanbanColumn = ({
                         </div>
                     </div>
 
-                    <div className="px-3 space-y-2 min-h-[160px]">
+                    <div className="px-3 space-y-2 min-h-[160px] max-h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden scroll-smooth">
                         {doneMore7Loading && (
                             <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
                                 Searching…
@@ -622,7 +622,7 @@ const KanbanColumn = ({
                         <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                            className={`space-y-2 min-h-[160px] max-h-[calc(100vh-320px)] overflow-y-auto overflow-x-hidden scroll-smooth ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                         >
                             {cards.map((card, index) => (
                                 <Draggable
