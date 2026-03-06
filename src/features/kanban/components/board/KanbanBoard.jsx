@@ -218,12 +218,12 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
     // Calculate dynamic column width for grouped columns
     const getColumnWidth = useCallback((column) => {
         if (!column.isGrouped || !column.subcolumns?.length) {
-            return "w-80";
+            return "w-56";
         }
 
         const subcolumnCount = column.subcolumns.length;
-        const gapWidth = 24; // gap-6 = 24px
-        const subcolumnWidth = 320; // w-80 = 320px
+        const gapWidth = 8; // gap-2 = 8px
+        const subcolumnWidth = 224; // w-56 = 224px
         const totalWidth =
             subcolumnCount * subcolumnWidth + (subcolumnCount - 1) * gapWidth;
 
@@ -785,7 +785,7 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                 <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="flex-1 overflow-hidden">
                         <div className="h-full overflow-x-auto">
-                            <div className="flex gap-2 lg:gap-2 p-4 lg:p-6 h-full ">
+                            <div className="flex gap-2 p-3 h-full">
                                 {activeColumns.map((column) => {
                                     const columnCards = getCardsByColumn(
                                         column.id,
@@ -799,10 +799,18 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                                         ? column.subcolumns.length
                                         : 0;
 
-                                    // Calculate width based on subcolumn count - each subcolumn is w-80 (320px) + gap (32px)
-                                    const columnWidth = hasSubcolumns
-                                        ? `w-[${320 * subcolumnCount + 32 * Math.max(0, subcolumnCount - 1)}px]`
-                                        : "w-80";
+                                    const subcolumnWidth = 224; // matches w-56
+                                    const gapWidth = 8; // matches gap-2
+                                    const groupedWidthPx =
+                                        subcolumnCount * subcolumnWidth +
+                                        gapWidth *
+                                            Math.max(0, subcolumnCount - 1);
+                                    const columnClassName = hasSubcolumns
+                                        ? "flex-shrink-0"
+                                        : "flex-shrink-0 w-56";
+                                    const columnStyle = hasSubcolumns
+                                        ? { width: `${groupedWidthPx}px` }
+                                        : undefined;
 
                                     return (
                                         <motion.div
@@ -815,7 +823,8 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
                                                     );
                                                 }
                                             }}
-                                            className={`flex-shrink-0 ${columnWidth}`}
+                                            className={columnClassName}
+                                            style={columnStyle}
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ duration: 0.3 }}

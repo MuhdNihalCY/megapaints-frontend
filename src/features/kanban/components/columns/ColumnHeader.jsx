@@ -21,7 +21,7 @@ const ColumnHeader = ({
     return (
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-gray-900 dark:text-white text-lg">
+                <h2 className="font-semibold text-gray-900 dark:text-white text-base">
                     {column.title}
                 </h2>
 

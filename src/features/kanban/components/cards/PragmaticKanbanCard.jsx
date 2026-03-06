@@ -100,7 +100,7 @@ const PragmaticKanbanCard = ({
             }
           : {};
 
-    const coverHeight = coverImage?.size === "full" ? "260px" : "116px"; // Standard card cover height
+    const coverHeight = coverImage?.size === "full" ? "180px" : "88px"; // Compact desktop density
 
     // Handle card click
     const handleCardClick = (e) => {
@@ -152,8 +152,8 @@ const PragmaticKanbanCard = ({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             whileHover={{
-                y: -2,
-                scale: 1.02,
+                y: -1,
+                scale: 1.01,
                 transition: { duration: 0.2 },
             }}
             whileTap={{
@@ -177,7 +177,7 @@ const PragmaticKanbanCard = ({
             )}
 
             {/* Card Header */}
-            <div className="p-4 pb-3">
+            <div className="p-3 pb-2">
                 <div className="flex items-start justify-between mb-2">
                     <h3 className="text-sm font-medium text-gray-800 dark:text-white line-clamp-2 flex-1">
                         {card.title}
@@ -235,7 +235,7 @@ const PragmaticKanbanCard = ({
             </div>
 
             {/* Card Footer */}
-            <div className="px-4 pb-4 pt-0">
+            <div className="px-3 pb-3 pt-0">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     {/* Due Date */}
                     {(() => {

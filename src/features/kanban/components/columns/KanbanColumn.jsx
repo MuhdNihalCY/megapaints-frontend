@@ -152,7 +152,7 @@ const KanbanColumn = ({
         const renderedSubColumns = [];
 
         return (
-            <div className="flex gap-6">
+            <div className="flex gap-2">
                 {subColumns.map((subcolumn) => {
                     // Check if this sub-column is disabled (for user-based sub-columns)
                     const isDisabled =
@@ -194,10 +194,10 @@ const KanbanColumn = ({
                     return (
                         <div
                             key={subcolumn.id}
-                            className={`flex flex-col w-80 ${isDisabled && isOfficeOrSales ? "opacity-50" : ""}`}
+                            className={`flex flex-col w-56 ${isDisabled && isOfficeOrSales ? "opacity-50" : ""}`}
                         >
                             {/* Subcolumn Header */}
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3">
+                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 flex-1">
                                         <h3 className="font-medium text-gray-900 dark:text-white text-sm">
@@ -255,7 +255,7 @@ const KanbanColumn = ({
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className={`space-y-3 min-h-[200px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                        className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                                     >
                                         {subcolumnCards.map((card, index) => (
                                             <Draggable
@@ -324,7 +324,7 @@ const KanbanColumn = ({
                     <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-3 min-h-[200px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                        className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                     >
                         {cards.map((card, index) => (
                             <Draggable
@@ -380,7 +380,7 @@ const KanbanColumn = ({
             onMouseLeave={() => setIsHovered(false)}
         >
             {/* Column Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                 <ColumnHeader
                     column={column}
                     canToggle={canToggleColumn}
@@ -401,7 +401,7 @@ const KanbanColumn = ({
             </div>
 
             {/* Column Content */}
-            <div className="p-4 flex-1">
+            <div className="p-3 flex-1">
                 {isGrouped ? renderSubcolumns() : renderSimpleColumn()}
             </div>
         </div>
