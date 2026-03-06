@@ -39,9 +39,10 @@ const KanbanColumn = ({
     const subColumns = column.subcolumns || column.sub_columns || [];
     const isGrouped =
         column.isGrouped || column.has_sub_columns || subColumns.length > 0;
-    const isDoneColumn = String(column.name || column.title || "")
-        .trim()
-        .toLowerCase() === "done";
+    const isDoneColumn =
+        String(column.name || column.title || "")
+            .trim()
+            .toLowerCase() === "done";
 
     // Debug logging for sub-columns
     useEffect(() => {
@@ -202,10 +203,10 @@ const KanbanColumn = ({
                     return (
                         <div
                             key={subcolumn.id}
-                            className={`flex flex-col w-56 ${isDisabled && isOfficeOrSales ? "opacity-50" : ""}`}
+                            className={`flex p-1 flex-col w-56 bg-white dark:bg-gray-900 rounded-b-lg pb-5 h-fit scroll-smooth ${isDisabled && isOfficeOrSales ? "opacity-50" : ""}`}
                         >
                             {/* Subcolumn Header */}
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-2">
+                            <div className="p-2 mb-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 flex-1">
                                         <h3 className="font-medium text-gray-900 dark:text-white text-sm">
@@ -255,68 +256,81 @@ const KanbanColumn = ({
                                 )}
                             </div>
 
-                            {/* Subcolumn Cards - Droppable for sub-column */}
-                            <Droppable
-                                droppableId={`subcolumn-${subcolumn.id}`}
-                            >
-                                {(provided, snapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                        className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                                    >
-                                        {subcolumnCards.map((card, index) => (
-                                            <Draggable
-                                                key={card.id}
-                                                draggableId={card.id}
-                                                index={index}
-                                            >
-                                                {(provided, snapshot) => (
-                                                    <div
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        {...provided.dragHandleProps}
-                                                        style={{
-                                                            ...provided
-                                                                .draggableProps
-                                                                .style,
-                                                            opacity:
-                                                                snapshot.isDragging
-                                                                    ? 0.5
-                                                                    : 1,
-                                                        }}
+                            <div className="px-2 ">
+                                {/* Subcolumn Cards - Droppable for sub-column */}
+                                <Droppable
+                                    droppableId={`subcolumn-${subcolumn.id}`}
+                                >
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.droppableProps}
+                                            className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                        >
+                                            {subcolumnCards.map(
+                                                (card, index) => (
+                                                    <Draggable
+                                                        key={card.id}
+                                                        draggableId={card.id}
+                                                        index={index}
                                                     >
-                                                        <CardComponent
-                                                            card={card}
-                                                            labels={labels}
-                                                            onCardClick={
-                                                                onCardClick
-                                                            }
-                                                            onClick={() =>
-                                                                onCardClick?.(
-                                                                    card,
-                                                                )
-                                                            }
-                                                            onDragEnd={
-                                                                onDragEnd
-                                                            }
-                                                            index={index}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-                                        {provided.placeholder}
+                                                        {(
+                                                            provided,
+                                                            snapshot,
+                                                        ) => (
+                                                            <div
+                                                                ref={
+                                                                    provided.innerRef
+                                                                }
+                                                                {...provided.draggableProps}
+                                                                {...provided.dragHandleProps}
+                                                                style={{
+                                                                    ...provided
+                                                                        .draggableProps
+                                                                        .style,
+                                                                    opacity:
+                                                                        snapshot.isDragging
+                                                                            ? 0.5
+                                                                            : 1,
+                                                                }}
+                                                            >
+                                                                <CardComponent
+                                                                    card={card}
+                                                                    labels={
+                                                                        labels
+                                                                    }
+                                                                    onCardClick={
+                                                                        onCardClick
+                                                                    }
+                                                                    onClick={() =>
+                                                                        onCardClick?.(
+                                                                            card,
+                                                                        )
+                                                                    }
+                                                                    onDragEnd={
+                                                                        onDragEnd
+                                                                    }
+                                                                    index={
+                                                                        index
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ),
+                                            )}
+                                            {provided.placeholder}
 
-                                        {/* Empty state */}
-                                        {subcolumnCards.length === 0 && (
-                                            <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
-                                                No cards
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </Droppable>
+                                            {/* Empty state */}
+                                            {subcolumnCards.length === 0 && (
+                                                <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
+                                                    No cards
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </div>
                         </div>
                     );
                 })}
@@ -345,7 +359,11 @@ const KanbanColumn = ({
             // Backward-compatible fallback: if card is stored as done-today but has no doneTodayAt yet,
             // prefer updatedAt as the likely move time.
             if (card?.subcolumnId === "done-today") {
-                const fallback = card?.updatedAt || card?.updated_at || card?.createdAt || card?.created_at;
+                const fallback =
+                    card?.updatedAt ||
+                    card?.updated_at ||
+                    card?.createdAt ||
+                    card?.created_at;
                 const d = fallback ? new Date(fallback) : null;
                 if (d && !isNaN(d.getTime())) return d;
             }
@@ -353,17 +371,27 @@ const KanbanColumn = ({
         };
 
         const eligible = (cards || [])
-            .filter((c) => (c?.subcolumnId === "done-today" || c?.doneTodayAt || c?.done_today_at))
+            .filter(
+                (c) =>
+                    c?.subcolumnId === "done-today" ||
+                    c?.doneTodayAt ||
+                    c?.done_today_at,
+            )
             .map((c) => ({ card: c, doneAt: parseDoneAt(c) }))
             .filter((x) => x.doneAt);
 
         const doneTodayCards = eligible
-            .filter((x) => x.doneAt >= startOfToday && x.doneAt < startOfTomorrow)
+            .filter(
+                (x) => x.doneAt >= startOfToday && x.doneAt < startOfTomorrow,
+            )
             .sort((a, b) => b.doneAt - a.doneAt)
             .map((x) => x.card);
 
         const less7Cards = eligible
-            .filter((x) => x.doneAt >= startOfLess7Window && x.doneAt < startOfToday)
+            .filter(
+                (x) =>
+                    x.doneAt >= startOfLess7Window && x.doneAt < startOfToday,
+            )
             .sort((a, b) => b.doneAt - a.doneAt)
             .map((x) => x.card);
 
@@ -372,8 +400,8 @@ const KanbanColumn = ({
         return (
             <div className="flex gap-2">
                 {/* Done Today (droppable, but cards are not draggable out) */}
-                <div className="flex flex-col w-56">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-2">
+                <div className="flex flex-col w-56 h-fit scroll-smooth bg-white dark:bg-gray-900 rounded-b-lg pb-5">
+                    <div className="p-2 mb-2">
                         <div className="flex items-center justify-between">
                             <h3 className="font-medium text-gray-900 dark:text-white text-sm">
                                 Done Today
@@ -387,39 +415,41 @@ const KanbanColumn = ({
                         </div>
                     </div>
 
-                    <Droppable droppableId="subcolumn-done-today">
-                        {(provided, snapshot) => (
-                            <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                            >
-                                {doneTodayCards.map((card, index) => (
-                                    <CardComponent
-                                        key={card.id || card._id}
-                                        card={card}
-                                        labels={labels}
-                                        onCardClick={onCardClick}
-                                        onClick={() => onCardClick?.(card)}
-                                        onDragEnd={onDragEnd}
-                                        index={index}
-                                    />
-                                ))}
-                                {provided.placeholder}
+                    <div className="px-3 ">
+                        <Droppable droppableId="subcolumn-done-today">
+                            {(provided, snapshot) => (
+                                <div
+                                    ref={provided.innerRef}
+                                    {...provided.droppableProps}
+                                    className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                >
+                                    {doneTodayCards.map((card, index) => (
+                                        <CardComponent
+                                            key={card.id || card._id}
+                                            card={card}
+                                            labels={labels}
+                                            onCardClick={onCardClick}
+                                            onClick={() => onCardClick?.(card)}
+                                            onDragEnd={onDragEnd}
+                                            index={index}
+                                        />
+                                    ))}
+                                    {provided.placeholder}
 
-                                {doneTodayCards.length === 0 && (
-                                    <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
-                                        No cards
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Droppable>
+                                    {doneTodayCards.length === 0 && (
+                                        <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
+                                            No cards
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </Droppable>
+                    </div>
                 </div>
 
                 {/* < 7 Days (read-only, no DnD) */}
-                <div className="flex flex-col w-56">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-2">
+                <div className="flex flex-col w-56 h-fit scroll-smooth bg-white dark:bg-gray-900 rounded-b-lg pb-5">
+                    <div className="p-2 mb-2">
                         <div className="flex items-center justify-between">
                             <h3 className="font-medium text-gray-900 dark:text-white text-sm">
                                 &lt; 7 Days
@@ -433,7 +463,7 @@ const KanbanColumn = ({
                         </div>
                     </div>
 
-                    <div className="space-y-2 min-h-[160px]">
+                    <div className="px-3 space-y-2 min-h-[160px]">
                         {less7Cards.map((card, index) => (
                             <CardComponent
                                 key={card.id || card._id}
@@ -455,8 +485,8 @@ const KanbanColumn = ({
                 </div>
 
                 {/* > 7 Days (search-only, read-only results) */}
-                <div className="flex flex-col w-56">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-2">
+                <div className="flex flex-col w-56 h-fit scroll-smooth bg-white dark:bg-gray-900 rounded-b-lg pb-5">
+                    <div className="p-2 mb-2">
                         <div className="flex items-center justify-between">
                             <h3 className="font-medium text-gray-900 dark:text-white text-sm">
                                 &gt; 7 Days
@@ -466,7 +496,9 @@ const KanbanColumn = ({
                             <input
                                 type="text"
                                 value={doneMore7Query}
-                                onChange={(e) => setDoneMore7Query(e.target.value)}
+                                onChange={(e) =>
+                                    setDoneMore7Query(e.target.value)
+                                }
                                 placeholder="Search older Done cards…"
                                 className="w-full px-2 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400"
                             />
@@ -476,7 +508,7 @@ const KanbanColumn = ({
                         </div>
                     </div>
 
-                    <div className="space-y-2 min-h-[160px]">
+                    <div className="px-3 space-y-2 min-h-[160px]">
                         {doneMore7Loading && (
                             <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
                                 Searching…
@@ -584,54 +616,59 @@ const KanbanColumn = ({
     // Render simple column (non-grouped) - Droppable for column
     const renderSimpleColumn = () => {
         return (
-            <Droppable droppableId={`column-${column.id}`}>
-                {(provided, snapshot) => (
-                    <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                    >
-                        {cards.map((card, index) => (
-                            <Draggable
-                                key={card.id}
-                                draggableId={card.id}
-                                index={index}
-                            >
-                                {(provided, snapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        style={{
-                                            ...provided.draggableProps.style,
-                                            opacity: snapshot.isDragging
-                                                ? 0.5
-                                                : 1,
-                                        }}
-                                    >
-                                        <CardComponent
-                                            card={card}
-                                            labels={labels}
-                                            onCardClick={onCardClick}
-                                            onClick={() => onCardClick?.(card)}
-                                            onDragEnd={onDragEnd}
-                                            index={index}
-                                        />
-                                    </div>
-                                )}
-                            </Draggable>
-                        ))}
-                        {provided.placeholder}
+            <div className="flex flex-col bg-white dark:bg-gray-900 rounded-b-lg py-2 px-3 h-fit scroll-smooth">
+                <Droppable droppableId={`column-${column.id}`}>
+                    {(provided, snapshot) => (
+                        <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`space-y-2 min-h-[160px] ${snapshot.isDraggingOver ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                        >
+                            {cards.map((card, index) => (
+                                <Draggable
+                                    key={card.id}
+                                    draggableId={card.id}
+                                    index={index}
+                                >
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            style={{
+                                                ...provided.draggableProps
+                                                    .style,
+                                                opacity: snapshot.isDragging
+                                                    ? 0.5
+                                                    : 1,
+                                            }}
+                                        >
+                                            <CardComponent
+                                                card={card}
+                                                labels={labels}
+                                                onCardClick={onCardClick}
+                                                onClick={() =>
+                                                    onCardClick?.(card)
+                                                }
+                                                onDragEnd={onDragEnd}
+                                                index={index}
+                                            />
+                                        </div>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
 
-                        {/* Empty state */}
-                        {cards.length === 0 && (
-                            <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
-                                No cards
-                            </div>
-                        )}
-                    </div>
-                )}
-            </Droppable>
+                            {/* Empty state */}
+                            {cards.length === 0 && (
+                                <div className="text-center text-gray-400 dark:text-gray-600 text-sm py-8">
+                                    No cards
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </Droppable>
+            </div>
         );
     };
 
@@ -640,12 +677,13 @@ const KanbanColumn = ({
 
     return (
         <div
-            className="flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
+            className="flex flex-col bg-transparent dark:bg-transparent rounded-lg transition-shadow"
+            // className="flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
             {/* Column Header */}
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-t-lg">
                 <ColumnHeader
                     column={column}
                     canToggle={canToggleColumn}
@@ -666,7 +704,7 @@ const KanbanColumn = ({
             </div>
 
             {/* Column Content */}
-            <div className="p-3 flex-1">
+            <div className=" flex-1">
                 {isGrouped
                     ? isDoneColumn
                         ? renderDoneColumn()
