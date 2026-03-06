@@ -45,6 +45,7 @@ import ProductionItemsManager from "./ProductionItemsManager";
 import CustomerDropdown from "../../../../components/customer/CustomerDropdown";
 import CustomerManagementModal from "../../../../components/customer/CustomerManagementModal";
 import { getCardTitleComponents,
+    generateCardTitle,
     generateCustomerSlug,
     formatIdentifierForDisplay,
     formatCardTitleForDisplay,

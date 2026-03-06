@@ -86,14 +86,14 @@ const KanbanColumn = ({
         [column.id, toggleColumnActivation],
     );
 
-    // Handle card creation
+    // Handle card creation (new cards go on top of column; position 0)
     const handleCreateCard = useCallback(
         async (cardData) => {
             if (canCreateCard && onCreateCard) {
                 const enhancedCardData = {
                     ...cardData,
                     columnId: column.id,
-                    position: cards.length * 1000,
+                    position: 0,
                 };
                 const result = await onCreateCard(enhancedCardData);
                 return result;
@@ -101,7 +101,7 @@ const KanbanColumn = ({
 
             return null;
         },
-        [canCreateCard, onCreateCard, column.id, cards.length],
+        [canCreateCard, onCreateCard, column.id],
     );
 
     // Render subcolumns for grouped columns

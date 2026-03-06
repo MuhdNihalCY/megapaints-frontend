@@ -13,7 +13,7 @@ import { createEmptyCard } from "../../types/cardModel";
 import { kanbanService } from "../../services/kanbanService";
 
 const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
-    const { currentUser, columns } = useKanban();
+    const { currentUser, columns, addAttachment } = useKanban();
     const [showModal, setShowModal] = useState(false);
     const [newCard, setNewCard] = useState(null);
     const [reservation, setReservation] = useState(null);
@@ -336,6 +336,26 @@ const CreateCardButton = ({ columnId, onCreateCard, boardId }) => {
 
             if (!createdCard) {
                 throw new Error("Card creation failed: No card was returned");
+            }
+
+            // Upload attachments that were added before save (new-card flow stores them in formData)
+            const cardId = createdCard.id ?? createdCard._id;
+            const attachmentsToUpload =
+                Array.isArray(cardToCreate.attachments) ? cardToCreate.attachments : [];
+            if (cardId && addAttachment && attachmentsToUpload.length > 0) {
+                for (const att of attachmentsToUpload) {
+                    if (att && att.file && att.file instanceof File) {
+                        try {
+                            await addAttachment(cardId, {
+                                file: att.file,
+                                description: att.name || att.description || att.file.name,
+                            });
+                        } catch (attachErr) {
+                            console.warn("Failed to upload attachment after card create:", attachErr);
+                            // Don't fail the whole save; card was created
+                        }
+                    }
+                }
             }
 
             // Note: Reservation is already marked as used by the backend during card creation

@@ -2484,7 +2484,7 @@ const CustomerManagementModal = ({
                                         </div>
                                     ) : (
                                         <div className="p-2">
-                                            {customers.map((customer) => (
+                                            {(customers || []).filter((c) => c && c._id).map((customer) => (
                                                 <div
                                                     key={customer._id}
                                                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
