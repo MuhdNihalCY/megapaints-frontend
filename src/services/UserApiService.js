@@ -373,6 +373,84 @@ class UserApiService {
         });
     }
 
+    // ==================== USER INVENTORY (branch-scoped) ====================
+
+    /**
+     * Get inventory list for user's branch(es)
+     * @param {Object} options - { branch_id, page, limit, search, product_type, sort }
+     * @returns {Promise<Object>} Inventory data with inventories and pagination
+     */
+    async getInventory(options = {}) {
+        const queryString = this.buildQueryParams(options);
+        const endpoint = `/user/inventory${queryString ? `?${queryString}` : ""}`;
+        return await this.apiRequest(endpoint, { method: "GET" });
+    }
+
+    /**
+     * Get inventory for a specific branch (must be user's branch)
+     * @param {string} branchId - Branch ID
+     * @param {Object} options - { product_type, search }
+     * @returns {Promise<Object>} Branch inventory and summary
+     */
+    async getBranchInventory(branchId, options = {}) {
+        const queryString = this.buildQueryParams(options);
+        const endpoint = `/user/inventory/${encodeURIComponent(branchId)}${queryString ? `?${queryString}` : ""}`;
+        return await this.apiRequest(endpoint, { method: "GET" });
+    }
+
+    /**
+     * Update inventory for a branch-product
+     * @param {string} branchId - Branch ID
+     * @param {string} productId - Product ID
+     * @param {Object} updates - { quantity, reason, ... }
+     * @returns {Promise<Object>} Updated inventory
+     */
+    async updateInventory(branchId, productId, updates) {
+        return await this.apiRequest(
+            `/user/inventory/${encodeURIComponent(branchId)}/${encodeURIComponent(productId)}`,
+            {
+                method: "PUT",
+                body: JSON.stringify(updates),
+            }
+        );
+    }
+
+    /**
+     * Add stock to inventory
+     * @param {string} branchId - Branch ID
+     * @param {string} productId - Product ID
+     * @param {number} quantity - Quantity to add
+     * @param {Object} metadata - { reason, ... }
+     * @returns {Promise<Object>} Updated inventory
+     */
+    async addStock(branchId, productId, quantity, metadata = {}) {
+        return await this.apiRequest(
+            `/user/inventory/${encodeURIComponent(branchId)}/${encodeURIComponent(productId)}/add`,
+            {
+                method: "POST",
+                body: JSON.stringify({ quantity, ...metadata }),
+            }
+        );
+    }
+
+    /**
+     * Deduct stock from inventory
+     * @param {string} branchId - Branch ID
+     * @param {string} productId - Product ID
+     * @param {number} quantity - Quantity to deduct
+     * @param {Object} metadata - { reason, reference_type, reference_id }
+     * @returns {Promise<Object>} Updated inventory
+     */
+    async deductStock(branchId, productId, quantity, metadata = {}) {
+        return await this.apiRequest(
+            `/user/inventory/${encodeURIComponent(branchId)}/${encodeURIComponent(productId)}/deduct`,
+            {
+                method: "POST",
+                body: JSON.stringify({ quantity, ...metadata }),
+            }
+        );
+    }
+
     /**
      * Get Order by ID
      * @param {string} orderId - Order ID

@@ -1,14 +1,207 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import Header from "./components/Header";
+import { ShoppingCart, Loader2, Package, RefreshCw, Printer, Copy } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Orders = () => {
+    const navigate = useNavigate();
+    const { getUserServices } = useAuth();
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
+
+    const fetchOrders = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const services = getUserServices();
+            const res = await services.user.getOrders({
+                type: "all",
+                page: pagination.page,
+                limit: pagination.limit,
+            });
+            const data = res?.data ?? res;
+            setOrders(Array.isArray(data?.orders) ? data.orders : []);
+            const meta = data?.pagination ?? {};
+            setPagination((prev) => ({
+                ...prev,
+                total: meta.total ?? prev.total,
+                pages: Math.max(1, meta.pages ?? 0),
+            }));
+        } catch (e) {
+            setError(e?.message || "Failed to load orders");
+            setOrders([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders();
+    }, [pagination.page]);
+
+    const formatDateDisplay = (d) => {
+        if (!d) return "—";
+        const date = new Date(d);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
+
+    const handleRepeatOrder = (order) => {
+        if (order.formula_id) {
+            navigate(`/order?formula_id=${order.formula_id}`);
+        } else {
+            navigate("/order");
+        }
+    };
+
+    const renderOrderCard = (order) => {
+        const t = order.order_type || "formula";
+        if (t !== "formula") {
+            return (
+                <div className="p-4 space-y-2 text-sm">
+                    <p><span className="text-gray-500 dark:text-gray-400">Order No:</span> {order.order_number ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Date:</span> {formatDateDisplay(order.created_at)}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Customer:</span> {order.customer?.name ?? "—"}</p>
+                </div>
+            );
+        }
+
+        const fd = order.formula_data || {};
+        const qty = order.quantities?.requested ?? 0;
+        const qtyUnit = order.quantities?.unit ?? "L";
+        const unitLabel = qtyUnit === "L" ? "Liter" : qtyUnit === "kg" ? "Kilogram" : qtyUnit;
+        const remarks = fd.remarks ?? order.notes ?? "";
+
+        return (
+            <div className="p-4 space-y-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                    <p><span className="text-gray-500 dark:text-gray-400">Order No:</span> <span className="font-mono text-gray-900 dark:text-white">{order.order_number ?? "—"}</span></p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Project No:</span> {fd.project_no ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Date:</span> {formatDateDisplay(order.created_at)}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Formula No:</span> <span className="font-mono">{fd.file_number ?? "—"}</span></p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Quantity:</span> {qty} - {unitLabel}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Mixer:</span> {fd.mixer ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Customer Name:</span> {order.customer?.name ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Color Name:</span> {fd.color_name ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Customer Ref:</span> {fd.customer_ref ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Color Code:</span> {fd.color_code ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Category:</span> {fd.category ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Sub Category:</span> {fd.subcategory ?? "—"}</p>
+                </div>
+                {remarks && (
+                    <p><span className="text-gray-500 dark:text-gray-400">Remarks:</span> {remarks}</p>
+                )}
+                <p><span className="text-gray-500 dark:text-gray-400">Matt:</span> {fd.gloss != null ? fd.gloss : "—"}</p>
+
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                    <button
+                        type="button"
+                        disabled
+                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
+                        title="Print label – will implement later"
+                    >
+                        <Printer className="w-4 h-4" />
+                        Print Label
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleRepeatOrder(order)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+                    >
+                        <Copy className="w-4 h-4" />
+                        Repeat Order
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <Header />
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <p className="text-gray-700 dark:text-gray-300">
-                        User can view previous orders here.
-                    </p>
+                <div className="space-y-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700">
+                        <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <ShoppingCart className="w-6 h-6" />
+                            Orders
+                        </h1>
+                        <button
+                            type="button"
+                            onClick={() => fetchOrders()}
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-sm"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                            Refresh
+                        </button>
+                    </div>
+
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    {loading ? (
+                        <div className="flex items-center justify-center py-16 bg-white dark:bg-gray-800 rounded-lg">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                        </div>
+                    ) : orders.length === 0 ? (
+                        <div className="py-16 text-center bg-white dark:bg-gray-800 rounded-lg">
+                            <Package className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">
+                                No orders found. Create an order from the{" "}
+                                <Link to="/order" className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    Order
+                                </Link>{" "}
+                                page.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {orders.map((order) => (
+                                <div
+                                    key={order._id}
+                                    className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-600 overflow-hidden"
+                                >
+                                    {renderOrderCard(order)}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {!loading && pagination.pages > 1 && (
+                        <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-3">
+                            <span>
+                                Page {pagination.page} of {pagination.pages} ({pagination.total} orders)
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setPagination((p) => ({ ...p, page: Math.max(1, p.page - 1) }))}
+                                    disabled={pagination.page <= 1}
+                                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPagination((p) => ({ ...p, page: Math.min(p.pages, p.page + 1) }))}
+                                    disabled={pagination.page >= pagination.pages}
+                                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

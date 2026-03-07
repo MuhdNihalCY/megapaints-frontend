@@ -5,7 +5,7 @@ import { FormulaService } from "../../formula/services/formulaService";
 import { fetchMastersFresh } from "../../formula/services/mastersService";
 import CustomerDropdown from "../../components/customer/CustomerDropdown";
 import { useAuth } from "../../contexts/AuthContext";
-import { Loader2, Edit, Package, ShoppingCart } from "lucide-react";
+import { Loader2, Edit, ShoppingCart } from "lucide-react";
 
 function getBranchId(branch) {
     if (!branch) return null;
@@ -29,7 +29,6 @@ const Order = () => {
     const [selectedBranchId, setSelectedBranchId] = useState(null);
     const [createdOrderId, setCreatedOrderId] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
-    const [isStockingOut, setIsStockingOut] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
 
     const branches = useMemo(() => {
@@ -224,7 +223,7 @@ const Order = () => {
             const order = result?.data?.order ?? result?.order;
             if (order?._id) {
                 setCreatedOrderId(order._id);
-                setMessage({ type: "success", text: "Order created successfully." });
+                setMessage({ type: "success", text: "Order created and inventory updated." });
             } else {
                 setMessage({ type: "error", text: "Order created but ID not returned." });
             }
@@ -235,23 +234,6 @@ const Order = () => {
             });
         } finally {
             setIsCreating(false);
-        }
-    };
-
-    const handleStockOut = async () => {
-        if (!createdOrderId) return;
-        setIsStockingOut(true);
-        setMessage({ type: "", text: "" });
-        try {
-            const services = getUserServices();
-            await services.user.stockOutFormulaOrder(createdOrderId);
-            setMessage({ type: "success", text: "Stock-out successful." });
-        } catch (e) {
-            const data = e?.response?.data || e;
-            const errMsg = data?.message || data?.errors?.[0]?.msg || e?.message || "Stock-out failed";
-            setMessage({ type: "error", text: errMsg });
-        } finally {
-            setIsStockingOut(false);
         }
     };
 
@@ -359,19 +341,6 @@ const Order = () => {
                                 )}
                                 Create Order
                             </button>
-                            <button
-                                type="button"
-                                onClick={handleStockOut}
-                                disabled={!createdOrderId || isStockingOut}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isStockingOut ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Package className="w-4 h-4" />
-                                )}
-                                Stock out this order
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -390,8 +359,15 @@ const Order = () => {
                                     <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100 font-mono">{meta.fileNo}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Customer (formula)</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.customerName}</div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Customer</label>
+                                    <CustomerDropdown
+                                        selectedCustomer={selectedCustomer}
+                                        onCustomerSelect={setSelectedCustomer}
+                                        customerId={formula?.customer_id ?? formula?.formulation_data?.meta?.customerId ?? null}
+                                        placeholder="Select customer..."
+                                        disabled={noBranches}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Color Code</label>
@@ -405,17 +381,6 @@ const Order = () => {
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project No</label>
                                     <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.projectNo}</div>
                                 </div>
-                            </div>
-
-                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow">
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Order customer</label>
-                                <CustomerDropdown
-                                    selectedCustomer={selectedCustomer}
-                                    onCustomerSelect={setSelectedCustomer}
-                                    placeholder="Select customer..."
-                                    disabled={noBranches}
-                                    className="w-full"
-                                />
                             </div>
 
                             {branches.length > 1 && (

@@ -41,6 +41,7 @@ import CreateFormula from "./features/user/CreateFormula";
 import FormulationsList from "./features/user/FormulationsList";
 import Order from "./features/user/Order";
 import Orders from "./features/user/Orders";
+import UserInventory from "./features/user/UserInventory";
 import KanbanDashboard from "./features/kanban/pages/KanbanDashboard";
 import CRMDashboard from "./features/crm/CRMDashboard";
 import CRMCustomerPage from "./features/crm/CRMCustomerPage";
@@ -140,6 +141,14 @@ function App() {
                                         element={
                                             <UserProtectedRoute>
                                                 <Orders />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/inventory"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <UserInventory />
                                             </UserProtectedRoute>
                                         }
                                     />
