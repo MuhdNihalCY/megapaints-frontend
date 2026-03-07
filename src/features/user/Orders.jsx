@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import Header from "./components/Header";
-import { ShoppingCart, Loader2, Package, RefreshCw, Printer, Copy } from "lucide-react";
+import AccessKeyModal from "./components/AccessKeyModal";
+import { ShoppingCart, Loader2, Package, RefreshCw, Printer, Copy, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Orders = () => {
@@ -11,6 +12,8 @@ const Orders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [message, setMessage] = useState({ type: "", text: "" });
+    const [orderToDelete, setOrderToDelete] = useState(null);
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
     const fetchOrders = async () => {
@@ -60,14 +63,62 @@ const Orders = () => {
         }
     };
 
-    const renderOrderCard = (order) => {
+    const handleDeleteOrderWithKey = async (accessKey) => {
+        if (!orderToDelete) return;
+        setMessage({ type: "", text: "" });
+        setError("");
+        try {
+            const services = getUserServices();
+            const res = await services.user.deleteOrder(
+                orderToDelete._id,
+                orderToDelete.order_type || "formula",
+                accessKey,
+            );
+            const data = res?.data ?? res;
+            if (data?.message || res?.status === "success") {
+                setMessage({ type: "success", text: "Order deleted successfully." });
+                setOrderToDelete(null);
+                fetchOrders();
+            } else {
+                setError(res?.message || data?.message || "Failed to delete order");
+                setOrderToDelete(null);
+            }
+        } catch (e) {
+            const msg = e?.response?.data?.message || e?.message || "Failed to delete order";
+            setError(msg);
+            setOrderToDelete(null);
+        }
+    };
+
+    const renderOrderCard = (order, options = {}) => {
         const t = order.order_type || "formula";
+        const price = order.pricing?.total ?? order.pricing?.subtotal;
+        const currency = order.pricing?.currency || "AED";
+        const priceStr =
+            price != null && Number.isFinite(Number(price))
+                ? `${Number(price).toFixed(2)} ${currency}`
+                : "—";
+        const { onDeleteOrder } = options;
+
         if (t !== "formula") {
             return (
                 <div className="p-4 space-y-2 text-sm">
                     <p><span className="text-gray-500 dark:text-gray-400">Order No:</span> {order.order_number ?? "—"}</p>
                     <p><span className="text-gray-500 dark:text-gray-400">Date:</span> {formatDateDisplay(order.created_at)}</p>
                     <p><span className="text-gray-500 dark:text-gray-400">Customer:</span> {order.customer?.name ?? "—"}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Total:</span> <span className="font-semibold text-gray-900 dark:text-white">{priceStr}</span></p>
+                    {onDeleteOrder && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                            <button
+                                type="button"
+                                onClick={() => onDeleteOrder(order)}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 dark:border-red-600 rounded-lg text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete order
+                            </button>
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -86,6 +137,7 @@ const Orders = () => {
                     <p><span className="text-gray-500 dark:text-gray-400">Date:</span> {formatDateDisplay(order.created_at)}</p>
                     <p><span className="text-gray-500 dark:text-gray-400">Formula No:</span> <span className="font-mono">{fd.file_number ?? "—"}</span></p>
                     <p><span className="text-gray-500 dark:text-gray-400">Quantity:</span> {qty} - {unitLabel}</p>
+                    <p><span className="text-gray-500 dark:text-gray-400">Total:</span> <span className="font-semibold text-gray-900 dark:text-white">{priceStr}</span></p>
                     <p><span className="text-gray-500 dark:text-gray-400">Mixer:</span> {fd.mixer ?? "—"}</p>
                     <p><span className="text-gray-500 dark:text-gray-400">Customer Name:</span> {order.customer?.name ?? "—"}</p>
                     <p><span className="text-gray-500 dark:text-gray-400">Color Name:</span> {fd.color_name ?? "—"}</p>
@@ -117,6 +169,16 @@ const Orders = () => {
                         <Copy className="w-4 h-4" />
                         Repeat Order
                     </button>
+                    {onDeleteOrder && (
+                        <button
+                            type="button"
+                            onClick={() => onDeleteOrder(order)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 dark:border-red-600 rounded-lg text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete order
+                        </button>
+                    )}
                 </div>
             </div>
         );
@@ -149,6 +211,18 @@ const Orders = () => {
                         </div>
                     )}
 
+                    {message.text && (
+                        <div
+                            className={`p-3 rounded-lg text-sm ${
+                                message.type === "success"
+                                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                                    : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
+                            }`}
+                        >
+                            {message.text}
+                        </div>
+                    )}
+
                     {loading ? (
                         <div className="flex items-center justify-center py-16 bg-white dark:bg-gray-800 rounded-lg">
                             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -171,7 +245,9 @@ const Orders = () => {
                                     key={order._id}
                                     className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-600 overflow-hidden"
                                 >
-                                    {renderOrderCard(order)}
+                                    {renderOrderCard(order, {
+                                        onDeleteOrder: (o) => setOrderToDelete(o),
+                                    })}
                                 </div>
                             ))}
                         </div>
@@ -204,6 +280,15 @@ const Orders = () => {
                     )}
                 </div>
             </main>
+
+            <AccessKeyModal
+                isOpen={!!orderToDelete}
+                onClose={() => setOrderToDelete(null)}
+                onSuccessWithKey={handleDeleteOrderWithKey}
+                title="Delete order"
+                helpText="Enter the controlled access key to delete this order. The same key is used for other controlled actions (e.g. file number editing)."
+                successMessage="✓ Access key verified. Deleting order..."
+            />
         </div>
     );
 };

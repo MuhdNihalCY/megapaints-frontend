@@ -296,8 +296,8 @@ const Orders = () => {
                     bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                     break;
                 case "total":
-                    aValue = a.total_amount || 0;
-                    bValue = b.total_amount || 0;
+                    aValue = a.pricing?.total ?? a.total_amount ?? 0;
+                    bValue = b.pricing?.total ?? b.total_amount ?? 0;
                     break;
                 case "status":
                     aValue = (a.status || "").toLowerCase();

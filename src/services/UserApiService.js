@@ -386,6 +386,20 @@ class UserApiService {
         });
     }
 
+    /**
+     * Delete own order (soft delete) with access key
+     * @param {string} orderId - Order ID
+     * @param {string} orderType - "formula" | "wholesale" | "retail"
+     * @param {string} accessKey - Controlled access key
+     * @returns {Promise<Object>} Result
+     */
+    async deleteOrder(orderId, orderType, accessKey) {
+        return await this.apiRequest(`/user/orders/${orderType}/${orderId}`, {
+            method: "DELETE",
+            body: JSON.stringify({ accessKey: accessKey.trim() }),
+        });
+    }
+
     // ==================== USER INVENTORY (branch-scoped) ====================
 
     /**

@@ -5,9 +5,25 @@ import { ControlledAccessService } from "../../../formula/services/controlledAcc
  * Access Key Verification Modal Component
  *
  * This modal verifies the controlled access password before allowing
- * file number editing functionality.
+ * sensitive operations (e.g. file number editing, order deletion).
+ *
+ * @param {boolean} isOpen
+ * @param {function} onClose
+ * @param {function} onSuccess - Called when verified (no key passed)
+ * @param {function} onSuccessWithKey - Optional. When provided, called with (accessKey) on success; parent is responsible for closing.
+ * @param {string} title - Optional modal title
+ * @param {string} helpText - Optional help text below input
+ * @param {string} successMessage - Optional success message
  */
-const AccessKeyModal = ({ isOpen, onClose, onSuccess }) => {
+const AccessKeyModal = ({
+    isOpen,
+    onClose,
+    onSuccess,
+    onSuccessWithKey,
+    title = "Controlled Access Verification",
+    helpText = "Enter the controlled access key to edit file numbers",
+    successMessage = "✓ Access key verified successfully! Opening file number editor...",
+}) => {
     const [accessKey, setAccessKey] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
     const [error, setError] = useState("");
@@ -59,11 +75,15 @@ const AccessKeyModal = ({ isOpen, onClose, onSuccess }) => {
                 );
                 setSuccess(true);
                 setError("");
-                // Wait a moment to show success message, then proceed
-                setTimeout(() => {
-                    onSuccess();
-                    handleCancel();
-                }, 1000);
+                if (onSuccessWithKey) {
+                    onSuccessWithKey(accessKey.trim());
+                    // Parent is responsible for closing the modal
+                } else {
+                    setTimeout(() => {
+                        onSuccess();
+                        handleCancel();
+                    }, 1000);
+                }
             } else {
                 console.log(
                     "[AccessKeyModal] Verification failed:",
@@ -100,7 +120,7 @@ const AccessKeyModal = ({ isOpen, onClose, onSuccess }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                        Controlled Access Verification
+                        {title}
                     </h3>
                     <button
                         onClick={handleCancel}
@@ -145,7 +165,7 @@ const AccessKeyModal = ({ isOpen, onClose, onSuccess }) => {
 
                         {/* Help text */}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            Enter the controlled access key to edit file numbers
+                            {helpText}
                         </p>
 
                         {/* Error message */}
@@ -158,8 +178,7 @@ const AccessKeyModal = ({ isOpen, onClose, onSuccess }) => {
                         {/* Success message */}
                         {success && (
                             <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                                ✓ Access key verified successfully! Opening file
-                                number editor...
+                                {successMessage}
                             </p>
                         )}
                     </div>
