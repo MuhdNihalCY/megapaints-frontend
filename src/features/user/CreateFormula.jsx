@@ -1978,8 +1978,29 @@ const CreateFormula = () => {
         setIsSaving(true);
 
         // Ensure we have a file number before save (create mode). Generate if missing so save never fails for empty fileNo.
+        // When "Save as new version" (subcategory changed), generate next formatted file number (with subcategory/gloss/additive suffix) so backend stores it correctly.
         let fileNoToUse = meta.fileNo || meta.file_no || "";
-        if (!isEditMode && (!fileNoToUse || !String(fileNoToUse).trim())) {
+        if (saveAsNewVersion && isEditMode) {
+            try {
+                const fileNumberData = {
+                    SubCategory: subCategory,
+                    gloss: gloss,
+                    matt: gloss,
+                    additiveId: selectedAdditiveId,
+                    AdditivePercentage: additivePercentageInput,
+                    subcategories: subCategoryOptions,
+                    additives: rawAdditives,
+                };
+                const result = await FileNumberService.generateFileNo(
+                    fileNumberData,
+                    true,
+                );
+                fileNoToUse = result.fileNo || String(result.labelFileNo);
+            } catch (err) {
+                console.error("File number generation failed for save as new version", err);
+                fileNoToUse = String(Math.floor(Date.now() / 1000) % 1000000);
+            }
+        } else if (!isEditMode && (!fileNoToUse || !String(fileNoToUse).trim())) {
             try {
                 const fileNumberData = {
                     SubCategory: subCategory,

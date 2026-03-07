@@ -93,6 +93,16 @@ export const FormulaService = {
     },
 
     /**
+     * Get next available file number (numeric base) from backend.
+     * @returns {Promise<string>} Next file number base e.g. "100007"
+     */
+    async getNextFileNumber() {
+        const res = await api.get("/user/formulas/next-file-number");
+        const data = res?.data?.data ?? res?.data;
+        return data?.nextFileNo ?? null;
+    },
+
+    /**
      * Create formula. If file is provided, sends multipart (payload + file) in one request.
      * File is only sent when saving, not when selecting.
      */

@@ -141,21 +141,19 @@ function formulaFileFormat(fileNo, subcategoryID, gloss, additiveID, additivePer
  */
 async function generateFileNo(data, isNewFormula = true) {
   try {
-    // Fetch existing formulas to check for duplicates
-    const res = await FormulaService.fetchAllFormulas();
-    const formulasList = res?.data ?? res?.formulas ?? [];
-    // We don't store labelFileNo in DB; derive it from stored file numbers (leading digits + optional .A/.AA).
-    const existingLabelFileNos = new Set(
-      formulasList
-        .map((doc) => getLabelFromStoredFileNo(doc?.labelFileNo ?? doc?.file_no ?? doc?.FileNo))
-        .filter(Boolean)
-    );
-
     let labelFileNo;
     let formattedFileNo;
 
     if (data.fileNumberUpdated && data.newFileNumber) {
-      // Manual file number update - check for duplicates and increment if needed
+      // Manual file number update - fetch existing to check for duplicates and increment if needed
+      const res = await FormulaService.fetchAllFormulas();
+      const formulasList = res?.data ?? res?.formulas ?? [];
+      const existingLabelFileNos = new Set(
+        formulasList
+          .map((doc) => getLabelFromStoredFileNo(doc?.labelFileNo ?? doc?.file_no ?? doc?.FileNo))
+          .filter(Boolean)
+      );
+
       let candidateFileNo = data.newFileNumber;
 
       while (
@@ -168,23 +166,14 @@ async function generateFileNo(data, isNewFormula = true) {
 
       labelFileNo = candidateFileNo;
     } else {
-      // Automatic file number generation
-      let fileNo = 100000; // Default starting number
-
-      if (formulasList.length > 0) {
-        const latestFormula = formulasList[0];
-        const latestFileNo = latestFormula.FileNo || latestFormula.file_no || latestFormula.labelFileNo;
-        
-        if (latestFileNo) {
-          // Extract the numeric part using regex
-          const numericMatch = String(latestFileNo).match(/^\d+/);
-          if (numericMatch) {
-            fileNo = parseInt(numericMatch[0]) + 1;
-          }
-        }
+      // Automatic file number generation: use backend as source of truth
+      const nextFileNo = await FormulaService.getNextFileNumber();
+      if (nextFileNo != null && String(nextFileNo).trim() !== '') {
+        labelFileNo = String(nextFileNo).trim();
+      } else {
+        // Fallback if API fails
+        labelFileNo = 100000;
       }
-
-      labelFileNo = fileNo;
     }
 
     // Format the file number with subcategory, gloss, and additive information
