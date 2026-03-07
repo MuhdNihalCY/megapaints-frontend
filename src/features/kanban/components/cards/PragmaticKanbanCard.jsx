@@ -19,6 +19,7 @@ import {
 
 import { usePriorityDisplay, useLabelsDisplay } from "../../hooks/useKanban";
 import { useKanban } from "../../contexts/KanbanContext";
+import { getBackendOrigin } from "../../../../config/api";
 
 /**
  * Pragmatic Drag and Drop Kanban Card Component
@@ -68,7 +69,7 @@ const PragmaticKanbanCard = ({
         });
 
         if (firstImageAttachment) {
-            const baseURL = import.meta.env.DEV ? "http://localhost:3000" : "";
+            const baseURL = getBackendOrigin();
             let imageUrl = firstImageAttachment.url || "";
 
             // Construct full URL if needed

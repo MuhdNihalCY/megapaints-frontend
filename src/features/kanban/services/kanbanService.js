@@ -5,6 +5,7 @@
 
 import api from "../../../utils/api";
 import { normalizeComment } from "../utils/commentUtils";
+import { getBackendOrigin } from "../../../config/api";
 
 /** Map backend activity_log.action to frontend ActivityLog type */
 const BACKEND_ACTION_TO_TYPE = {
@@ -1828,9 +1829,7 @@ class KanbanService {
             coverImage: (() => {
                 // If cover_image exists, use it
                 if (apiTask.cover_image) {
-                    const baseURL = import.meta.env.DEV
-                        ? "http://localhost:3000"
-                        : "";
+                    const baseURL = getBackendOrigin();
                     let coverUrl = apiTask.cover_image.url;
 
                     // Construct full URL if needed
@@ -1862,9 +1861,7 @@ class KanbanService {
                 });
 
                 if (firstImageAttachment) {
-                    const baseURL = import.meta.env.DEV
-                        ? "http://localhost:3000"
-                        : "";
+                    const baseURL = getBackendOrigin();
                     let imageUrl = firstImageAttachment.url || "";
 
                     // Construct full URL if needed

@@ -6,6 +6,7 @@ import { fetchMastersFresh } from "../../formula/services/mastersService";
 import CustomerDropdown from "../../components/customer/CustomerDropdown";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader2, Edit, ShoppingCart } from "lucide-react";
+import { getBackendOrigin } from "../../config/api";
 
 function getBranchId(branch) {
     if (!branch) return null;
@@ -30,6 +31,7 @@ const Order = () => {
     const [createdOrderId, setCreatedOrderId] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
+    const [orderPreview, setOrderPreview] = useState(null);
 
     const branches = useMemo(() => {
         const b = user?.branches;
@@ -194,6 +196,29 @@ const Order = () => {
         return () => { cancelled = true; };
     }, [formulaIdFromUrl]);
 
+    // Fetch order preview (costing, metrics) when formula and quantity/unit change — server re-evaluates
+    useEffect(() => {
+        if (!formulaIdFromUrl || !formula?._id) {
+            setOrderPreview(null);
+            return;
+        }
+        const q = parseFloat(qtyInput);
+        const quantity = Number.isFinite(q) && q >= 0 ? q : 0;
+        let cancelled = false;
+        const services = getUserServices();
+        services.user
+            .getFormulaOrderPreview({ formula_id: formulaIdFromUrl, quantity, unit })
+            .then((res) => {
+                if (cancelled) return;
+                const data = res?.data ?? res;
+                setOrderPreview(data);
+            })
+            .catch(() => {
+                if (!cancelled) setOrderPreview(null);
+            });
+        return () => { cancelled = true; };
+    }, [formulaIdFromUrl, formula?._id, qtyInput, unit, getUserServices]);
+
     const handleCreateOrder = async () => {
         const bid = selectedBranchId || branchId;
         if (!bid) {
@@ -347,19 +372,19 @@ const Order = () => {
 
                 <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg shadow">
                     <div className="grid grid-cols-12 gap-6">
-                        {/* Left sidebar - meta, customer, branch, metrics */}
+                        {/* Left sidebar - formula details, metrics, costing, branch */}
                         <div className="col-span-2 space-y-4">
                             <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow space-y-3">
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.date}</div>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.date || "—"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">File no.</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100 font-mono">{meta.fileNo}</div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">File No.</label>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100 font-mono">{meta.fileNo || "—"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Customer</label>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Name</label>
                                     <CustomerDropdown
                                         selectedCustomer={selectedCustomer}
                                         onCustomerSelect={setSelectedCustomer}
@@ -371,15 +396,83 @@ const Order = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Color Code</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.colorCode}</div>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.colorCode || "—"}</div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Color Name</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.colorName}</div>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.colorName || "—"}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Ref</label>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.customerRef || "—"}</div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project No</label>
-                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.projectNo}</div>
+                                    <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded text-gray-900 dark:text-gray-100">{meta.projectNo || "—"}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Reference Image</label>
+                                    {formula?.attachment?.url ? (
+                                        (() => {
+                                            const rawUrl = formula.attachment.url;
+                                            const backendOrigin = getBackendOrigin();
+                                            const fullUrl = rawUrl.startsWith("http") ? rawUrl : `${backendOrigin}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+                                            return (
+                                                <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                                    <img src={fullUrl} alt="Reference" className="max-h-20 rounded border border-gray-200 dark:border-gray-600 object-contain w-full" />
+                                                </a>
+                                            );
+                                        })()
+                                    ) : (
+                                        <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 rounded">No image</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow">
+                                <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Metrics</h3>
+                                <div className="space-y-2 text-xs">
+                                    <div>
+                                        <span className="text-gray-500 dark:text-gray-400">Solid Content (%):</span>
+                                        <span className="ml-1 text-gray-900 dark:text-white">
+                                            {orderPreview?.metrics?.solids_percent != null ? orderPreview.metrics.solids_percent : snapshot?.metrics?.solids_percent ?? formula?.solid_content ?? "—"}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500 dark:text-gray-400">VOC (Kg/Ltr):</span>
+                                        <span className="ml-1 text-gray-900 dark:text-white">
+                                            {(() => {
+                                                const voc = orderPreview?.metrics?.voc ?? snapshot?.metrics?.voc ?? formula?.voc;
+                                                return voc != null ? (Number(voc) / 1000).toFixed(4) : "—";
+                                            })()}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500 dark:text-gray-400">Density (Kg/Ltr):</span>
+                                        <span className="ml-1 text-gray-900 dark:text-white">
+                                            {(() => {
+                                                const d = orderPreview?.metrics?.density ?? snapshot?.metrics?.density ?? formula?.density;
+                                                return d != null ? (Number(d) / 1000).toFixed(4) : "—";
+                                            })()}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow">
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Costing</label>
+                                <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded font-medium text-gray-900 dark:text-gray-100">
+                                    {orderPreview?.costing != null
+                                        ? `${Number(orderPreview.costing.cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${orderPreview.costing.currency || "AED"}`
+                                        : "—"}
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Order cost (server-calculated)</p>
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow">
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sampled Qty</label>
+                                <div className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-600 rounded font-medium text-gray-900 dark:text-gray-100">
+                                    {qtyInput ? `${qtyInput} ${unit === "L" ? "Liter" : unit === "kg" ? "kg" : unit}` : "—"}
                                 </div>
                             </div>
 
@@ -403,23 +496,12 @@ const Order = () => {
                                     </select>
                                 </div>
                             )}
-
-                            {snapshot?.metrics && (
-                                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded shadow">
-                                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Metrics</h3>
-                                    <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                                        <div>Density: {snapshot.metrics.density ?? "—"} g/L</div>
-                                        <div>Solids: {snapshot.metrics.solids_percent ?? "—"}%</div>
-                                        <div>VOC: {snapshot.metrics.voc ?? "—"}</div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Main content - same layout as Create Formula: col-8 (tinters + totals block) + col-4 (quantity) */}
+                        {/* Main content - category, subcategory, gloss, quantity, tinters, binders, additives, totals, remarks */}
                         <div className="col-span-10">
                             <div className="grid grid-cols-12 gap-6">
-                                {/* Left: Tinters table + Totals/Binders/Additives/Total block */}
+                                {/* Tinters table + Totals/Binders/Additives/Total block */}
                                 <div className="col-span-12 space-y-6">
                                     <div className="grid grid-cols-12 gap-4">
                                         <div className="col-span-3">

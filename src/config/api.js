@@ -1,28 +1,22 @@
 /**
  * Centralized API Configuration
- * All API calls should use this configuration for consistent base URL management
+ * All API calls and backend URLs use .env (VITE_API_BASE_URL). No hardcoded host/port.
  */
 
-// Optional env override: VITE_API_BASE_URL (full URL including /api, e.g. http://localhost:3000/api or http://localhost:4000/api when backend runs on a different port)
-const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
-// Environment-based API configuration
+// Environment-based API configuration (all from .env)
 const API_CONFIG = {
-    // Development environment
     development: {
-        baseURL: envBaseUrl || "http://localhost:3000/api",
-        useProxy: false, // Use direct connection to localhost:3000
+        baseURL: envBaseUrl || "/api",
+        useProxy: !envBaseUrl,
     },
-
-    // Production environment
     production: {
-        baseURL: envBaseUrl || "https://test.megamixsystems.com/api",
+        baseURL: envBaseUrl || "/api",
         useProxy: false,
     },
-
-    // Staging environment
     staging: {
-        baseURL: envBaseUrl || "https://test.megamixsystems.com/api",
+        baseURL: envBaseUrl || "/api",
         useProxy: false,
     },
 };
@@ -48,70 +42,23 @@ export const apiConfig = getApiConfig();
 
 // Helper function to get full URL
 export const getApiUrl = (endpoint) => {
-    // Get fresh config to avoid caching issues
     const currentConfig = getApiConfig();
-    const env = getEnvironment();
-
-    // Remove leading slash from endpoint to avoid double slashes
-    const cleanEndpoint = endpoint.startsWith("/")
-        ? endpoint.slice(1)
-        : endpoint;
-
-    // Ensure baseURL doesn't end with slash and cleanEndpoint doesn't start with slash
+    const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
     let cleanBaseURL = currentConfig.baseURL.endsWith("/")
         ? currentConfig.baseURL.slice(0, -1)
         : currentConfig.baseURL;
-
-    // In development, ALWAYS use absolute URL to prevent requests going to frontend dev server
-    if (env === "development") {
-        // Force absolute URL - if it's relative, prepend http://localhost:3000
-        if (
-            !cleanBaseURL.startsWith("http://") &&
-            !cleanBaseURL.startsWith("https://")
-        ) {
-            // If it starts with /, it's relative - convert to absolute
-            if (cleanBaseURL.startsWith("/")) {
-                cleanBaseURL = `http://localhost:3000${cleanBaseURL}`;
-            } else {
-                // If it doesn't start with /, prepend http://localhost:3000/api
-                cleanBaseURL = `http://localhost:3000/api`;
-            }
-        }
-        // Ensure we're ALWAYS using port 3000, never 5173
-        cleanBaseURL = cleanBaseURL.replace(":5173", ":3000");
-        // Ensure we're using http://localhost:3000/api format
-        if (
-            cleanBaseURL.includes("localhost") &&
-            !cleanBaseURL.includes("/api")
-        ) {
-            cleanBaseURL = cleanBaseURL.replace(
-                "localhost:3000",
-                "localhost:3000/api",
-            );
-        }
-    }
-
-    const fullUrl = `${cleanBaseURL}/${cleanEndpoint}`;
-
-    // Final safety check - if still relative, force absolute in development
-    if (
-        env === "development" &&
-        !fullUrl.startsWith("http://") &&
-        !fullUrl.startsWith("https://")
-    ) {
-        const absoluteUrl = `http://localhost:3000/api/${cleanEndpoint}`;
-        console.warn(
-            "⚠️ getApiUrl returned relative URL, forcing absolute:",
-            absoluteUrl,
-        );
-        return absoluteUrl;
-    }
-
-    return fullUrl;
+    return `${cleanBaseURL}/${cleanEndpoint}`;
 };
 
-// Helper function to get base URL
+// Helper function to get base URL (from .env VITE_API_BASE_URL)
 export const getBaseUrl = () => apiConfig.baseURL;
+
+/** Backend origin for static assets (e.g. /uploads). Derives from VITE_API_BASE_URL (no /api). */
+export const getBackendOrigin = () => {
+    const base = getBaseUrl() || "";
+    if (!base) return "";
+    return base.replace(/\/api\/?$/, "") || "";
+};
 
 // Export for debugging
 export const debugApiConfig = () => {
@@ -127,10 +74,10 @@ export const debugUrlConstruction = (endpoint) => {
     return finalUrl;
 };
 
-// Helper function to switch between direct connection and proxy mode
+// Helper function to switch between direct connection or proxy (uses .env at runtime)
 export const switchToDirectConnection = () => {
     if (getEnvironment() === "development") {
-        API_CONFIG.development.baseURL = "http://localhost:3000/api";
+        API_CONFIG.development.baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
         API_CONFIG.development.useProxy = false;
     }
 };

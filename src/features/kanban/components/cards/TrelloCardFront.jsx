@@ -16,6 +16,7 @@ import {
     Eye,
 } from "lucide-react";
 import { calculateCardBadges } from "../../types/cardModel";
+import { getBackendOrigin } from "../../../../config/api";
 
 const TrelloCardFront = ({
     card,
@@ -61,7 +62,7 @@ const TrelloCardFront = ({
         });
 
         if (firstImageAttachment) {
-            const baseURL = import.meta.env.DEV ? "http://localhost:3000" : "";
+            const baseURL = getBackendOrigin();
             let imageUrl = firstImageAttachment.url || "";
 
             // Construct full URL if needed

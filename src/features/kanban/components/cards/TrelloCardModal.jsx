@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useKanban } from "../../contexts/KanbanContext";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { getBackendOrigin } from "../../../../config/api";
 import { calculateCardBadges, addActivity } from "../../types/cardModel";
 import toast from "react-hot-toast";
 import CommentsSection from "../comments/CommentsSection";
@@ -697,9 +698,7 @@ const TrelloCardModal = ({
                 (att) => {
                     // Backend format: _id, original_name, url, uploaded_at, mime_type, file_size
                     // Frontend format: id, name, url, dateAdded, type, size, mimeType
-                    const baseURL = import.meta.env.DEV
-                        ? "http://localhost:3000"
-                        : "";
+                    const baseURL = getBackendOrigin();
                     let url = att.url || "";
 
                     // Ensure URL is properly formatted
@@ -1683,9 +1682,7 @@ const TrelloCardModal = ({
                                         backgroundImage: (() => {
                                             const u = formData?.coverImage?.url;
                                             if (!u) return undefined;
-                                            const baseURL = import.meta.env.DEV
-                                                ? "http://localhost:3000"
-                                                : "";
+                                            const baseURL = getBackendOrigin();
                                             const imageUrl =
                                                 u.startsWith("http") ? u : `${baseURL}${u.startsWith("/") ? "" : "/"}${u}`;
                                             return `url(${imageUrl})`;
@@ -2377,7 +2374,7 @@ const TrelloCardModal = ({
                                             // Use display-ready URL (with origin if relative) for cover image
                                             const displayUrl = attachment.url?.startsWith("http")
                                                 ? attachment.url
-                                                : `${import.meta.env.DEV ? "http://localhost:3000" : ""}${attachment.url?.startsWith("/") ? "" : "/"}${attachment.url || ""}`;
+                                                : `${getBackendOrigin()}${attachment.url?.startsWith("/") ? "" : "/"}${attachment.url || ""}`;
 
                                             // Transform to backend format: attachment_id (snake_case) instead of attachmentId
                                             const coverData = {

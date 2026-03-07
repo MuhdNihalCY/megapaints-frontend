@@ -1,10 +1,10 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { apiConfig } from "../config/api";
 
-// Create axios instance with default config
+// Create axios instance with default config (base URL from .env via config)
 const api = axios.create({
-    // Use full localhost URL for development, relative for production
-    baseURL: import.meta.env.DEV ? "http://localhost:3000/api" : "/api",
+    baseURL: apiConfig.baseURL || "/api",
     withCredentials: true, // Important for cookies
     timeout: 10000,
     headers: {

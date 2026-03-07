@@ -363,6 +363,19 @@ class UserApiService {
     }
 
     /**
+     * Get formula order preview: costing, metrics, scaled formula (re-evaluated server-side)
+     * @param {Object} params - { formula_id, quantity, unit }
+     * @returns {Promise<Object>} { formula_data, metrics, costing: { cost, currency }, sampled_qty, sampled_unit }
+     */
+    async getFormulaOrderPreview(params) {
+        const q = new URLSearchParams();
+        if (params.formula_id) q.set("formula_id", params.formula_id);
+        if (params.quantity != null) q.set("quantity", String(params.quantity));
+        if (params.unit) q.set("unit", params.unit);
+        return await this.apiRequest(`/user/orders/formula-preview?${q.toString()}`, { method: "GET" });
+    }
+
+    /**
      * Stock out a formula order (deduct inventory for order components)
      * @param {string} orderId - Formula order ID
      * @returns {Promise<Object>} Stock-out result
