@@ -132,6 +132,24 @@ const CRMCustomerPage = () => {
         }
     }, [searchParams, followupLogs, setSearchParams]);
 
+    // Open task modal when navigating from notification (?taskId=taskId)
+    useEffect(() => {
+        const taskId = searchParams.get("taskId");
+        if (!taskId || tasks.length === 0) return;
+        const task = tasks.find(
+            (t) => (t._id && t._id.toString() === taskId) || (t.id && t.id.toString() === taskId)
+        );
+        if (task) {
+            setViewingTaskId(task._id || task.id);
+            setTab("tasks");
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("taskId");
+                return next;
+            }, { replace: true });
+        }
+    }, [searchParams, tasks, setSearchParams]);
+
     const refreshTasks = async () => {
         try {
             const res = await api.get(`/crm/tasks?customer_id=${id}`);

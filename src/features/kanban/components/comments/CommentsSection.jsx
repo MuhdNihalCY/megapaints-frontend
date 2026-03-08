@@ -227,11 +227,13 @@ const CommentsSection = ({
 
         try {
             const mentions = extractMentions(newComment);
-            // Backend expects user_id and username; ensure we send that shape
-            const mentionsForApi = mentions.map((m) => ({
-                user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
-                username: m.userName ?? m.userEmail ?? m.username ?? "",
-            }));
+            // Backend expects user_id and username; only send mentions with valid user_id
+            const mentionsForApi = mentions
+                .filter((m) => m.userId != null || m.user_id != null)
+                .map((m) => ({
+                    user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
+                    username: m.userName ?? m.userEmail ?? m.username ?? "",
+                }));
             const commentData = {
                 text: newComment.trim(),
                 content: newComment.trim(),
@@ -351,10 +353,12 @@ const CommentsSection = ({
 
         try {
             const mentions = extractMentions(editText);
-            const mentionsForApi = mentions.map((m) => ({
-                user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
-                username: m.userName ?? m.userEmail ?? m.username ?? "",
-            }));
+            const mentionsForApi = mentions
+                .filter((m) => m.userId != null || m.user_id != null)
+                .map((m) => ({
+                    user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
+                    username: m.userName ?? m.userEmail ?? m.username ?? "",
+                }));
             const updates = {
                 text: editText.trim(),
                 content: editText.trim(),

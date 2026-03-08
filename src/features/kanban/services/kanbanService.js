@@ -1509,7 +1509,8 @@ class KanbanService {
             );
             const result = this.handleResponse(response, endpoint);
             const list = result?.data?.notifications ?? result?.notifications;
-            return Array.isArray(list) ? list : [];
+            const arr = Array.isArray(list) ? list : [];
+            return arr;
         } catch (error) {
             return []; // Return empty array if endpoint doesn't exist yet
         }

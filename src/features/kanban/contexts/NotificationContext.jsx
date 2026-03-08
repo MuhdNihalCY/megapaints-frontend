@@ -205,13 +205,14 @@ export function NotificationProvider({ children, currentUser }) {
 
     // Fetch notifications
     const fetchNotifications = useCallback(async () => {
-        if (!currentUser || !(currentUser.id ?? currentUser._id)) return;
+        if (!currentUser || !(currentUser.id ?? currentUser._id)) {
+            return;
+        }
 
         try {
             dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-            const list = await kanbanService.getNotifications(
-                currentUser.id ?? currentUser._id,
-            );
+            const uid = currentUser.id ?? currentUser._id;
+            const list = await kanbanService.getNotifications(uid);
             const notifications = Array.isArray(list) ? list : [];
 
             // Play sound if there are new unread notifications (e.g. from polling)
@@ -283,10 +284,11 @@ export function NotificationProvider({ children, currentUser }) {
 
     // Mark all as read
     const markAllAsRead = useCallback(async () => {
-        if (!currentUser || !currentUser.id) return;
+        const uid = currentUser?.id ?? currentUser?._id;
+        if (!currentUser || uid == null) return;
 
         try {
-            await kanbanService.markAllNotificationsAsRead(currentUser.id);
+            await kanbanService.markAllNotificationsAsRead(uid);
             dispatch({ type: ActionTypes.MARK_ALL_AS_READ });
         } catch (error) {
             // Error marking all notifications as read
@@ -308,10 +310,11 @@ export function NotificationProvider({ children, currentUser }) {
 
     // Clear all notifications
     const clearAll = useCallback(async () => {
-        if (!currentUser || !currentUser.id) return;
+        const uid = currentUser?.id ?? currentUser?._id;
+        if (!currentUser || uid == null) return;
 
         try {
-            await kanbanService.clearAllNotifications(currentUser.id);
+            await kanbanService.clearAllNotifications(uid);
             dispatch({ type: ActionTypes.CLEAR_ALL });
         } catch (error) {
             // Error clearing notifications

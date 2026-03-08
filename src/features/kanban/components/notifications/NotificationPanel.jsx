@@ -96,7 +96,7 @@ const NotificationItem = ({ notification, onView, onDelete, onMarkAsRead }) => {
                 ? "bg-white dark:bg-gray-800"
                 : "bg-blue-50 dark:bg-blue-900/20"
         }
-        hover:bg-gray-50 dark:hover:bg-gray-750
+        hover:bg-gray-50 dark:hover:bg-slate-600
         border-b border-gray-200 dark:border-gray-700
       `}
             onMouseEnter={() => setIsHovered(true)}
@@ -265,9 +265,20 @@ export default function NotificationPanel({ onNavigateToCard }) {
         // Close panel
         setPanelOpen(false);
 
+        // Resolve card id: API may return target.cardId as object (populated) or string; also check metadata
+        const rawCardId =
+            notification.target?.cardId ?? notification.metadata?.cardId;
+        const cardId =
+            rawCardId != null
+                ? typeof rawCardId === "object"
+                    ? rawCardId._id ?? rawCardId.id
+                    : rawCardId
+                : null;
+        const cardIdStr = cardId != null ? String(cardId) : null;
+
         // Navigate to card
         if (onNavigateToCard) {
-            onNavigateToCard(notification.target.cardId, notification);
+            onNavigateToCard(cardIdStr, notification);
         }
     };
 
@@ -295,7 +306,7 @@ export default function NotificationPanel({ onNavigateToCard }) {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col"
+                className="fixed right-[-20px] top-0 bottom-0 w-full max-w-md bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col"
             >
                 {/* Header */}
                 <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 dark:border-gray-700">

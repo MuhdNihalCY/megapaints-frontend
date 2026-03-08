@@ -32,8 +32,41 @@ const UserHeader = () => {
             } else {
                 navigate("/crm");
             }
+        } else if (target.type === "crm_task") {
+            const customerId = meta.customer_id || target.customerId;
+            const taskId = meta.task_id || target.id;
+            if (customerId && taskId) {
+                navigate(`/crm/customer/${customerId}?taskId=${taskId}`);
+            } else if (customerId) {
+                navigate(`/crm/customer/${customerId}`);
+            } else {
+                navigate("/crm");
+            }
+        } else if (target.type === "comment" || target.type === "card") {
+            // Kanban comment mention or card assignment: open dashboard with card modal
+            const raw =
+                cardId ??
+                target.cardId ??
+                meta.cardId;
+            const idStr =
+                raw != null
+                    ? typeof raw === "object"
+                        ? raw._id ?? raw.id
+                        : raw
+                    : null;
+            if (idStr) {
+                navigate("/dashboard", {
+                    state: { openCardId: String(idStr) },
+                });
+            } else {
+                navigate("/dashboard");
+            }
         } else if (cardId) {
-            navigate("/dashboard", { state: { openCardId: cardId } });
+            navigate("/dashboard", {
+                state: { openCardId: String(cardId) },
+            });
+        } else {
+            navigate("/dashboard");
         }
     };
 
