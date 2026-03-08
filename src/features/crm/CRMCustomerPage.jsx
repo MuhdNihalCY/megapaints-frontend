@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
     LineChart,
     Line,
@@ -43,6 +43,7 @@ const getAddressDisplay = (c) => {
 
 const CRMCustomerPage = () => {
     const { id } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [customer, setCustomer] = useState(null);
     const [performance, setPerformance] = useState(null);
     const [purchaseDetails, setPurchaseDetails] = useState(null);
@@ -112,6 +113,24 @@ const CRMCustomerPage = () => {
         };
         load();
     }, [id]);
+
+    // Open follow-up log panel when navigating from notification (?followupLog=logId)
+    useEffect(() => {
+        const logId = searchParams.get("followupLog");
+        if (!logId || followupLogs.length === 0) return;
+        const log = followupLogs.find(
+            (l) => (l._id && l._id.toString() === logId) || (l.id && l.id.toString() === logId)
+        );
+        if (log) {
+            setViewingFollowupLog(log);
+            setTab("followups");
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("followupLog");
+                return next;
+            }, { replace: true });
+        }
+    }, [searchParams, followupLogs, setSearchParams]);
 
     const refreshTasks = async () => {
         try {

@@ -25,8 +25,19 @@ import {
 } from "lucide-react";
 import { useKanban } from "../../contexts/KanbanContext";
 import { buildCommentTree } from "../../utils/commentUtils";
-import { extractMentionedUserIds } from "../../types/notificationModel";
 import { useSafeNotifications } from "../../hooks/useSafeNotifications";
+
+/** Display name for mentions: prefer username, then name, then first+last. Never use email. */
+function getDisplayName(user) {
+    if (!user) return "User";
+    if (user.username && String(user.username).trim()) return user.username.trim();
+    if (user.name && String(user.name).trim()) return user.name.trim();
+    const first = user.first_name?.trim?.() ?? "";
+    const last = user.last_name?.trim?.() ?? "";
+    const full = [first, last].filter(Boolean).join(" ").trim();
+    if (full) return full;
+    return "User";
+}
 
 const CommentsSection = ({
     card,
@@ -55,13 +66,17 @@ const CommentsSection = ({
 
     // Enhanced user filtering for mentions
     const filteredUsers = users.filter((user) => {
-        if (user.id === currentUser?.id) return false; // Don't show current user
+        if ((user.id ?? user._id) === (currentUser?.id ?? currentUser?._id)) return false; // Don't show current user
         const query = mentionQuery.toLowerCase();
+        const displayName = getDisplayName(user).toLowerCase();
+        const email = user.email ?? "";
+        const username = user.username ?? "";
+        const designation = user.designation ?? "";
         return (
-            user.name?.toLowerCase().includes(query) ||
-            user.email?.toLowerCase().includes(query) ||
-            user.username?.toLowerCase().includes(query) ||
-            user.designation?.toLowerCase().includes(query)
+            displayName.includes(query) ||
+            email.toLowerCase().includes(query) ||
+            username.toLowerCase().includes(query) ||
+            designation.toLowerCase().includes(query)
         );
     });
 
@@ -74,7 +89,10 @@ const CommentsSection = ({
                 if (uid) mentionedUserIds.add(uid);
             });
         });
-        return users.filter((user) => mentionedUserIds.has(user.id));
+        return users.filter((user) => {
+            const uid = (user.id ?? user._id)?.toString?.();
+            return uid && mentionedUserIds.has(uid);
+        });
     };
 
     // Get recent mentions (users mentioned in last 5 comments)
@@ -87,7 +105,10 @@ const CommentsSection = ({
                 if (uid) recentMentionedUserIds.add(uid);
             });
         });
-        return users.filter((user) => recentMentionedUserIds.has(user.id));
+        return users.filter((user) => {
+            const uid = (user.id ?? user._id)?.toString?.();
+            return uid && recentMentionedUserIds.has(uid);
+        });
     };
 
     // Enhanced text change with mention detection
@@ -95,7 +116,7 @@ const CommentsSection = ({
         const text = e.target.value;
         setNewComment(text);
 
-        // Check for @ mentions
+        // Check for @ mentions (only when not editing another comment)
         const cursorPos = e.target.selectionStart;
         const textBeforeCursor = text.substring(0, cursorPos);
         const mentionMatch = textBeforeCursor.match(/@([\w\s]*)$/);
@@ -130,18 +151,16 @@ const CommentsSection = ({
         }
     };
 
-    // Enhanced mention selection
+    // Enhanced mention selection (keeps focus in textarea so you can keep typing or add more @mentions)
     const handleMentionSelect = (user, isEditMode = false) => {
         const currentText = isEditMode ? editText : newComment;
-        const textBeforeMention = currentText.substring(
-            0,
-            mentionPosition - mentionQuery.length - 1,
-        );
+        const startOfMention = mentionPosition - 1 - (mentionQuery?.length ?? 0);
+        const textBeforeMention = currentText.substring(0, Math.max(0, startOfMention));
         const textAfterMention = currentText.substring(mentionPosition);
-        const mentionText = `@${user.name || user.email}`;
+        const mentionText = `@${getDisplayName(user)} `;
 
         const newText =
-            textBeforeMention + mentionText + " " + textAfterMention;
+            textBeforeMention + mentionText + textAfterMention;
 
         if (isEditMode) {
             setEditText(newText);
@@ -151,21 +170,23 @@ const CommentsSection = ({
 
         setShowMentions(false);
 
-        // Focus back to textarea
-        setTimeout(() => {
-            const targetRef = isEditMode
-                ? editTextareaRef.current
-                : textareaRef.current;
-            if (targetRef) {
-                const newCursorPos =
-                    textBeforeMention.length + mentionText.length + 1;
-                targetRef.focus();
-                targetRef.setSelectionRange(newCursorPos, newCursorPos);
-            }
-        }, 0);
+        const newCursorPos = textBeforeMention.length + mentionText.length;
+
+        // Refocus and set cursor after the inserted mention so user can continue typing or type @ again for another mention
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const targetRef = isEditMode
+                    ? editTextareaRef.current
+                    : textareaRef.current;
+                if (targetRef) {
+                    targetRef.focus();
+                    targetRef.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            });
+        });
     };
 
-    // Handle keyboard navigation in mentions dropdown
+    // Handle keyboard navigation in mentions dropdown (prevent Enter from submitting form)
     const handleMentionKeyDown = (e) => {
         if (!showMentions) return;
 
@@ -184,8 +205,9 @@ const CommentsSection = ({
                 break;
             case "Enter":
                 e.preventDefault();
+                e.stopPropagation();
                 if (filteredUsers[selectedMentionIndex]) {
-                    handleMentionSelect(filteredUsers[selectedMentionIndex]);
+                    handleMentionSelect(filteredUsers[selectedMentionIndex], !!editingComment);
                 }
                 break;
             case "Escape":
@@ -205,12 +227,18 @@ const CommentsSection = ({
 
         try {
             const mentions = extractMentions(newComment);
+            // Backend expects user_id and username; ensure we send that shape
+            const mentionsForApi = mentions.map((m) => ({
+                user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
+                username: m.userName ?? m.userEmail ?? m.username ?? "",
+            }));
             const commentData = {
                 text: newComment.trim(),
-                mentions,
+                content: newComment.trim(),
+                mentions: mentionsForApi,
                 createdAt: new Date().toISOString(),
                 author: {
-                    id: currentUser?.id,
+                    id: currentUser?.id ?? currentUser?._id,
                     name: currentUser?.name || currentUser?.email,
                     email: currentUser?.email,
                     designation: currentUser?.designation,
@@ -223,7 +251,7 @@ const CommentsSection = ({
             const savedComment = await addComment(cardId, commentData);
 
             if (mentions.length > 0 && savedComment) {
-                const mentionedUserIds = extractMentionedUserIds(newComment);
+                const mentionedUserIds = mentions.map((m) => m.userId ?? m.user_id?.toString?.()).filter(Boolean);
                 createMentionNotificationsForComment(
                     savedComment,
                     mentionedUserIds,
@@ -242,28 +270,44 @@ const CommentsSection = ({
         }
     };
 
-    // Enhanced mention extraction
+    // Enhanced mention extraction (supports multiple @mentions in one comment; dedupes by userId)
+    // Matches @text against username, getDisplayName, name, first+last name, or email so stored content always resolves
     const extractMentions = (text) => {
         const mentionRegex = /@([\w\s]+)/g;
+        const seenIds = new Set();
         const mentions = [];
         let match;
 
         while ((match = mentionRegex.exec(text)) !== null) {
             const mentionText = match[1].trim();
-            const mentionedUser = users.find(
-                (user) =>
-                    user.name === mentionText ||
-                    user.email === mentionText ||
-                    user.username === mentionText,
-            );
+            if (!mentionText) continue;
+            const mentionLower = mentionText.toLowerCase();
+            const mentionedUser = users.find((user) => {
+                const display = getDisplayName(user);
+                const byDisplay = display && display.toLowerCase() === mentionLower;
+                const byUsername = user.username && String(user.username).toLowerCase() === mentionLower;
+                const byName = user.name && String(user.name).toLowerCase() === mentionLower;
+                const first = user.first_name?.trim?.() ?? "";
+                const last = user.last_name?.trim?.() ?? "";
+                const full = [first, last].filter(Boolean).join(" ").trim();
+                const byFullName = full && full.toLowerCase() === mentionLower;
+                const byEmail = user.email && String(user.email).toLowerCase() === mentionLower;
+                return byDisplay || byUsername || byName || byFullName || byEmail;
+            });
             if (mentionedUser) {
-                mentions.push({
-                    userId: mentionedUser.id,
-                    userName: mentionedUser.name || mentionedUser.email,
-                    userEmail: mentionedUser.email,
-                    userDesignation: mentionedUser.designation,
-                    position: match.index,
-                });
+                const uid = mentionedUser.id ?? mentionedUser._id?.toString?.();
+                if (uid && !seenIds.has(uid)) {
+                    seenIds.add(uid);
+                    mentions.push({
+                        userId: uid,
+                        user_id: mentionedUser._id ?? mentionedUser.id,
+                        userName: getDisplayName(mentionedUser),
+                        username: mentionedUser.username,
+                        userEmail: mentionedUser.email,
+                        userDesignation: mentionedUser.designation,
+                        position: match.index,
+                    });
+                }
             }
         }
 
@@ -288,7 +332,9 @@ const CommentsSection = ({
         if (!isCommentAuthor(comment)) return;
         const cid = comment.id ?? comment._id;
         setEditingComment(cid);
-        setEditText(comment.text ?? comment.content ?? "");
+        const raw = comment.text ?? comment.content ?? "";
+        const plainText = typeof raw === "string" ? raw.replace(/<[^>]+>/g, "").trim() : "";
+        setEditText(plainText || raw);
     };
 
     // Enhanced comment update
@@ -305,10 +351,14 @@ const CommentsSection = ({
 
         try {
             const mentions = extractMentions(editText);
+            const mentionsForApi = mentions.map((m) => ({
+                user_id: (m.userId ?? m.user_id)?.toString?.() ?? m.userId ?? m.user_id,
+                username: m.userName ?? m.userEmail ?? m.username ?? "",
+            }));
             const updates = {
                 text: editText.trim(),
                 content: editText.trim(),
-                mentions,
+                mentions: mentionsForApi,
                 updatedAt: new Date().toISOString(),
             };
             const result = await updateComment(cardId, commentId, updates);
@@ -345,17 +395,17 @@ const CommentsSection = ({
 
         let result = String(text ?? "");
         mentions.forEach((mention) => {
-            const mentionText = `@${mention.userName ?? mention.username ?? ""}`;
+            const displayName = mention.userName ?? mention.username ?? "";
+            if (!displayName) return;
             const isCurrentUser =
-                (mention.userId ?? mention.user_id?.toString?.()) === currentUser?.id;
+                (mention.userId ?? mention.user_id?.toString?.()) === (currentUser?.id ?? currentUser?._id);
             const mentionClass = isCurrentUser
                 ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
                 : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200";
-
-            result = result.replace(
-                mentionText,
-                `<span class="${mentionClass} px-1 rounded font-medium cursor-pointer hover:opacity-80" title="Mentioned: ${mention.userName ?? mention.username}">${mentionText}</span>`,
-            );
+            const span = `<span class="${mentionClass} px-1 rounded font-medium cursor-pointer hover:opacity-80" title="Mentioned: ${displayName}">@${displayName}</span>`;
+            const escaped = displayName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const regex = new RegExp(`@+${escaped}`, "gi");
+            result = result.replace(regex, span);
         });
 
         return <span dangerouslySetInnerHTML={{ __html: result }} />;
@@ -439,7 +489,7 @@ const CommentsSection = ({
                         </div>
                     </div>
 
-                    {editingComment === commentId ? (
+                    {String(editingComment) === String(commentId) ? (
                         <div className="space-y-2">
                             <div className="relative">
                                 <textarea
@@ -449,10 +499,10 @@ const CommentsSection = ({
                                     onKeyDown={handleMentionKeyDown}
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     rows={3}
-                                    placeholder="Edit comment... Use @ to mention someone"
+                                    placeholder="Edit comment... Type @ to mention one or more people"
                                 />
                                 <AnimatePresence>
-                                    {showMentions && (
+                                    {showMentions && String(editingComment) === String(commentId) && (
                                         <motion.div
                                             ref={mentionRef}
                                             initial={{ opacity: 0, y: -10 }}
@@ -482,7 +532,7 @@ const CommentsSection = ({
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-medium">
-                                                                        {user.name ?? user.email}
+                                                                        {getDisplayName(user)}
                                                                     </div>
                                                                     {user.designation && (
                                                                         <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -597,12 +647,10 @@ const CommentsSection = ({
                                     className="flex items-center gap-2 px-2 py-1 bg-white dark:bg-gray-800 rounded-full text-xs"
                                 >
                                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                                        {(user.name || user.email)
-                                            .charAt(0)
-                                            .toUpperCase()}
+                                        {getDisplayName(user).charAt(0).toUpperCase()}
                                     </div>
                                     <span className="text-gray-700 dark:text-gray-300">
-                                        {user.name || user.email}
+                                        {getDisplayName(user)}
                                     </span>
                                     {user.designation && (
                                         <span className="text-gray-500 dark:text-gray-400">
@@ -650,14 +698,14 @@ const CommentsSection = ({
                             value={newComment}
                             onChange={handleTextChange}
                             onKeyDown={handleMentionKeyDown}
-                            placeholder="Add a comment... Use @ to mention someone"
+                            placeholder="Add a comment... Type @ to mention one or more people"
                             rows={3}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
 
-                        {/* Enhanced Mentions Dropdown */}
+                                        {/* Enhanced Mentions Dropdown - only when not editing another comment */}
                         <AnimatePresence>
-                            {showMentions && (
+                            {showMentions && !editingComment && (
                                 <motion.div
                                     ref={mentionRef}
                                     initial={{ opacity: 0, y: -10 }}
@@ -671,6 +719,7 @@ const CommentsSection = ({
                                                 Mention someone:
                                             </div>
                                             <button
+                                                type="button"
                                                 onClick={() =>
                                                     setShowMentions(false)
                                                 }
@@ -692,6 +741,7 @@ const CommentsSection = ({
                                                             .slice(0, 3)
                                                             .map((user) => (
                                                                 <button
+                                                                    type="button"
                                                                     key={
                                                                         user.id
                                                                     }
@@ -704,19 +754,11 @@ const CommentsSection = ({
                                                                 >
                                                                     <div className="flex items-center gap-2">
                                                                         <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                                                                            {(
-                                                                                user.name ||
-                                                                                user.email
-                                                                            )
-                                                                                .charAt(
-                                                                                    0,
-                                                                                )
-                                                                                .toUpperCase()}
+                                                                            {getDisplayName(user).charAt(0).toUpperCase()}
                                                                         </div>
                                                                         <div>
                                                                             <div className="font-medium">
-                                                                                {user.name ||
-                                                                                    user.email}
+                                                                                {getDisplayName(user)}
                                                                             </div>
                                                                             {user.designation && (
                                                                                 <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -738,6 +780,7 @@ const CommentsSection = ({
                                             {filteredUsers.map(
                                                 (user, index) => (
                                                     <button
+                                                        type="button"
                                                         key={user.id}
                                                         onClick={() =>
                                                             handleMentionSelect(
@@ -757,17 +800,8 @@ const CommentsSection = ({
                                                             </div>
                                                             <div>
                                                                 <div className="font-medium">
-                                                                    {user.name ||
-                                                                        user.email}
+                                                                    {getDisplayName(user)}
                                                                 </div>
-                                                                {user.name &&
-                                                                    user.email && (
-                                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                            {
-                                                                                user.email
-                                                                            }
-                                                                        </div>
-                                                                    )}
                                                                 {user.designation && (
                                                                     <div className="text-xs text-gray-500 dark:text-gray-400">
                                                                         {

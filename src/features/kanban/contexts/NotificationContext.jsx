@@ -177,6 +177,7 @@ const NotificationContext = createContext(null);
 export function NotificationProvider({ children, currentUser }) {
     const [state, dispatch] = useReducer(notificationReducer, initialState);
     const audioRef = useRef(null);
+    const lastNotifIdsRef = useRef(new Set());
 
     // Initialize audio
     useEffect(() => {
@@ -204,21 +205,33 @@ export function NotificationProvider({ children, currentUser }) {
 
     // Fetch notifications
     const fetchNotifications = useCallback(async () => {
-        if (!currentUser || !currentUser.id) return;
+        if (!currentUser || !(currentUser.id ?? currentUser._id)) return;
 
         try {
             dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-            const notifications = await kanbanService.getNotifications(
-                currentUser.id,
+            const list = await kanbanService.getNotifications(
+                currentUser.id ?? currentUser._id,
             );
+            const notifications = Array.isArray(list) ? list : [];
+
+            // Play sound if there are new unread notifications (e.g. from polling)
+            const prevIds = lastNotifIdsRef.current;
+            const hasNewUnread = notifications.some(
+                (n) => !n.is_read && !prevIds.has(n._id),
+            );
+            if (hasNewUnread && state.soundEnabled) {
+                playNotificationSound();
+            }
+            lastNotifIdsRef.current = new Set(notifications.map((n) => n._id));
+
             dispatch({
                 type: ActionTypes.SET_NOTIFICATIONS,
-                payload: notifications || [],
+                payload: notifications,
             });
         } catch (error) {
             dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
         }
-    }, [currentUser]);
+    }, [currentUser, playNotificationSound, state.soundEnabled]);
 
     // Add notification
     const addNotification = useCallback(
@@ -227,9 +240,19 @@ export function NotificationProvider({ children, currentUser }) {
                 type: ActionTypes.ADD_NOTIFICATION,
                 payload: notification,
             });
-            playNotificationSound();
+            // Only play sound when the notification is for the current user (e.g. you were mentioned).
+            // Don't play when we're adding notifications for others (e.g. you mentioned someone).
+            const currentUserId = currentUser?.id ?? currentUser?._id;
+            const recipientId = notification?.recipient_id;
+            if (
+                currentUserId != null &&
+                recipientId != null &&
+                String(recipientId) === String(currentUserId)
+            ) {
+                playNotificationSound();
+            }
         },
-        [playNotificationSound],
+        [currentUser, playNotificationSound],
     );
 
     // Mark as read

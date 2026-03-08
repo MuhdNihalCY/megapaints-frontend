@@ -126,6 +126,37 @@ const KanbanBoard = ({ onCardClick, onCreateCard }) => {
         return () => { cancelled = true; };
     }, [location.state]);
 
+    // Open card modal when navigating from notification (state.openCardId)
+    useEffect(() => {
+        const openCardId = location.state?.openCardId;
+        if (!openCardId) return;
+        const cardFromBoard = cards.find((c) => (c.id || c._id) === openCardId);
+        if (cardFromBoard) {
+            setSelectedCard(cardFromBoard);
+            setIsCardModalOpen(true);
+            navigate(location.pathname, { replace: true, state: {} });
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const result = await kanbanService.getTask(openCardId);
+                if (cancelled) return;
+                if (result?.status === "success") {
+                    const taskData = result.data?.task || result.data;
+                    const fullCard = kanbanService.transformCardData(taskData);
+                    setSelectedCard(fullCard);
+                    setIsCardModalOpen(true);
+                }
+                navigate(location.pathname, { replace: true, state: {} });
+            } catch (err) {
+                if (!cancelled) console.error("Error opening card from notification:", err);
+                navigate(location.pathname, { replace: true, state: {} });
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [location.state?.openCardId, cards, navigate, location.pathname]);
+
     // Refs
     const boardRef = useRef(null);
     const columnRefs = useRef(new Map());

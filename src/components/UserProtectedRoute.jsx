@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { NotificationProvider } from "../features/kanban/contexts/NotificationContext";
 
 const UserProtectedRoute = ({ children }) => {
     const { user, isAdmin, loading } = useAuth();
@@ -25,7 +26,11 @@ const UserProtectedRoute = ({ children }) => {
         return <Navigate to="/admin/dashboard" replace />;
     }
 
-    return children;
+    return (
+        <NotificationProvider currentUser={user}>
+            {children}
+        </NotificationProvider>
+    );
 };
 
 export default UserProtectedRoute;

@@ -1507,7 +1507,9 @@ class KanbanService {
                 `${this.baseURL}/notification/user/${userId}`,
                 { params },
             );
-            return this.handleResponse(response, endpoint);
+            const result = this.handleResponse(response, endpoint);
+            const list = result?.data?.notifications ?? result?.notifications;
+            return Array.isArray(list) ? list : [];
         } catch (error) {
             return []; // Return empty array if endpoint doesn't exist yet
         }

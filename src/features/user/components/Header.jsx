@@ -1,12 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
+import NotificationBell from "../../../features/kanban/components/notifications/NotificationBell";
+import NotificationPanel from "../../../features/kanban/components/notifications/NotificationPanel";
 
 const navLinkClass = ({ isActive }) =>
     `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
         isActive
             ? "bg-blue-600 text-white"
-            : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
     }`;
 
 const UserHeader = () => {
@@ -17,6 +19,22 @@ const UserHeader = () => {
     const handleLogout = async () => {
         await logout();
         navigate("/login");
+    };
+
+    const handleNotificationNavigate = (cardId, notification) => {
+        if (!notification) return;
+        const target = notification.target || {};
+        const meta = notification.metadata || {};
+        if (target.type === "crm_followup") {
+            const customerId = meta.customer_id || target.customerId;
+            if (customerId) {
+                navigate(`/crm/customer/${customerId}?followupLog=${target.id}`);
+            } else {
+                navigate("/crm");
+            }
+        } else if (cardId) {
+            navigate("/dashboard", { state: { openCardId: cardId } });
+        }
     };
 
     return (
@@ -55,6 +73,8 @@ const UserHeader = () => {
                         </nav>
                     </div>
                     <div className="flex items-center space-x-4">
+                        <NotificationBell />
+                        <NotificationPanel onNavigateToCard={handleNotificationNavigate} />
                         <span className="text-gray-700 dark:text-gray-300">
                             {user?.username || "User"}
                         </span>
