@@ -4,6 +4,7 @@
  */
 
 import { DRAG_DROP_RULES, COLUMN_TYPES } from "./constants";
+import { canPerformAction } from "./permissions";
 
 /**
  * Check if a move is allowed by drag & drop rules
@@ -72,6 +73,22 @@ export const validateDragStart = (card, user) => {
         restrictions: [],
     };
 
+    if (user != null) {
+        if (!user._id) {
+            validation.canDrag = false;
+            validation.reason = "Authentication required";
+            validation.restrictions.push("auth_required");
+            return validation;
+        }
+        const moveContext = { fromColumn: card.columnId };
+        if (!canPerformAction(user, "MOVE_CARD", card, moveContext)) {
+            validation.canDrag = false;
+            validation.reason = "You do not have permission to move cards";
+            validation.restrictions.push("permission_denied");
+            return validation;
+        }
+    }
+
     // Check if card is in a restricted column
     if (DRAG_DROP_RULES.RESTRICTED_COLUMNS.includes(card.columnId)) {
         validation.canDrag = false;
@@ -104,6 +121,25 @@ export const validateDrop = (card, targetColumnId, targetSubColumnId, user) => {
         reason: null,
         restrictions: [],
     };
+
+    if (user != null) {
+        if (!user._id) {
+            validation.canDrop = false;
+            validation.reason = "Authentication required";
+            validation.restrictions.push("auth_required");
+            return validation;
+        }
+        const moveContext = {
+            fromColumn: card.columnId,
+            toColumn: targetColumnId,
+        };
+        if (!canPerformAction(user, "MOVE_CARD", card, moveContext)) {
+            validation.canDrop = false;
+            validation.reason = "You do not have permission to move cards";
+            validation.restrictions.push("permission_denied");
+            return validation;
+        }
+    }
 
     // Check if target is restricted
     if (DRAG_DROP_RULES.RESTRICTED_COLUMNS.includes(targetColumnId)) {
@@ -146,8 +182,8 @@ export const validateDrop = (card, targetColumnId, targetSubColumnId, user) => {
 /**
  * Get visual feedback for drag operation
  */
-export const getDragFeedback = (card, targetColumnId, targetSubColumnId) => {
-    const validation = validateDrop(card, targetColumnId, targetSubColumnId);
+export const getDragFeedback = (card, targetColumnId, targetSubColumnId, user) => {
+    const validation = validateDrop(card, targetColumnId, targetSubColumnId, user);
 
     return {
         isValid: validation.canDrop,
@@ -327,32 +363,36 @@ export const getDragDropRulesSummary = () => {
  * Check if user can perform drag operation
  */
 export const canUserDragCard = (user, card) => {
-    // This would integrate with the permission system
-    // For now, return true for all authenticated users
-    return user && user._id;
+    if (!user || !user._id) return false;
+    const moveContext = { fromColumn: card?.columnId };
+    return canPerformAction(user, "MOVE_CARD", card ?? null, moveContext);
 };
 
 /**
  * Check if user can perform drop operation
  */
 export const canUserDropCard = (user, card, targetColumnId) => {
-    // This would integrate with the permission system
-    // For now, return true for all authenticated users
-    return user && user._id;
+    if (!user || !user._id) return false;
+    const moveContext = {
+        fromColumn: card?.columnId,
+        toColumn: targetColumnId,
+    };
+    return canPerformAction(user, "MOVE_CARD", card ?? null, moveContext);
 };
 
 /**
  * Get drag & drop constraints for UI
  */
 export const getDragDropConstraints = (user) => {
+    const canMoveCards = user ? canPerformAction(user, "MOVE_CARD", null, {}) : false;
     return {
-        canDrag: true,
-        canDrop: true,
+        canDrag: canMoveCards,
+        canDrop: canMoveCards,
         restrictedColumns: DRAG_DROP_RULES.RESTRICTED_COLUMNS,
         allowedMoves: DRAG_DROP_RULES.ALLOWED_MOVES,
         userPermissions: {
-            canMoveCards: true, // This would come from permission system
-            canReorderCards: true,
+            canMoveCards,
+            canReorderCards: canMoveCards,
         },
     };
 };

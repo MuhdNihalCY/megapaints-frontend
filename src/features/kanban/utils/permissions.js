@@ -19,19 +19,21 @@ export const PERMISSIONS = {
     VIEW_ACTIVITY: "VIEW_ACTIVITY",
 };
 
-// Designation definitions (based on user.designation field)
+// Designation definitions (based on user.designation field; must match admin list)
 export const DESIGNATIONS = {
-    ADMIN: "admin",
-    SALES_LEAD: "saleslead",
-    PRODUCTION_LEAD: "productionlead",
-    DRIVER_LEAD: "driverlead",
-    SALES: "sales",
-    PRODUCTION: "production",
-    DRIVER: "driver",
-    OFFICE: "office",
+    ADMIN: "Admin",
+    SALES_LEAD: "Sales Lead",
+    PRODUCTION_LEAD: "Production Lead",
+    DRIVER_LEAD: "Driver Lead",
+    SALES: "Sales",
+    OFFICE: "Office",
+    PRODUCTION: "Production",
+    DRIVER: "Driver",
+    MANAGER: "Manager",
+    SUPERVISOR: "Supervisor",
 };
 
-// Permission matrix based on designation
+// Permission matrix based on designation (keys must match user.designation from DB)
 const PERMISSION_MATRIX = {
     [DESIGNATIONS.ADMIN]: Object.values(PERMISSIONS),
     [DESIGNATIONS.SALES_LEAD]: [
@@ -61,6 +63,32 @@ const PERMISSION_MATRIX = {
         PERMISSIONS.VIEW_ACTIVITY,
     ],
     [DESIGNATIONS.DRIVER_LEAD]: [
+        PERMISSIONS.VIEW_BOARD,
+        PERMISSIONS.EDIT_CARD,
+        PERMISSIONS.MOVE_CARD,
+        PERMISSIONS.MANAGE_COLUMNS,
+        PERMISSIONS.COMMENT,
+        PERMISSIONS.ASSIGN_USERS,
+        PERMISSIONS.CHANGE_DUE,
+        PERMISSIONS.CHANGE_LABELS,
+        PERMISSIONS.SEARCH_CARDS,
+        PERMISSIONS.VIEW_ACTIVITY,
+    ],
+    [DESIGNATIONS.MANAGER]: [
+        PERMISSIONS.VIEW_BOARD,
+        PERMISSIONS.CREATE_CARD,
+        PERMISSIONS.EDIT_CARD,
+        PERMISSIONS.DELETE_CARD,
+        PERMISSIONS.MOVE_CARD,
+        PERMISSIONS.MANAGE_COLUMNS,
+        PERMISSIONS.COMMENT,
+        PERMISSIONS.ASSIGN_USERS,
+        PERMISSIONS.CHANGE_DUE,
+        PERMISSIONS.CHANGE_LABELS,
+        PERMISSIONS.SEARCH_CARDS,
+        PERMISSIONS.VIEW_ACTIVITY,
+    ],
+    [DESIGNATIONS.SUPERVISOR]: [
         PERMISSIONS.VIEW_BOARD,
         PERMISSIONS.EDIT_CARD,
         PERMISSIONS.MOVE_CARD,
@@ -112,6 +140,7 @@ export const hasPermission = (user, permission) => {
     if (!user || !user.designation) {
         return false;
     }
+    if (isAdmin(user)) return true;
 
     const userPermissions = PERMISSION_MATRIX[user.designation] || [];
     const hasAccess = userPermissions.includes(permission);
@@ -226,6 +255,11 @@ export const canPerformAction = (
 };
 
 /**
+ * Get designation list (array) for forms/dropdowns. Single source of truth for designation list.
+ */
+export const getDesignationsList = () => Object.values(DESIGNATIONS);
+
+/**
  * Get user's permissions list
  */
 export const getUserPermissions = (user) => {
@@ -236,10 +270,15 @@ export const getUserPermissions = (user) => {
 };
 
 /**
- * Check if user is admin
+ * Check if user is admin (by designation or role)
  */
 export const isAdmin = (user) => {
-    return user?.designation === DESIGNATIONS.ADMIN;
+    if (!user) return false;
+    if (user.designation === DESIGNATIONS.ADMIN) return true;
+    const roles = user.roles || [];
+    return (
+        roles.includes("admin") === true || roles.includes("super_admin") === true
+    );
 };
 
 /**
@@ -274,6 +313,7 @@ export const canManageColumnType = (user, columnType) => {
 export default {
     PERMISSIONS,
     DESIGNATIONS,
+    getDesignationsList,
     hasPermission,
     canPerformAction,
     getUserPermissions,

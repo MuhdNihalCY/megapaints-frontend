@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import apiServiceFactory from "../../../services/ApiServiceFactory.js";
 import { DESIGNATIONS } from "../utils/designations";
+import { ALL_ADMIN_PERMISSIONS } from "../../../utils/adminPermissions";
 import {
     X,
     User,
@@ -33,18 +34,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
         "operator",
         "viewer",
     ]);
-    const [permissions, setPermissions] = useState([
-        "products:read",
-        "products:write",
-        "inventory:read",
-        "inventory:write",
-        "orders:read",
-        "orders:write",
-        "users:read",
-        "users:write",
-        "reports:read",
-        "reports:write",
-    ]);
+    const [permissions, setPermissions] = useState(ALL_ADMIN_PERMISSIONS);
 
     const [formData, setFormData] = useState({
         username: "",

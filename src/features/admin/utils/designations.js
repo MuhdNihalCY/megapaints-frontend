@@ -1,20 +1,15 @@
 // =====================================================
 // Designation Constants - Frontend
-// MegaPaints Frontend - User Designation Constants
+// Single source: megapaints/src/features/kanban/utils/permissions.js
 // =====================================================
 
+import { getDesignationsList } from "../../kanban/utils/permissions";
+
 /**
- * Predefined user designations
- * Must match backend constants in backend/utils/constants.js
+ * Predefined user designations (array for dropdowns/validation).
+ * Derived from kanban permissions so the list stays in one place.
  */
-export const DESIGNATIONS = [
-    "Sales",
-    "Office",
-    "Production",
-    "Driver",
-    "Manager",
-    "Supervisor",
-];
+export const DESIGNATIONS = getDesignationsList();
 
 /**
  * Get all available designations

@@ -8,6 +8,7 @@ import { DndProvider } from "@dnd-kit/core";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { KanbanProvider } from "../contexts/KanbanContext";
 import { PermissionProvider } from "../contexts/PermissionContext";
+import { hasPermission } from "../../utils/permissions";
 
 // Test Utilities
 export const createMockUser = (overrides = {}) => ({
@@ -16,7 +17,8 @@ export const createMockUser = (overrides = {}) => ({
     email: "test@example.com",
     first_name: "Test",
     last_name: "User",
-    roles: ["sales"],
+    roles: ["user"],
+    designation: "Sales",
     permissions: ["VIEW_BOARD", "CREATE_CARD", "EDIT_CARD"],
     is_active: true,
     ...overrides,
@@ -150,12 +152,10 @@ export const createDragEvent = (type, data = {}) => {
     return event;
 };
 
-// Permission Test Utilities
+// Permission Test Utilities (uses designation-based hasPermission from permissions.js)
 export const testPermission = (permission, user, expectedResult) => {
-    const hasPermission = user.roles.some((role) =>
-        PERMISSION_MATRIX[permission]?.includes(role),
-    );
-    expect(hasPermission).toBe(expectedResult);
+    const u = user?.designation != null ? user : { ...user, designation: user?.roles?.[0] };
+    expect(hasPermission(u, permission)).toBe(expectedResult);
 };
 
 export const testPermissionMatrix = (user, permissions) => {
@@ -324,13 +324,14 @@ export const generateMockColumns = () => {
 };
 
 export const generateMockUsers = (count = 5) => {
-    const roles = ["sales", "production", "driver", "office", "admin"];
+    const designations = ["Sales", "Production", "Driver", "Office", "Admin"];
     return Array.from({ length: count }, (_, index) =>
         createMockUser({
             _id: `user-${index + 1}`,
             username: `user${index + 1}`,
             first_name: `User${index + 1}`,
-            roles: [roles[index % roles.length]],
+            designation: designations[index % designations.length],
+            roles: ["user"],
         }),
     );
 };
@@ -340,7 +341,7 @@ export const testScenarios = {
     // User Journey Tests
     userJourneys: {
         createCard: async () => {
-            const user = createMockUser({ roles: ["sales"] });
+            const user = createMockUser({ designation: "Sales" });
             const cardData = {
                 title: "New Card",
                 description: "Test Description",
@@ -351,7 +352,7 @@ export const testScenarios = {
         },
 
         moveCard: async () => {
-            const user = createMockUser({ roles: ["sales_lead"] });
+            const user = createMockUser({ designation: "Sales Lead" });
             const card = createMockCard();
 
             await testCardMove(card._id, "office", true);

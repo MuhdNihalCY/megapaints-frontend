@@ -17,15 +17,14 @@ const CustomerManagementButton = ({ user, className = "" }) => {
     const [showAddFollowupModal, setShowAddFollowupModal] = useState(false);
     const [activeAction, setActiveAction] = useState(null);
 
-    // Check if user has permission to manage customers
+    // Check if user has permission to manage customers (roles and designation match admin list)
     const canManageCustomers =
         user &&
         (user.roles?.includes("admin") ||
             user.roles?.includes("manager") ||
-            user.roles?.includes("sales") ||
-            user.designation === "admin" ||
-            user.designation === "manager" ||
-            user.designation === "sales");
+            user.designation === "Admin" ||
+            user.designation === "Manager" ||
+            user.designation === "Sales");
 
     if (!canManageCustomers) {
         return null;

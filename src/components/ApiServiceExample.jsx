@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import apiServiceFactory from "../services/ApiServiceFactory.js";
+import { ADMIN_PERMISSIONS } from "../utils/adminPermissions";
 
 const ApiServiceExample = () => {
     const { user, isAdmin, isAuthenticated } = useAuth();
@@ -277,11 +278,11 @@ const ApiServiceExample = () => {
         }
 
         const permissions = [
-            "products:read",
-            "products:create",
-            "users:read",
-            "users:create",
-            "inventory:read",
+            ADMIN_PERMISSIONS.PRODUCTS_READ,
+            ADMIN_PERMISSIONS.PRODUCTS_CREATE,
+            ADMIN_PERMISSIONS.USERS_READ,
+            ADMIN_PERMISSIONS.USERS_CREATE,
+            ADMIN_PERMISSIONS.INVENTORY_READ,
         ];
 
         const permissionResults = permissions.map((permission) => ({
@@ -290,17 +291,17 @@ const ApiServiceExample = () => {
         }));
 
         const hasAnyProductPermission = apiServiceFactory.hasAnyPermission([
-            "products:read",
-            "products:create",
-            "products:update",
-            "products:delete",
+            ADMIN_PERMISSIONS.PRODUCTS_READ,
+            ADMIN_PERMISSIONS.PRODUCTS_CREATE,
+            ADMIN_PERMISSIONS.PRODUCTS_UPDATE,
+            ADMIN_PERMISSIONS.PRODUCTS_DELETE,
         ]);
 
         const hasAllUserPermissions = apiServiceFactory.hasAllPermissions([
-            "users:read",
-            "users:create",
-            "users:update",
-            "users:delete",
+            ADMIN_PERMISSIONS.USERS_READ,
+            ADMIN_PERMISSIONS.USERS_CREATE,
+            ADMIN_PERMISSIONS.USERS_UPDATE,
+            ADMIN_PERMISSIONS.USERS_DELETE,
         ]);
 
         setData({

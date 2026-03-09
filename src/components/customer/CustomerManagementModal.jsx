@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { kanbanService } from "../../features/kanban/services/kanbanService";
 import { useAuth } from "../../contexts/AuthContext";
+import * as branchAccess from "../../utils/branchAccess";
 
 // Helper function to check if a string is a valid MongoDB ObjectId
 const isValidObjectId = (id) => {
@@ -101,11 +102,7 @@ const CustomerManagementModal = ({
     useEffect(() => {
         if (isOpen) {
             loadUsers();
-            if (
-                user?.isAdmin ||
-                user?.roles?.includes("admin") ||
-                user?.roles?.includes("super_admin")
-            ) {
+            if (branchAccess.isAdmin(user)) {
                 loadBranches();
             }
             // Only load customers if in manage mode
@@ -149,10 +146,7 @@ const CustomerManagementModal = ({
     };
 
     // Check if user is admin
-    const isAdmin =
-        user?.isAdmin ||
-        user?.roles?.includes("admin") ||
-        user?.roles?.includes("super_admin");
+    const isAdmin = branchAccess.isAdmin(user);
 
     // Load users for Sales Executive and Co-ordinator dropdowns
     const loadUsers = async () => {
@@ -234,10 +228,7 @@ const CustomerManagementModal = ({
 
             // For admin users, use selectedBranchId if set, otherwise don't send branch_id (shows all)
             // For non-admin users, use their branch
-            const isAdmin =
-                user?.isAdmin ||
-                user?.roles?.includes("admin") ||
-                user?.roles?.includes("super_admin");
+            const isAdmin = branchAccess.isAdmin(user);
             const params = {};
 
             if (isAdmin) {

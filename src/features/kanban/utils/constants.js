@@ -157,88 +157,6 @@ export const CARD_LABELS = {
     },
 };
 
-// User Roles
-export const USER_ROLES = {
-    SALES: "sales",
-    SALES_LEAD: "sales_lead",
-    PRODUCTION: "production",
-    PRODUCTION_LEAD: "production_lead",
-    DRIVER: "driver",
-    DRIVER_LEAD: "driver_lead",
-    OFFICE: "office",
-    ADMIN: "admin",
-};
-
-// Permission Matrix
-export const PERMISSION_MATRIX = {
-    VIEW_BOARD: [
-        USER_ROLES.SALES,
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.OFFICE,
-        USER_ROLES.ADMIN,
-    ],
-    CREATE_CARD: [USER_ROLES.SALES, USER_ROLES.SALES_LEAD, USER_ROLES.ADMIN],
-    EDIT_CARD: [
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    MOVE_CARD: [
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    ASSIGN_USERS: [
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    CHANGE_DUE: [
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    CHANGE_LABELS: [
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    MANAGE_COLUMNS: [
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.ADMIN,
-    ],
-    COMMENT: [
-        USER_ROLES.SALES,
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.OFFICE,
-        USER_ROLES.ADMIN,
-    ],
-    MENTION: [
-        USER_ROLES.SALES,
-        USER_ROLES.SALES_LEAD,
-        USER_ROLES.PRODUCTION,
-        USER_ROLES.PRODUCTION_LEAD,
-        USER_ROLES.DRIVER,
-        USER_ROLES.DRIVER_LEAD,
-        USER_ROLES.OFFICE,
-        USER_ROLES.ADMIN,
-    ],
-};
-
 // Drag & Drop Rules
 export const DRAG_DROP_RULES = {
     RESTRICTED_COLUMNS: ["done-less-7", "done-more-7"],
@@ -391,8 +309,6 @@ export default {
     DEFAULT_COLUMNS,
     CARD_PRIORITIES,
     CARD_LABELS,
-    USER_ROLES,
-    PERMISSION_MATRIX,
     DRAG_DROP_RULES,
     ACTIVITY_TYPES,
     API_ENDPOINTS,
