@@ -1239,14 +1239,15 @@ class KanbanService {
 
     /**
      * Get users (for mentions and assignments)
-     * Uses Kanban-specific users API with workspace filtering
+     * Uses Kanban-specific users API; optional branchId restricts to that branch.
      */
-    async getUsers() {
+    async getUsers(branchId = null) {
         const endpoint = "GET /api/kanban/users";
 
         try {
-            // Use Kanban-specific users endpoint
-            const response = await api.get(`${this.baseURL}/kanban/users`);
+            const params = {};
+            if (branchId) params.branch_id = branchId;
+            const response = await api.get(`${this.baseURL}/kanban/users`, { params });
             response.data = response.data.data.users;
             const result = this.handleResponse(response, endpoint);
 

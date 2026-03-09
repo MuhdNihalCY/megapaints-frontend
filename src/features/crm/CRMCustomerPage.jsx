@@ -25,11 +25,13 @@ import {
     Bell,
     X,
     Pencil,
+    Trash2,
 } from "lucide-react";
 import UserHeader from "../user/components/Header";
 import api from "../../utils/api";
 import AssigneePicker from "./components/AssigneePicker";
 import AddFollowupModal from "./components/AddFollowupModal";
+import AccessKeyModal from "../user/components/AccessKeyModal";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
@@ -69,26 +71,39 @@ const CRMCustomerPage = () => {
     const [viewingFollowupLog, setViewingFollowupLog] = useState(null);
     const [newFollowupComment, setNewFollowupComment] = useState({ text: "", assignees: [] });
     const [replyingToFollowupCommentId, setReplyingToFollowupCommentId] = useState(null);
+    const [pendingDelete, setPendingDelete] = useState(null);
 
     useEffect(() => {
         if (!id) return;
         const load = async () => {
             setLoading(true);
             try {
-                const [custRes, perfRes, purchRes, followRes, followupLogsRes, taskRes, usersRes] = await Promise.all([
+                const [custRes, perfRes, purchRes, followRes, followupLogsRes, taskRes] = await Promise.all([
                     api.get(`/customers/${id}`),
                     api.get(`/crm/customers/${id}/performance`).catch(() => ({ data: {} })),
                     api.get(`/crm/customers/${id}/purchase-details`).catch(() => ({ data: {} })),
                     api.get(`/customer-followups?customer_id=${id}&limit=100`).catch(() => ({ data: {} })),
                     api.get(`/crm/followup-logs?customer_id=${id}`).catch(() => ({ data: {} })),
                     api.get(`/crm/tasks?customer_id=${id}`).catch(() => ({ data: {} })),
-                    api.get("/crm/branch-users/me").catch(() => ({ data: {} })),
                 ]);
                 if (custRes.data?.status === "success" && custRes.data?.data?.customer) {
                     setCustomer(custRes.data.data.customer);
-                }
-                if (usersRes.data?.status === "success" && usersRes.data?.data?.users) {
-                    setBranchUsers(usersRes.data.data.users);
+                    const customerData = custRes.data.data.customer;
+                    const branchId = customerData?.branch_id?._id?.toString?.() || customerData?.branch_id?.toString?.();
+                    try {
+                        const usersRes = branchId
+                            ? await api.get("/crm/branch-users", { params: { branch_id: branchId } })
+                            : await api.get("/crm/branch-users/me");
+                        if (usersRes.data?.status === "success" && usersRes.data?.data?.users) {
+                            setBranchUsers(usersRes.data.data.users);
+                        } else {
+                            setBranchUsers([]);
+                        }
+                    } catch {
+                        setBranchUsers([]);
+                    }
+                } else {
+                    setBranchUsers([]);
                 }
                 if (perfRes.data?.status === "success" && perfRes.data?.data) {
                     setPerformance(perfRes.data.data);
@@ -150,6 +165,31 @@ const CRMCustomerPage = () => {
         }
     }, [searchParams, tasks, setSearchParams]);
 
+    // Delete key: delete selected task or follow-up log when tab is active (do not fire when focus is in input/textarea/select)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key !== "Delete" && e.key !== "Backspace") return;
+            const active = document.activeElement;
+            const tag = active?.tagName?.toLowerCase();
+            if (tag === "input" || tag === "textarea" || tag === "select") return;
+            if (tab === "followup" && viewingFollowupLog?._id) {
+                e.preventDefault();
+                if (window.confirm("Are you sure you want to delete this follow-up log?")) {
+                    setPendingDelete({ type: "followup", id: viewingFollowupLog._id });
+                }
+                return;
+            }
+            if (tab === "followup" && viewingTaskId) {
+                e.preventDefault();
+                if (window.confirm("Are you sure you want to delete this task?")) {
+                    setPendingDelete({ type: "task", id: viewingTaskId });
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [tab, viewingTaskId, viewingFollowupLog]);
+
     const refreshTasks = async () => {
         try {
             const res = await api.get(`/crm/tasks?customer_id=${id}`);
@@ -169,6 +209,41 @@ const CRMCustomerPage = () => {
             }
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    const handleDeleteTask = async (taskId) => {
+        if (!taskId) return;
+        if (!window.confirm("Are you sure you want to delete this task?")) return;
+        setPendingDelete({ type: "task", id: taskId });
+    };
+
+    const handleDeleteFollowupLog = async (logId) => {
+        if (!logId) return;
+        if (!window.confirm("Are you sure you want to delete this follow-up log?")) return;
+        setPendingDelete({ type: "followup", id: logId });
+    };
+
+    const executeDeleteWithKey = async (accessKey) => {
+        if (!pendingDelete || !accessKey?.trim()) return;
+        try {
+            if (pendingDelete.type === "task") {
+                await api.delete(`/crm/tasks/${pendingDelete.id}`, { data: { access_key: accessKey.trim() } });
+                if (viewingTaskId === pendingDelete.id) setViewingTaskId(null);
+                if (editingTask?._id === pendingDelete.id) setEditingTask(null);
+                if (commentTaskId === pendingDelete.id) setCommentTaskId(null);
+                refreshTasks();
+            } else if (pendingDelete.type === "followup") {
+                await api.delete(`/crm/followup-logs/${pendingDelete.id}`, { data: { access_key: accessKey.trim() } });
+                if (viewingFollowupLog?._id === pendingDelete.id) setViewingFollowupLog(null);
+                refreshFollowupLogs();
+            }
+        } catch (err) {
+            console.error(err);
+            const msg = err.response?.data?.message || err.message || "Delete failed";
+            alert(msg);
+        } finally {
+            setPendingDelete(null);
         }
     };
 
@@ -786,6 +861,14 @@ const CRMCustomerPage = () => {
                                                     >
                                                         {t.status === "completed" && <Check className="w-3 h-3 stroke-[3]" />}
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteTask(t._id); }}
+                                                        className="p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded"
+                                                        aria-label="Delete task"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1198,6 +1281,15 @@ const CRMCustomerPage = () => {
                 prefilledCustomerName={customer?.name || ""}
             />
 
+            <AccessKeyModal
+                isOpen={!!pendingDelete}
+                onClose={() => setPendingDelete(null)}
+                onSuccessWithKey={executeDeleteWithKey}
+                title="Delete: access key required"
+                helpText="Enter the controlled access key from Admin → Controlled Access to confirm this delete."
+                successMessage="Deleting…"
+            />
+
             {viewingFollowupLog && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div
@@ -1210,14 +1302,24 @@ const CRMCustomerPage = () => {
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Follow-up details
                             </h2>
-                            <button
-                                type="button"
-                                onClick={() => { setViewingFollowupLog(null); setNewFollowupComment({ text: "", assignees: [] }); setReplyingToFollowupCommentId(null); }}
-                                className="p-1 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:hover:bg-gray-700"
-                                aria-label="Close"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => viewingFollowupLog?._id && handleDeleteFollowupLog(viewingFollowupLog._id)}
+                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 dark:hover:text-red-400 dark:hover:bg-gray-700"
+                                    aria-label="Delete follow-up log"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setViewingFollowupLog(null); setNewFollowupComment({ text: "", assignees: [] }); setReplyingToFollowupCommentId(null); }}
+                                    className="p-1 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:hover:bg-gray-700"
+                                    aria-label="Close"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                         <div className="p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-2 text-sm">

@@ -129,7 +129,7 @@ const ControlledAccess = () => {
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 These keys are used in the user portal (Create Formula) to verify access before
-                editing the file number. Add a key here and share it with users who should be able to edit file numbers.
+                editing the file number, and for CRM delete actions (tasks and follow-up logs). Add a key here and share it with users who should have these permissions.
             </Typography>
 
             {error && (

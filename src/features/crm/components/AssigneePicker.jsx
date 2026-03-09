@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Search, X, UserPlus } from "lucide-react";
 
 /**
@@ -9,8 +10,10 @@ const AssigneePicker = ({ users = [], value = [], onChange, placeholder = "Searc
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 300 });
     const inputRef = useRef(null);
     const listRef = useRef(null);
+    const triggerRef = useRef(null);
 
     const filtered = useMemo(() => {
         const q = (search || "").toLowerCase().trim();
@@ -43,6 +46,30 @@ const AssigneePicker = ({ users = [], value = [], onChange, placeholder = "Searc
         if (filtered.length === 0) setActiveIndex(0);
         else setActiveIndex((i) => Math.min(Math.max(i, 0), filtered.length - 1));
     }, [open, filtered.length]);
+
+    // Position dropdown in viewport when open (for use inside modals with overflow)
+    useEffect(() => {
+        if (!open || !triggerRef.current) return;
+        const updatePosition = () => {
+            if (triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom - 4;
+                setDropdownPosition({
+                    top: rect.bottom + 4,
+                    left: rect.left,
+                    width: Math.max(rect.width, 280),
+                    maxHeight: Math.max(120, Math.min(448, spaceBelow - 16)),
+                });
+            }
+        };
+        updatePosition();
+        window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("resize", updatePosition);
+        return () => {
+            window.removeEventListener("scroll", updatePosition, true);
+            window.removeEventListener("resize", updatePosition);
+        };
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
@@ -134,6 +161,7 @@ const AssigneePicker = ({ users = [], value = [], onChange, placeholder = "Searc
                 )}
                 <div className="relative">
                     <button
+                        ref={triggerRef}
                         type="button"
                         onClick={() => {
                             setOpen((v) => !v);
@@ -148,66 +176,73 @@ const AssigneePicker = ({ users = [], value = [], onChange, placeholder = "Searc
                     </button>
                     {open && (
                         <>
-                            <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black/5 overflow-hidden">
-                                <div className="p-2 border-b border-gray-200 dark:border-gray-600">
-                                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-700 px-2">
-                                        <Search className="w-4 h-4 text-gray-400 shrink-0" />
-                                        <input
-                                            type="text"
-                                            ref={inputRef}
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                            onKeyDown={onKeyDown}
-                                            onFocus={() => setOpen(true)}
-                                            placeholder="Search by name or username..."
-                                            className="flex-1 min-w-0 py-1.5 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
-                                            aria-expanded={open}
-                                            aria-controls="assignee-picker-listbox"
-                                            aria-activedescendant={open && filtered[activeIndex]?._id ? `assignee-opt-${String(filtered[activeIndex]._id)}` : undefined}
-                                            autoFocus
-                                        />
-                                    </div>
-                                </div>
-                                <ul
-                                    id="assignee-picker-listbox"
-                                    ref={listRef}
-                                    role="listbox"
-                                    className="max-h-56 overflow-y-auto py-1"
+                            <div className="fixed inset-0 z-[9998]" onClick={close} aria-hidden="true" />
+                            {createPortal(
+                                <div
+                                    className="fixed z-[9999] flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black/5 overflow-hidden"
+                                    style={{
+                                        top: dropdownPosition.top,
+                                        left: dropdownPosition.left,
+                                        width: dropdownPosition.width,
+                                        maxHeight: dropdownPosition.maxHeight,
+                                    }}
                                 >
-                                    {filtered.length === 0 ? (
-                                        <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No users match</li>
-                                    ) : (
-                                        filtered.map((u, idx) => (
-                                            <li key={u._id} role="option" aria-selected={selectedIds.has(String(u._id))}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggle(u._id)}
-                                                    onMouseEnter={() => setActiveIndex(idx)}
-                                                    data-option-index={idx}
-                                                    id={`assignee-opt-${String(u._id)}`}
-                                                    className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 outline-none ${
-                                                        idx === activeIndex
-                                                            ? "bg-gray-100 dark:bg-gray-700"
-                                                            : "hover:bg-gray-50 dark:hover:bg-gray-700/60"
-                                                    } ${
-                                                        selectedIds.has(String(u._id))
-                                                            ? "text-blue-700 dark:text-blue-300"
-                                                            : "text-gray-800 dark:text-gray-200"
-                                                    }`}
-                                                >
-                                                    <span>{displayName(u)}</span>
-                                                    {selectedIds.has(String(u._id)) && <span className="text-xs">✓</span>}
-                                                </button>
-                                            </li>
-                                        ))
-                                    )}
-                                </ul>
-                            </div>
-                            <div
-                                className="fixed inset-0 z-0"
-                                onClick={close}
-                                aria-hidden="true"
-                            />
+                                    <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+                                        <div className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-700 px-2">
+                                            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                                            <input
+                                                type="text"
+                                                ref={inputRef}
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                onKeyDown={onKeyDown}
+                                                onFocus={() => setOpen(true)}
+                                                placeholder="Search by name or username..."
+                                                className="flex-1 min-w-0 py-1.5 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
+                                                aria-expanded={open}
+                                                aria-controls="assignee-picker-listbox"
+                                                aria-activedescendant={open && filtered[activeIndex]?._id ? `assignee-opt-${String(filtered[activeIndex]._id)}` : undefined}
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <ul
+                                        id="assignee-picker-listbox"
+                                        ref={listRef}
+                                        role="listbox"
+                                        className="min-h-0 flex-1 overflow-y-auto py-1"
+                                    >
+                                        {filtered.length === 0 ? (
+                                            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No users match</li>
+                                        ) : (
+                                            filtered.map((u, idx) => (
+                                                <li key={u._id} role="option" aria-selected={selectedIds.has(String(u._id))}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggle(u._id)}
+                                                        onMouseEnter={() => setActiveIndex(idx)}
+                                                        data-option-index={idx}
+                                                        id={`assignee-opt-${String(u._id)}`}
+                                                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 outline-none ${
+                                                            idx === activeIndex
+                                                                ? "bg-gray-100 dark:bg-gray-700"
+                                                                : "hover:bg-gray-50 dark:hover:bg-gray-700/60"
+                                                        } ${
+                                                            selectedIds.has(String(u._id))
+                                                                ? "text-blue-700 dark:text-blue-300"
+                                                                : "text-gray-800 dark:text-gray-200"
+                                                        }`}
+                                                    >
+                                                        <span>{displayName(u)}</span>
+                                                        {selectedIds.has(String(u._id)) && <span className="text-xs">✓</span>}
+                                                    </button>
+                                                </li>
+                                            ))
+                                        )}
+                                    </ul>
+                                </div>,
+                                document.body
+                            )}
                         </>
                     )}
                 </div>

@@ -265,19 +265,6 @@ export const KanbanProvider = ({ children, user }) => {
         try {
             dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
 
-            // Try to fetch users from API
-            let users = [];
-            try {
-                users = await kanbanService.getUsers();
-
-                // Ensure users is an array (handle null/undefined responses)
-                if (!Array.isArray(users)) {
-                    users = [];
-                }
-            } catch (error) {
-                users = [];
-            }
-
             // Try to fetch boards from API and get the first one
             let board = null;
             try {
@@ -357,6 +344,20 @@ export const KanbanProvider = ({ children, user }) => {
                     "❌ No board found in database. Card creation will fail. Please create a board first.",
                 );
                 board = { id: "default-board-id", name: "Default Board" };
+            }
+
+            // Fetch users scoped to board branch when available
+            let users = [];
+            try {
+                const branchId =
+                    board?.branch_id?._id?.toString?.() ||
+                    board?.branch_id?.toString?.() ||
+                    board?.branchId?.toString?.() ||
+                    null;
+                users = await kanbanService.getUsers(branchId || undefined);
+                if (!Array.isArray(users)) users = [];
+            } catch (error) {
+                users = [];
             }
 
             // Fetch columns from backend for this board - ONLY use backend columns

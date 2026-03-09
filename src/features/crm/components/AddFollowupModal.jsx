@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2 } from "lucide-react";
 import api from "../../../utils/api";
+import ContactedPersonPicker from "./ContactedPersonPicker";
 
 const PURPOSE_OPTIONS = [
     "Regular visit",
@@ -29,7 +30,7 @@ const AddFollowupModal = ({
     const [comment, setComment] = useState("");
     const [contactPerson, setContactPerson] = useState("");
     const [suggestions, setSuggestions] = useState([]);
-    const [contactOptions, setContactOptions] = useState(["Select Person…", "Me"]);
+    const [branchUsers, setBranchUsers] = useState([]);
     const [loadingSerial, setLoadingSerial] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -59,26 +60,22 @@ const AddFollowupModal = ({
         }
     }, []);
 
-    const fetchCustomerDetails = useCallback(async (id) => {
-        if (!id) {
-            setContactOptions([]);
-            return;
-        }
-        try {
-            const res = await api.get(`/customers/${id}`);
-            if (res.data?.status === "success" && res.data?.data?.customer) {
-                const customer = res.data.data.customer;
-                const names = (customer.contacts || [])
-                    .map((c) => (c.name || "").trim())
-                    .filter(Boolean);
-                setContactOptions(["Select Person…", "Me", ...names]);
-            } else {
-                setContactOptions(["Select Person…", "Me"]);
+    useEffect(() => {
+        if (!isOpen) return;
+        const load = async () => {
+            try {
+                const res = await api.get("/crm/branch-users/me");
+                if (res.data?.status === "success" && Array.isArray(res.data?.data?.users)) {
+                    setBranchUsers(res.data.data.users);
+                } else {
+                    setBranchUsers([]);
+                }
+            } catch {
+                setBranchUsers([]);
             }
-        } catch {
-            setContactOptions(["Select Person…", "Me"]);
-        }
-    }, []);
+        };
+        load();
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -93,12 +90,11 @@ const AddFollowupModal = ({
         setPurpose("");
         setConnectionType("");
         if (prefilledCustomerId && prefilledCustomerName) {
-            fetchCustomerDetails(prefilledCustomerId);
-        } else {
-            setContactOptions(["Select Person…", "Me"]);
+            setCustomerName(prefilledCustomerName);
+            setCustomerId(prefilledCustomerId);
         }
         fetchNextSerial();
-    }, [isOpen, prefilledCustomerId, prefilledCustomerName, fetchNextSerial, fetchCustomerDetails]);
+    }, [isOpen, prefilledCustomerId, prefilledCustomerName, fetchNextSerial]);
 
     useEffect(() => {
         if (!isOpen || !customerName.trim() || customerId) {
@@ -124,17 +120,16 @@ const AddFollowupModal = ({
         };
     }, [isOpen, customerName, customerId]);
 
-    useEffect(() => {
-        if (customerId && !prefilledCustomerId) {
-            fetchCustomerDetails(customerId);
-        }
-    }, [customerId, prefilledCustomerId, fetchCustomerDetails]);
-
     const handleSelectCustomer = (customer) => {
         setCustomerId(customer._id);
         setCustomerName(customer.name || "");
         setSuggestions([]);
-        fetchCustomerDetails(customer._id);
+    };
+
+    const getContactPersonDisplay = (val) => {
+        if (!val || val === "Me") return val || "";
+        const u = branchUsers.find((x) => String(x._id) === String(val));
+        return u ? [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || u.email || "" : "";
     };
 
     const handleSubmit = async (e) => {
@@ -156,7 +151,7 @@ const AddFollowupModal = ({
                 purpose: purpose.trim(),
                 connection_type: connectionType,
                 comment: (comment || "").trim(),
-                contact_person: contactPerson === "Me" ? "Me" : (contactPerson || "").trim(),
+                contact_person: contactPerson === "Me" ? "Me" : getContactPersonDisplay(contactPerson) || "",
             };
             if (customerId) {
                 payload.customer_id = customerId;
@@ -337,20 +332,13 @@ const AddFollowupModal = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Contacted person
-                        </label>
-                        <select
+                        <ContactedPersonPicker
+                            users={branchUsers}
                             value={contactPerson}
-                            onChange={(e) => setContactPerson(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                        >
-                            {contactOptions.map((opt) => (
-                                <option key={opt} value={opt === "Select Person…" ? "" : opt}>
-                                    {opt}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={setContactPerson}
+                            placeholder="Search and select person…"
+                            label="Contacted person"
+                        />
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">

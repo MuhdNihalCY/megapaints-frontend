@@ -20,6 +20,7 @@ import {
     Save,
 } from "lucide-react";
 import { kanbanService } from "../../features/kanban/services/kanbanService";
+import api from "../../utils/api";
 import { useAuth } from "../../contexts/AuthContext";
 import * as branchAccess from "../../utils/branchAccess";
 
@@ -148,18 +149,33 @@ const CustomerManagementModal = ({
     // Check if user is admin
     const isAdmin = branchAccess.isAdmin(user);
 
-    // Load users for Sales Executive and Co-ordinator dropdowns
+    // Load users for Sales Executive and Co-ordinator dropdowns (branch-scoped)
     const loadUsers = async () => {
         setLoadingUsers(true);
         try {
-            const usersData = await kanbanService.getUsers();
-            // Handle different response formats
+            let branchId = null;
+            if (branchAccess.isAdmin(user) && selectedBranchId) {
+                branchId = selectedBranchId;
+            } else if (
+                user?.branches &&
+                Array.isArray(user.branches) &&
+                user.branches.length > 0
+            ) {
+                const firstBranch = user.branches[0];
+                const branchIdStr =
+                    typeof firstBranch === "string"
+                        ? firstBranch
+                        : firstBranch?._id ?? firstBranch?.id ?? (typeof firstBranch?.toString === "function" ? firstBranch.toString() : null);
+                if (branchIdStr && isValidObjectId(String(branchIdStr))) {
+                    branchId = String(branchIdStr);
+                }
+            }
+            const usersRes = branchId
+                ? await api.get("/crm/branch-users", { params: { branch_id: branchId } })
+                : await api.get("/crm/branch-users/me");
+            const usersData = usersRes?.data?.data?.users ?? usersRes?.data?.users;
             if (Array.isArray(usersData)) {
                 setUsers(usersData);
-            } else if (usersData?.data?.users) {
-                setUsers(usersData.data.users);
-            } else if (usersData?.users) {
-                setUsers(usersData.users);
             } else {
                 setUsers([]);
             }

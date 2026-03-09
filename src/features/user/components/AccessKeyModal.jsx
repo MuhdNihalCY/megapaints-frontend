@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ControlledAccessService } from "../../../formula/services/controlledAccessService";
 
 /**
@@ -28,6 +28,16 @@ const AccessKeyModal = ({
     const [isVerifying, setIsVerifying] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+
+    // Reset state whenever the modal opens so previous attempt messages don't show
+    useEffect(() => {
+        if (isOpen) {
+            setAccessKey("");
+            setError("");
+            setSuccess(false);
+            setIsVerifying(false);
+        }
+    }, [isOpen]);
 
     // Handle access key input change
     const handleAccessKeyChange = (e) => {
@@ -75,6 +85,7 @@ const AccessKeyModal = ({
                 );
                 setSuccess(true);
                 setError("");
+                setAccessKey("");
                 if (onSuccessWithKey) {
                     onSuccessWithKey(accessKey.trim());
                     // Parent is responsible for closing the modal
@@ -91,6 +102,7 @@ const AccessKeyModal = ({
                 );
                 setError(result.message || "Access key verification failed.");
                 setSuccess(false);
+                setAccessKey("");
             }
         } catch (error) {
             console.error("[AccessKeyModal] Error during verification:", error);
@@ -98,6 +110,7 @@ const AccessKeyModal = ({
                 error.message ||
                     "Access key verification failed. Please try again.",
             );
+            setAccessKey("");
         } finally {
             setIsVerifying(false);
         }
@@ -115,7 +128,7 @@ const AccessKeyModal = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
