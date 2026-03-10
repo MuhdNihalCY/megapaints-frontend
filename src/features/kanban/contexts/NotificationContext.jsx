@@ -1,6 +1,6 @@
 /**
  * Notification Context
- * Manages notification state, real-time updates, and sound playback
+ * Manages notification state, real-time updates via WebSocket, and sound playback
  */
 
 import React, {
@@ -11,7 +11,10 @@ import React, {
     useEffect,
     useRef,
 } from "react";
+import { io } from "socket.io-client";
 import { kanbanService } from "../services/kanbanService";
+import { getBackendOrigin } from "../../../config/api";
+import { getAuthToken } from "../../../utils/api";
 import {
     createMentionNotifications,
     createAssignmentNotifications,
@@ -178,6 +181,9 @@ export function NotificationProvider({ children, currentUser }) {
     const [state, dispatch] = useReducer(notificationReducer, initialState);
     const audioRef = useRef(null);
     const lastNotifIdsRef = useRef(new Set());
+    const socketRef = useRef(null);
+    const addNotificationRef = useRef(null);
+    const [socketConnected, setSocketConnected] = React.useState(false);
 
     // Initialize audio
     useEffect(() => {
@@ -255,6 +261,7 @@ export function NotificationProvider({ children, currentUser }) {
         },
         [currentUser, playNotificationSound],
     );
+    addNotificationRef.current = addNotification;
 
     // Mark as read
     const markAsRead = useCallback(async (notificationId) => {
@@ -378,12 +385,44 @@ export function NotificationProvider({ children, currentUser }) {
         fetchNotifications();
     }, [fetchNotifications]);
 
-    // Polling for new notifications (every 30 seconds)
+    // WebSocket: connect when user is available for real-time notifications
     useEffect(() => {
+        const userId = currentUser?.id ?? currentUser?._id;
+        if (!userId) return;
+
+        const origin = getBackendOrigin();
+        if (!origin) return;
+
+        const token = getAuthToken();
+        if (!token) return;
+
+        const socket = io(origin, {
+            auth: { token },
+            transports: ["websocket", "polling"],
+        });
+        socketRef.current = socket;
+
+        socket.on("connect", () => setSocketConnected(true));
+        socket.on("disconnect", () => setSocketConnected(false));
+
+        socket.on("notification:created", (data) => {
+            const notif = data?.notification ?? data;
+            if (notif && addNotificationRef.current) addNotificationRef.current(notif);
+        });
+
+        return () => {
+            socket.disconnect();
+            socketRef.current = null;
+            setSocketConnected(false);
+        };
+    }, [currentUser?.id ?? currentUser?._id]);
+
+    // Polling: keep a consistent refresh cadence (WebSocket is additive, not required)
+    useEffect(() => {
+        const intervalMs = 30000; // 30 seconds
         const interval = setInterval(() => {
             fetchNotifications();
-        }, 30000); // 30 seconds
-
+        }, intervalMs);
         return () => clearInterval(interval);
     }, [fetchNotifications]);
 
