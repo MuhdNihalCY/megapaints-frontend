@@ -10,7 +10,6 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MuiThemeProviderWrapper } from "./theme/MuiThemeProvider";
 import Login from "./features/user/Login";
-import Register from "./features/user/Register";
 import AdminLogin from "./features/admin/Login";
 import UserDashboard from "./features/user/Dashboard";
 import AdminDashboard from "./features/admin/Dashboard";
@@ -71,10 +70,6 @@ function App() {
                                 <Routes>
                                     {/* Public Routes */}
                                     <Route path="/login" element={<Login />} />
-                                    <Route
-                                        path="/register"
-                                        element={<Register />}
-                                    />
                                     <Route
                                         path="/admin/login"
                                         element={<AdminLogin />}

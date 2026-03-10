@@ -481,10 +481,11 @@ class UserApiService {
     /**
      * Get Order by ID
      * @param {string} orderId - Order ID
+     * @param {string} orderType - Order type: "formula" | "wholesale" | "retail"
      * @returns {Promise<Object>} Order data
      */
-    async getOrderById(orderId) {
-        return await this.apiRequest(`/user/orders/${orderId}`);
+    async getOrderById(orderId, orderType = "formula") {
+        return await this.apiRequest(`/user/orders/${orderType}/${orderId}`);
     }
 
     /**

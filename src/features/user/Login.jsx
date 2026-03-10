@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 const Login = () => {
@@ -180,31 +180,6 @@ const Login = () => {
                             {loading ? "Signing in..." : "Sign In"}
                         </button>
                     </form>
-
-                    {/* Demo Login Button */}
-                    <div className="mt-4">
-                        <button
-                            onClick={handleDemoLogin}
-                            disabled={loading}
-                            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                        >
-                            {loading
-                                ? "Signing in..."
-                                : "Demo Login (No Backend)"}
-                        </button>
-                    </div>
-
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Don't have an account?{" "}
-                            <Link
-                                to="/register"
-                                className="text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                                Sign up
-                            </Link>
-                        </p>
-                    </div>
                 </div>
             </div>
         </div>

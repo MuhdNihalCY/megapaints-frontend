@@ -5,6 +5,8 @@ import Header from "./components/Header";
 import AccessKeyModal from "./components/AccessKeyModal";
 import { ShoppingCart, Loader2, Package, RefreshCw, Printer, Copy, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import OrderDetailsView from "./components/OrderDetailsView";
+import { fetchMastersFresh } from "../../formula/services/mastersService";
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -15,6 +17,30 @@ const Orders = () => {
     const [message, setMessage] = useState({ type: "", text: "" });
     const [orderToDelete, setOrderToDelete] = useState(null);
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [categoryNameById, setCategoryNameById] = useState({});
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchMastersFresh()
+            .then((data) => {
+                if (cancelled) return;
+                const map = {};
+                (data?.categories || []).forEach((c) => {
+                    if (c?.id != null && c?.name != null) map[String(c.id)] = c.name;
+                });
+                setCategoryNameById(map);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
+
+    const getCategoryDisplayName = (val) => {
+        const id = val?.$oid ?? val;
+        if (id == null || id === "") return "—";
+        return categoryNameById[String(id)] ?? String(id);
+    };
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -98,7 +124,7 @@ const Orders = () => {
             price != null && Number.isFinite(Number(price))
                 ? `${Number(price).toFixed(2)} ${currency}`
                 : "—";
-        const { onDeleteOrder } = options;
+        const { onDeleteOrder, onViewDetails } = options;
 
         if (t !== "formula") {
             return (
@@ -161,6 +187,15 @@ const Orders = () => {
                         <Printer className="w-4 h-4" />
                         Print Label
                     </button>
+                    {onViewDetails && (
+                        <button
+                            type="button"
+                            onClick={() => onViewDetails(order)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-blue-300 dark:border-blue-600 rounded-lg bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm"
+                        >
+                            View details
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => handleRepeatOrder(order)}
@@ -183,6 +218,64 @@ const Orders = () => {
             </div>
         );
     };
+
+    const detailSnapshot =
+        selectedOrder?.order_snapshot ?? selectedOrder?.formula_data;
+    const detailTinters = Array.isArray(detailSnapshot?.tinters)
+        ? detailSnapshot.tinters.map((t) => ({
+              ...t,
+              quantity: t.quantity ?? t.grams ?? 0,
+              // store volume in Liters so the view can show ml via *1000
+              volume: (t.quantity_ml ?? 0) / 1000,
+          }))
+        : [];
+    const detailBinders = Array.isArray(detailSnapshot?.binders)
+        ? detailSnapshot.binders.map((b) => ({
+              ...b,
+              grams: b.grams ?? b.quantity ?? 0,
+              volume: (b.quantity_ml ?? b.volume ?? 0) / 1000,
+          }))
+        : [];
+    const detailAdditives = Array.isArray(detailSnapshot?.additives)
+        ? detailSnapshot.additives.map((a) => ({
+              ...a,
+              grams: a.grams ?? a.quantity ?? 0,
+              volume: (a.quantity_ml ?? 0) / 1000,
+          }))
+        : [];
+
+    const detailTotalWithoutAdditivesGrams = detailTinters.reduce(
+        (sum, t) => sum + (Number(t.quantity) || 0),
+        0,
+    );
+    const detailTotalWithoutAdditivesVolume = detailTinters.reduce(
+        (sum, t) => sum + (Number(t.volume) || 0),
+        0,
+    );
+    const detailAdditivesTotalGrams = detailAdditives.reduce(
+        (sum, a) => sum + (Number(a.grams) || 0),
+        0,
+    );
+    const detailAdditivesTotalVolume = detailAdditives.reduce(
+        (sum, a) => sum + (Number(a.volume) || 0),
+        0,
+    );
+    const detailTotalGrams =
+        (detailSnapshot?.totals?.grams ??
+            detailTotalWithoutAdditivesGrams +
+                detailBinders.reduce(
+                    (sum, b) => sum + (Number(b.grams) || 0),
+                    0,
+                ) +
+                detailAdditivesTotalGrams) || 0;
+    const detailGrandTotalVolume =
+        (detailSnapshot?.totals?.volume ??
+            detailTotalWithoutAdditivesVolume +
+                detailBinders.reduce(
+                    (sum, b) => sum + (Number(b.volume) || 0),
+                    0,
+                ) +
+                detailAdditivesTotalVolume) || 0;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -247,6 +340,10 @@ const Orders = () => {
                                 >
                                     {renderOrderCard(order, {
                                         onDeleteOrder: (o) => setOrderToDelete(o),
+                                        onViewDetails: (o) => {
+                                            setSelectedOrder(o);
+                                            setIsDetailsModalOpen(true);
+                                        },
                                     })}
                                 </div>
                             ))}
@@ -280,6 +377,118 @@ const Orders = () => {
                     )}
                 </div>
             </main>
+
+            {isDetailsModalOpen && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center">
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-40"
+                        onClick={() => {
+                            setIsDetailsModalOpen(false);
+                            setSelectedOrder(null);
+                        }}
+                    />
+                    <div className="relative z-50 max-w-7xl w-full max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                Order details
+                            </h2>
+                            <button
+                                type="button"
+                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                onClick={() => {
+                                    setIsDetailsModalOpen(false);
+                                    setSelectedOrder(null);
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-auto max-h-[calc(90vh-3rem)] bg-gray-50 dark:bg-gray-900">
+                            {selectedOrder && (
+                                <OrderDetailsView
+                                    mode="view"
+                                    headerTitle="Order details"
+                                    message={null}
+                                    noBranches={false}
+                                    meta={{
+                                        date: formatDateDisplay(selectedOrder.created_at) ?? "",
+                                        fileNo: selectedOrder?.formula_data?.file_number ?? "",
+                                        customerName: selectedOrder?.customer?.name ?? "",
+                                        colorCode: selectedOrder?.formula_data?.color_code ?? "",
+                                        colorName: selectedOrder?.formula_data?.color_name ?? "",
+                                        customerRef: selectedOrder?.formula_data?.customer_ref ?? "",
+                                        projectNo: selectedOrder?.formula_data?.project_no ?? "",
+                                    }}
+                                    formula={{
+                                        category: getCategoryDisplayName(
+                                            selectedOrder?.formula_data?.category,
+                                        ),
+                                        subcategory: selectedOrder?.formula_data?.subcategory,
+                                        gloss: selectedOrder?.formula_data?.gloss,
+                                        attachment: selectedOrder?.formula_data?.attachment,
+                                        order_snapshot:
+                                            selectedOrder?.order_snapshot ?? selectedOrder?.formula_data,
+                                    }}
+                                    selectedCustomer={selectedOrder?.customer}
+                                    branches={[]}
+                                    unit={selectedOrder?.quantities?.unit ?? "L"}
+                                    qtyInput={
+                                        selectedOrder?.quantities?.requested?.toString() ?? ""
+                                    }
+                                    snapshot={
+                                        selectedOrder?.order_snapshot ?? selectedOrder?.formula_data
+                                    }
+                                    orderPreview={
+                                        selectedOrder?.formula_data?.metrics ||
+                                        selectedOrder?.pricing
+                                            ? {
+                                                  metrics:
+                                                      selectedOrder?.formula_data?.metrics ??
+                                                      null,
+                                                  costing: {
+                                                      cost:
+                                                          selectedOrder?.pricing?.total ??
+                                                          selectedOrder?.pricing?.cost ??
+                                                          0,
+                                                      currency:
+                                                          selectedOrder?.pricing?.currency ||
+                                                          "AED",
+                                                  },
+                                              }
+                                            : null
+                                    }
+                                    scaledTinters={
+                                        detailTinters
+                                    }
+                                    scaledBinders={
+                                        detailBinders
+                                    }
+                                    scaledAdditives={
+                                        detailAdditives
+                                    }
+                                    totals={{
+                                        totalWithoutAdditivesGrams:
+                                            detailTotalWithoutAdditivesGrams,
+                                        totalWithoutAdditivesVolume:
+                                            detailTotalWithoutAdditivesVolume,
+                                        additivesTotalGrams:
+                                            detailAdditivesTotalGrams,
+                                        additivesTotalVolume:
+                                            detailAdditivesTotalVolume,
+                                        totalGrams: detailTotalGrams,
+                                        grandTotalVolume: detailGrandTotalVolume,
+                                    }}
+                                    remarks={
+                                        selectedOrder?.formula_data?.remarks ??
+                                        selectedOrder?.notes ??
+                                        ""
+                                    }
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <AccessKeyModal
                 isOpen={!!orderToDelete}
