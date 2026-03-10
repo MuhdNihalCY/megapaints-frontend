@@ -11,7 +11,7 @@ const getAddressDisplay = (c) => {
     return parts.join(", ");
 };
 
-const CustomerQuickViewModal = ({ customerId, isOpen, onClose }) => {
+const CustomerQuickViewModal = ({ customerId, isOpen, onClose, lastUploadedCustomerId, onRefetchedAfterUpload }) => {
     const navigate = useNavigate();
     const [customer, setCustomer] = useState(null);
     const [performance, setPerformance] = useState(null);
@@ -19,36 +19,45 @@ const CustomerQuickViewModal = ({ customerId, isOpen, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [innerTab, setInnerTab] = useState("payment");
 
-    useEffect(() => {
-        if (!isOpen || !customerId) return;
+    const loadData = React.useCallback(async () => {
+        if (!customerId) return;
         setLoading(true);
         setCustomer(null);
         setPerformance(null);
         setFollowups([]);
-        const load = async () => {
-            try {
-                const [custRes, perfRes, followRes] = await Promise.all([
-                    api.get(`/customers/${customerId}`),
-                    api.get(`/crm/customers/${customerId}/performance`).catch(() => ({ data: {} })),
-                    api.get(`/customer-followups?customer_id=${customerId}&limit=50`).catch(() => ({ data: {} })),
-                ]);
-                if (custRes.data?.status === "success" && custRes.data?.data?.customer) {
-                    setCustomer(custRes.data.data.customer);
-                }
-                if (perfRes.data?.status === "success" && perfRes.data?.data) {
-                    setPerformance(perfRes.data.data);
-                }
-                if (followRes.data?.status === "success" && followRes.data?.data?.followups) {
-                    setFollowups(followRes.data.data.followups);
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
+        try {
+            const [custRes, perfRes, followRes] = await Promise.all([
+                api.get(`/customers/${customerId}`),
+                api.get(`/crm/customers/${customerId}/performance`).catch(() => ({ data: {} })),
+                api.get(`/customer-followups?customer_id=${customerId}&limit=50`).catch(() => ({ data: {} })),
+            ]);
+            if (custRes.data?.status === "success" && custRes.data?.data?.customer) {
+                setCustomer(custRes.data.data.customer);
             }
-        };
-        load();
-    }, [isOpen, customerId]);
+            if (perfRes.data?.status === "success" && perfRes.data?.data) {
+                setPerformance(perfRes.data.data);
+            }
+            if (followRes.data?.status === "success" && followRes.data?.data?.followups) {
+                setFollowups(followRes.data.data.followups);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, [customerId]);
+
+    useEffect(() => {
+        if (!isOpen || !customerId) return;
+        loadData();
+    }, [isOpen, customerId, loadData]);
+
+    useEffect(() => {
+        if (!isOpen || !customerId || !lastUploadedCustomerId) return;
+        if (String(lastUploadedCustomerId) !== String(customerId)) return;
+        loadData();
+        onRefetchedAfterUpload?.();
+    }, [lastUploadedCustomerId, customerId, isOpen, loadData]);
 
     if (!isOpen) return null;
 

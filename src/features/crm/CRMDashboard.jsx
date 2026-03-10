@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Plus, Upload, Loader2, Eye } from "lucide-react";
 import UserHeader from "../user/components/Header";
@@ -20,6 +20,7 @@ const CRMDashboard = () => {
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [addFollowupModalOpen, setAddFollowupModalOpen] = useState(false);
     const [quickViewCustomerId, setQuickViewCustomerId] = useState(null);
+    const [lastUploadedCustomerId, setLastUploadedCustomerId] = useState(null);
     const [customerError, setCustomerError] = useState(null);
 
     const fetchCustomers = async () => {
@@ -71,6 +72,8 @@ const CRMDashboard = () => {
         fetchCustomers();
         fetchCounts();
     };
+
+    const clearLastUploadedCustomerId = useCallback(() => setLastUploadedCustomerId(null), []);
 
     const getAddressDisplay = (c) => {
         if (c.full_address) return c.full_address;
@@ -223,6 +226,12 @@ const CRMDashboard = () => {
                                         </th>
                                         <th
                                             scope="col"
+                                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Last ledger
+                                        </th>
+                                        <th
+                                            scope="col"
                                             className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                                         >
                                             Actions
@@ -233,7 +242,7 @@ const CRMDashboard = () => {
                                     {filtered.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={4}
+                                                colSpan={5}
                                                 className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 {customerError ? (
@@ -267,6 +276,11 @@ const CRMDashboard = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-md truncate">
                                                     {getAddressDisplay(customer) || "—"}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                                                    {customer.last_ledger_uploaded_at
+                                                        ? new Date(customer.last_ledger_uploaded_at).toLocaleDateString()
+                                                        : "—"}
                                                 </td>
                                                 <td
                                                     className="px-4 py-3 text-right"
@@ -302,9 +316,9 @@ const CRMDashboard = () => {
             <UploadLedgerModal
                 isOpen={uploadModalOpen}
                 onClose={() => setUploadModalOpen(false)}
-                onSuccess={() => {
-                    setUploadModalOpen(false);
+                onSuccess={(payload) => {
                     refreshAll();
+                    if (payload?.customerId) setLastUploadedCustomerId(payload.customerId);
                 }}
                 customers={customers}
             />
@@ -312,6 +326,8 @@ const CRMDashboard = () => {
                 customerId={quickViewCustomerId}
                 isOpen={!!quickViewCustomerId}
                 onClose={() => setQuickViewCustomerId(null)}
+                lastUploadedCustomerId={lastUploadedCustomerId}
+                onRefetchedAfterUpload={clearLastUploadedCustomerId}
             />
             <AddFollowupModal
                 isOpen={addFollowupModalOpen}

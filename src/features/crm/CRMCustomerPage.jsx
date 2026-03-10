@@ -26,6 +26,9 @@ import {
     X,
     Pencil,
     Trash2,
+    ChevronUp,
+    ChevronDown,
+    ChevronsUpDown,
 } from "lucide-react";
 import UserHeader from "../user/components/Header";
 import api from "../../utils/api";
@@ -72,6 +75,8 @@ const CRMCustomerPage = () => {
     const [newFollowupComment, setNewFollowupComment] = useState({ text: "", assignees: [] });
     const [replyingToFollowupCommentId, setReplyingToFollowupCommentId] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
+    const [purchaseSortKey, setPurchaseSortKey] = useState(null);
+    const [purchaseSortDir, setPurchaseSortDir] = useState("asc");
 
     useEffect(() => {
         if (!id) return;
@@ -128,6 +133,21 @@ const CRMCustomerPage = () => {
         };
         load();
     }, [id]);
+
+    // Refetch purchase details when switching to Purchase tab (e.g. after ledger upload)
+    useEffect(() => {
+        if (tab !== "purchase" || !id || !customer) return;
+        let cancelled = false;
+        api.get(`/crm/customers/${id}/purchase-details`)
+            .then((res) => {
+                if (cancelled) return;
+                if (res.data?.status === "success" && res.data?.data) {
+                    setPurchaseDetails(res.data.data);
+                }
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [tab, id, customer]);
 
     // Open follow-up log panel when navigating from notification (?followupLog=logId)
     useEffect(() => {
@@ -491,6 +511,70 @@ const CRMCustomerPage = () => {
         );
     });
 
+    const sortedPurchaseRows = React.useMemo(() => {
+        if (!purchaseSortKey || filteredPurchaseRows.length === 0) return filteredPurchaseRows;
+        const dir = purchaseSortDir === "asc" ? 1 : -1;
+        const key = purchaseSortKey;
+        return [...filteredPurchaseRows].sort((a, b) => {
+            let va, vb;
+            if (key === "masterGroup") {
+                va = (a.masterGroup ?? "").toString().toLowerCase();
+                vb = (b.masterGroup ?? "").toString().toLowerCase();
+                return dir * (va.localeCompare(vb));
+            }
+            if (key === "group") {
+                va = (a.group ?? "").toString().toLowerCase();
+                vb = (b.group ?? "").toString().toLowerCase();
+                return dir * (va.localeCompare(vb));
+            }
+            if (key === "item_name") {
+                va = (a.item_name ?? "").toString().toLowerCase();
+                vb = (b.item_name ?? "").toString().toLowerCase();
+                return dir * (va.localeCompare(vb));
+            }
+            if (key === "total_12m") {
+                va = a.total_12m != null ? Number(a.total_12m) : 0;
+                vb = b.total_12m != null ? Number(b.total_12m) : 0;
+                return dir * (va - vb);
+            }
+            if (key === "year1") {
+                va = a.year1 != null ? Number(a.year1) : 0;
+                vb = b.year1 != null ? Number(b.year1) : 0;
+                return dir * (va - vb);
+            }
+            if (key === "year2") {
+                va = a.year2 != null ? Number(a.year2) : 0;
+                vb = b.year2 != null ? Number(b.year2) : 0;
+                return dir * (va - vb);
+            }
+            if (key.startsWith("month_")) {
+                const i = parseInt(key.replace("month_", ""), 10);
+                va = (a.months && a.months[i]?.value != null) ? Number(a.months[i].value) : 0;
+                vb = (b.months && b.months[i]?.value != null) ? Number(b.months[i].value) : 0;
+                return dir * (va - vb);
+            }
+            return 0;
+        });
+    }, [filteredPurchaseRows, purchaseSortKey, purchaseSortDir]);
+
+    const handlePurchaseSort = (key) => {
+        if (purchaseSortKey === key) {
+            setPurchaseSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setPurchaseSortKey(key);
+            setPurchaseSortDir("asc");
+        }
+    };
+
+    const PurchaseSortIcon = ({ columnKey }) => {
+        if (purchaseSortKey !== columnKey) return <ChevronsUpDown className="w-3.5 h-3.5 ml-0.5 inline opacity-50" />;
+        return purchaseSortDir === "asc" ? (
+            <ChevronUp className="w-3.5 h-3.5 ml-0.5 inline" />
+        ) : (
+            <ChevronDown className="w-3.5 h-3.5 ml-0.5 inline" />
+        );
+    };
+
     const salesExName =
         customer?.sales_ex_display ||
         (customer?.sales_executive && typeof customer.sales_executive === "object"
@@ -533,14 +617,14 @@ const CRMCustomerPage = () => {
         );
     }
 
-    const lastUpdated = performance?.lastUpdated
-        ? new Date(performance.lastUpdated).toLocaleDateString()
+    const lastUpdated = (performance?.lastUpdated ?? purchaseDetails?.lastUpdated)
+        ? new Date(performance?.lastUpdated ?? purchaseDetails?.lastUpdated).toLocaleDateString()
         : "—";
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <UserHeader />
-            <main className="mx-auto px-4 ">
+            <main className="mx-auto px-4 py-8">
                 <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
                     <Link to="/crm" className="hover:text-blue-600 dark:hover:text-blue-400">
                         CRM
@@ -601,41 +685,31 @@ const CRMCustomerPage = () => {
                     </div>
                     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                         <p className="text-xs text-gray-500 dark:text-gray-400">Customer Purchase Details</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">Last Updated on {purchaseDetails?.lastUpdated ? new Date(purchaseDetails.lastUpdated).toLocaleDateString() : lastUpdated}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">Last Updated on {lastUpdated}</p>
                     </div>
                 </div>
 
                 {tab === "performance" && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="bg-gray-800 rounded-lg p-4 text-white">
-                                <p className="text-xs opacity-80">Last Payment</p>
-                                <p className="font-semibold">{performance?.summary?.last_payment_date ? new Date(performance.summary.last_payment_date).toLocaleDateString() : "—"}</p>
-                            </div>
-                            <div className="bg-gray-800 rounded-lg p-4 text-white">
-                                <p className="text-xs opacity-80">Received on</p>
-                                <p className="font-semibold">{performance?.summary?.last_payment_date ? new Date(performance.summary.last_payment_date).toLocaleDateString() : "—"}</p>
-                            </div>
-                            <div className="bg-gray-800 rounded-lg p-4 text-white">
-                                <p className="text-xs opacity-80">Payment pending from</p>
-                                <p className="font-semibold">{performance?.summary?.closing_balance != null ? Number(performance.summary.closing_balance) : "—"}</p>
-                            </div>
-                            <div className="bg-gray-800 rounded-lg p-4 text-white">
-                                <p className="text-xs opacity-80">Avg. days for Payment</p>
+                                <p className="text-xs opacity-80 mb-1">Last Payment</p>
+                                <p className="font-semibold mb-3">{performance?.summary?.last_payment_date ? new Date(performance.summary.last_payment_date).toLocaleDateString() : "—"}</p>
+                                <p className="text-xs opacity-80 mb-1">Received on</p>
+                                <p className="font-semibold mb-3">{performance?.summary?.last_payment_date ? new Date(performance.summary.last_payment_date).toLocaleDateString() : "—"}</p>
+                                <p className="text-xs opacity-80 mb-1">Payment pending from</p>
+                                <p className="font-semibold mb-3">{performance?.summary?.closing_balance != null ? Number(performance.summary.closing_balance).toLocaleString() : "—"}</p>
+                                <p className="text-xs opacity-80 mb-1">Avg. days for Payment</p>
                                 <p className="font-semibold">—</p>
                             </div>
+                            {performance?.yearCards?.length > 0 && performance.yearCards.map((y) => (
+                                <div key={y.year} className="bg-gray-800 rounded-lg p-4 text-white">
+                                    <p className="text-sm font-medium">Year {y.year}</p>
+                                    <p className="text-lg font-semibold">Sales: {y.sales != null ? y.sales.toLocaleString() : "—"}</p>
+                                    <p className="text-sm opacity-90">Receipts: {y.receipts != null ? y.receipts.toLocaleString() : "—"}</p>
+                                </div>
+                            ))}
                         </div>
-                        {performance?.yearCards?.length > 0 && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {performance.yearCards.map((y) => (
-                                    <div key={y.year} className="bg-gray-800 rounded-lg p-4 text-white">
-                                        <p className="text-sm font-medium">Year {y.year}</p>
-                                        <p className="text-lg font-semibold">Sales: {y.sales != null ? y.sales.toLocaleString() : "—"}</p>
-                                        <p className="text-sm opacity-90">Receipts: {y.receipts != null ? y.receipts.toLocaleString() : "—"}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="bg-gray-800 rounded-lg p-4 text-white">
                                 <p className="text-sm font-medium mb-2">Balance over time</p>
@@ -706,66 +780,106 @@ const CRMCustomerPage = () => {
                 )}
 
                 {tab === "purchase" && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                            <input
-                                type="text"
-                                placeholder="Search by item or group..."
-                                value={purchaseSearch}
-                                onChange={(e) => setPurchaseSearch(e.target.value)}
-                                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm w-full max-w-xs"
-                            />
-                        </div>
-                        {filteredPurchaseRows.length > 0 ? (
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-700/50">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Master Group</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Group</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Item Name</th>
-                                        {(purchaseDetails.monthKeys || []).slice(-12).map((m) => (
-                                            <th key={m} className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">{m.slice(5)}</th>
-                                        ))}
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Total</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Year 1</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Year 2</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Graph</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {filteredPurchaseRows.map((row, idx) => (
-                                        <tr key={idx} className="bg-white dark:bg-gray-800">
-                                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{row.masterGroup}</td>
-                                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{row.group}</td>
-                                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{row.item_name}</td>
-                                            {(row.months || []).slice(-12).map((mo, i) => (
-                                                <td key={i} className="px-2 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{mo.value ? mo.value.toLocaleString() : "—"}</td>
+                    <div className="space-y-6">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                                <input
+                                    type="text"
+                                    placeholder="Search by item name, group, or master group..."
+                                    value={purchaseSearch}
+                                    onChange={(e) => setPurchaseSearch(e.target.value)}
+                                    className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm w-full max-w-md"
+                                />
+                            </div>
+                            {filteredPurchaseRows.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                            <tr>
+                                                <th
+                                                    className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("masterGroup")}
+                                                >
+                                                    Master Group <PurchaseSortIcon columnKey="masterGroup" />
+                                                </th>
+                                                <th
+                                                    className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("group")}
+                                                >
+                                                    Group <PurchaseSortIcon columnKey="group" />
+                                                </th>
+                                                <th
+                                                    className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap min-w-[180px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("item_name")}
+                                                >
+                                                    Item Name <PurchaseSortIcon columnKey="item_name" />
+                                                </th>
+                                                {(purchaseDetails?.monthLabels || purchaseDetails?.monthKeys || []).map((m, i) => (
+                                                    <th
+                                                        key={i}
+                                                        className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                        onClick={() => handlePurchaseSort(`month_${i}`)}
+                                                    >
+                                                        {typeof m === "string" ? m : (m || "").slice(5)} <PurchaseSortIcon columnKey={`month_${i}`} />
+                                                    </th>
+                                                ))}
+                                                <th
+                                                    className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("total_12m")}
+                                                >
+                                                    Total (last 12 months) <PurchaseSortIcon columnKey="total_12m" />
+                                                </th>
+                                                <th
+                                                    className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("year1")}
+                                                >
+                                                    Year {purchaseDetails?.year1Label ?? ""} <PurchaseSortIcon columnKey="year1" />
+                                                </th>
+                                                <th
+                                                    className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 select-none"
+                                                    onClick={() => handlePurchaseSort("year2")}
+                                                >
+                                                    Year {purchaseDetails?.year2Label ?? ""} <PurchaseSortIcon columnKey="year2" />
+                                                </th>
+                                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Graph</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {sortedPurchaseRows.map((row, idx) => (
+                                                <tr key={idx} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white whitespace-nowrap">{row.masterGroup ?? "—"}</td>
+                                                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{row.group ?? "—"}</td>
+                                                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 min-w-[180px]">{row.item_name ?? "—"}</td>
+                                                    {(row.months || []).map((mo, i) => (
+                                                        <td key={i} className="px-2 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{mo.value != null && mo.value !== 0 ? Number(mo.value).toLocaleString() : "—"}</td>
+                                                    ))}
+                                                    <td className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-white">{row.total_12m != null && row.total_12m !== 0 ? Number(row.total_12m).toLocaleString() : "—"}</td>
+                                                    <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year1 != null && row.year1 !== 0 ? Number(row.year1).toLocaleString() : "—"}</td>
+                                                    <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year2 != null && row.year2 !== 0 ? Number(row.year2).toLocaleString() : "—"}</td>
+                                                    <td className="px-4 py-2 text-right">
+                                                        {(row.months || []).length > 0 ? (
+                                                            <div className="w-20 h-8 inline-block">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <AreaChart data={(row.months || []).map((m) => ({ name: m.month?.slice(5) || "", value: m.value || 0 }))}>
+                                                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={1} />
+                                                                    </AreaChart>
+                                                                </ResponsiveContainer>
+                                                            </div>
+                                                        ) : (
+                                                            "—"
+                                                        )}
+                                                    </td>
+                                                </tr>
                                             ))}
-                                            <td className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-white">{row.total != null ? row.total.toLocaleString() : "—"}</td>
-                                            <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year1 != null ? row.year1.toLocaleString() : "—"}</td>
-                                            <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year2 != null ? row.year2.toLocaleString() : "—"}</td>
-                                            <td className="px-4 py-2 text-right">
-                                                {(row.months || []).length > 0 ? (
-                                                    <div className="w-16 h-8 inline-block">
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <AreaChart data={(row.months || []).map((m) => ({ name: m.month?.slice(5) || "", value: m.value || 0 }))}>
-                                                                <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={1} />
-                                                            </AreaChart>
-                                                        </ResponsiveContainer>
-                                                    </div>
-                                                ) : (
-                                                    "—"
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <p className="p-8 text-center text-gray-500 dark:text-gray-400">
-                                No purchase details yet. Upload ledger data from the CRM dashboard to see purchase history.
-                            </p>
-                        )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="p-8 text-center text-gray-500 dark:text-gray-400">
+                                    {purchaseDetails?.rows?.length ? "No items match the search." : "No ledger data. Upload ledger data from the CRM dashboard to see purchase history."}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 )}
 

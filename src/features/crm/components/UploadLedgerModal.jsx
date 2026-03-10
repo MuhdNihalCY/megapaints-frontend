@@ -1,13 +1,17 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Upload, Loader2 } from "lucide-react";
 import api from "../../../utils/api";
 
 const UploadLedgerModal = ({ isOpen, onClose, onSuccess, customers }) => {
     const [customerSearch, setCustomerSearch] = useState("");
     const [selectedCustomerId, setSelectedCustomerId] = useState("");
+    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+    const [activeCustomerIndex, setActiveCustomerIndex] = useState(-1);
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState("");
+    const [successResult, setSuccessResult] = useState(null);
+    const customerBoxRef = useRef(null);
 
     const filteredCustomers = useMemo(() => {
         const q = (customerSearch || "").toLowerCase().trim();
@@ -17,10 +21,30 @@ const UploadLedgerModal = ({ isOpen, onClose, onSuccess, customers }) => {
             .slice(0, 20);
     }, [customers, customerSearch]);
 
+    const selectedCustomer = useMemo(() => {
+        if (!selectedCustomerId) return null;
+        return customers.find((c) => c._id === selectedCustomerId) || null;
+    }, [customers, selectedCustomerId]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSuccessResult(null);
+        const onPointerDown = (e) => {
+            if (!customerBoxRef.current) return;
+            if (!customerBoxRef.current.contains(e.target)) {
+                setIsCustomerOpen(false);
+                setActiveCustomerIndex(-1);
+            }
+        };
+        window.addEventListener("pointerdown", onPointerDown);
+        return () => window.removeEventListener("pointerdown", onPointerDown);
+    }, [isOpen]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-        const customerId = selectedCustomerId || filteredCustomers[0]?._id;
+        setSuccessResult(null);
+        const customerId = selectedCustomerId;
         if (!customerId) {
             setError("Please select a customer.");
             return;
@@ -43,10 +67,15 @@ const UploadLedgerModal = ({ isOpen, onClose, onSuccess, customers }) => {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             if (res.data?.status === "success") {
+                const data = res.data?.data || {};
+                setSuccessResult({
+                    rowsAdded: data.rowsAdded ?? 0,
+                    rowsSkippedDuplicate: data.rowsSkippedDuplicate ?? 0,
+                });
                 setCustomerSearch("");
                 setSelectedCustomerId("");
                 setFile(null);
-                onSuccess();
+                onSuccess({ customerId, ...data });
             } else {
                 setError(
                     res.data?.message ||
@@ -95,43 +124,154 @@ const UploadLedgerModal = ({ isOpen, onClose, onSuccess, customers }) => {
                             {error}
                         </p>
                     )}
+                    {successResult != null && (
+                        <p className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+                            Ledger uploaded successfully. Rows added: {successResult.rowsAdded}, duplicates skipped: {successResult.rowsSkippedDuplicate}.
+                        </p>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Customer Name
                         </label>
-                        <input
-                            type="text"
-                            value={customerSearch}
-                            onChange={(e) => {
-                                setCustomerSearch(e.target.value);
-                                if (!e.target.value)
+                        <div ref={customerBoxRef} className="relative">
+                            <input
+                                type="text"
+                                value={customerSearch}
+                                onFocus={() => {
+                                    setIsCustomerOpen(true);
+                                    setActiveCustomerIndex(
+                                        filteredCustomers.length ? 0 : -1
+                                    );
+                                }}
+                                onChange={(e) => {
+                                    const next = e.target.value;
+                                    setCustomerSearch(next);
+                                    setIsCustomerOpen(true);
                                     setSelectedCustomerId("");
-                            }}
-                            placeholder="Type to search customers..."
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                        />
-                        {filteredCustomers.length > 0 && (
-                            <ul className="mt-1 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                                {filteredCustomers.map((c) => (
-                                    <li key={c._id}>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedCustomerId(c._id);
-                                                setCustomerSearch(c.name || "");
-                                            }}
-                                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                                selectedCustomerId === c._id
-                                                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                                                    : "text-gray-900 dark:text-white"
-                                            }`}
+                                    setActiveCustomerIndex(0);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        setIsCustomerOpen(false);
+                                        setActiveCustomerIndex(-1);
+                                        return;
+                                    }
+                                    if (e.key === "ArrowDown") {
+                                        e.preventDefault();
+                                        setIsCustomerOpen(true);
+                                        setActiveCustomerIndex((i) => {
+                                            const next = Math.min(
+                                                (i < 0 ? -1 : i) + 1,
+                                                filteredCustomers.length - 1
+                                            );
+                                            return Number.isFinite(next)
+                                                ? next
+                                                : -1;
+                                        });
+                                        return;
+                                    }
+                                    if (e.key === "ArrowUp") {
+                                        e.preventDefault();
+                                        setIsCustomerOpen(true);
+                                        setActiveCustomerIndex((i) =>
+                                            Math.max(i - 1, 0)
+                                        );
+                                        return;
+                                    }
+                                    if (e.key === "Enter") {
+                                        if (!isCustomerOpen) return;
+                                        e.preventDefault();
+                                        const picked =
+                                            filteredCustomers[
+                                                activeCustomerIndex
+                                            ] || null;
+                                        if (!picked) return;
+                                        setSelectedCustomerId(picked._id);
+                                        setCustomerSearch(picked.name || "");
+                                        setIsCustomerOpen(false);
+                                        setActiveCustomerIndex(-1);
+                                    }
+                                }}
+                                placeholder="Search and select a customer…"
+                                aria-label="Customer"
+                                role="combobox"
+                                aria-expanded={isCustomerOpen}
+                                aria-controls="customer-listbox"
+                                aria-autocomplete="list"
+                                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                            />
+                            {!!selectedCustomerId && selectedCustomer && (
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Selected: {selectedCustomer.name || "—"}
+                                </p>
+                            )}
+
+                            {isCustomerOpen && (
+                                <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+                                    {filteredCustomers.length > 0 ? (
+                                        <ul
+                                            id="customer-listbox"
+                                            role="listbox"
+                                            className="max-h-44 overflow-y-auto"
                                         >
-                                            {c.name || "—"}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                                            {filteredCustomers.map((c, idx) => {
+                                                const isActive =
+                                                    idx ===
+                                                    activeCustomerIndex;
+                                                const isSelected =
+                                                    selectedCustomerId === c._id;
+                                                return (
+                                                    <li key={c._id}>
+                                                        <button
+                                                            type="button"
+                                                            role="option"
+                                                            aria-selected={
+                                                                isSelected
+                                                            }
+                                                            onMouseEnter={() =>
+                                                                setActiveCustomerIndex(
+                                                                    idx
+                                                                )
+                                                            }
+                                                            onClick={() => {
+                                                                setSelectedCustomerId(
+                                                                    c._id
+                                                                );
+                                                                setCustomerSearch(
+                                                                    c.name ||
+                                                                        ""
+                                                                );
+                                                                setIsCustomerOpen(
+                                                                    false
+                                                                );
+                                                                setActiveCustomerIndex(
+                                                                    -1
+                                                                );
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2 text-sm ${
+                                                                isActive
+                                                                    ? "bg-gray-100 dark:bg-gray-700"
+                                                                    : ""
+                                                            } ${
+                                                                isSelected
+                                                                    ? "text-blue-700 dark:text-blue-300"
+                                                                    : "text-gray-900 dark:text-white"
+                                                            }`}
+                                                        >
+                                                            {c.name || "—"}
+                                                        </button>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                                            No matching customers.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
