@@ -10,8 +10,12 @@ import React, {
     useReducer,
     useEffect,
     useCallback,
+    useRef,
 } from "react";
+import { io } from "socket.io-client";
 import { kanbanService } from "../services/kanbanService";
+import { getBackendOrigin } from "../../../config/api";
+import { getAuthToken } from "../../../utils/api";
 import {
     logCardCreated,
     logCardUpdated,
@@ -571,6 +575,303 @@ export const KanbanProvider = ({ children, user }) => {
             dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
         }
     }, []);
+
+    // Board-scoped WebSocket for real-time sync
+    const boardSocketRef = useRef(null);
+    const lastBoardIdRef = useRef(null);
+    const lastColumnsRef = useRef(state.columns);
+    lastColumnsRef.current = state.columns;
+
+    useEffect(() => {
+        const boardId = state.board?.id ?? state.board?._id ?? null;
+        if (!boardId) {
+            if (boardSocketRef.current) {
+                const prev = lastBoardIdRef.current;
+                if (prev) boardSocketRef.current.emit("leave:board", prev);
+                boardSocketRef.current.disconnect();
+                boardSocketRef.current = null;
+                lastBoardIdRef.current = null;
+            }
+            return;
+        }
+
+        const origin = getBackendOrigin();
+        const token = getAuthToken();
+        if (!origin || !token) return;
+
+        const socket = io(origin, {
+            auth: { token },
+            transports: ["websocket", "polling"],
+        });
+        boardSocketRef.current = socket;
+        lastBoardIdRef.current = boardId;
+
+        socket.on("connect", () => {
+            socket.emit("join:board", boardId);
+        });
+
+        const normalizeColumn = (col) => {
+            if (!col) return col;
+            const id = col.id ?? col._id?.toString?.() ?? col._id;
+            return { ...col, id, _id: col._id ?? id };
+        };
+
+        // Transform backend column (is_active, sub_columns) to frontend shape (isActive, subcolumns)
+        // so KanbanColumn and KanbanBoard render correctly. Preserve existing cards when merging.
+        const transformBackendColumnToFrontend = (col, index) => {
+            if (!col) return col;
+            const columnId = col._id?.toString?.() || col.id?.toString();
+            const subColumns = col.sub_columns ?? col.subcolumns ?? [];
+            const isGrouped =
+                (col.has_sub_columns && subColumns.length > 0) || false;
+            return {
+                id: columnId,
+                _id: columnId,
+                title: col.name,
+                name: col.name,
+                color: col.color || "#007bff",
+                position: col.position ?? index,
+                isActive: col.is_active !== false,
+                is_active: col.is_active !== false,
+                has_sub_columns: col.has_sub_columns || false,
+                subcolumns: subColumns,
+                sub_columns: subColumns,
+                type: "static",
+                isGrouped: isGrouped,
+                cards: [],
+                settings: {},
+            };
+        };
+
+        const refetchColumnsAndSet = (existingColumns) => {
+            const list = Array.isArray(existingColumns)
+                ? existingColumns
+                : existingColumns?.data?.columns ?? existingColumns?.columns ?? [];
+            const transformed = list.map((c, i) =>
+                transformBackendColumnToFrontend(c, i),
+            );
+            const prev = lastColumnsRef.current || [];
+            const merged = transformed.map((col) => {
+                const existing = prev.find(
+                    (c) =>
+                        (c.id || c._id) === (col.id || col._id),
+                );
+                return {
+                    ...col,
+                    cards: existing?.cards ?? col.cards ?? [],
+                };
+            });
+            dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: merged });
+        };
+
+        socket.on("task:created", (data) => {
+            try {
+                const task = data?.task ?? data;
+                if (!task) return;
+                const card = kanbanService.transformCardData(task);
+                if (!card.id) card.id = card._id;
+                if (!card._id) card._id = card.id;
+                dispatch({ type: ACTION_TYPES.ADD_CARD, payload: card });
+            } catch (e) {
+                console.warn("Socket task:created handler error:", e);
+            }
+        });
+
+        socket.on("task:updated", (data) => {
+            try {
+                const task = data?.task ?? data;
+                if (!task) return;
+                const card = kanbanService.transformCardData(task);
+                if (!card.id) card.id = card._id;
+                if (!card._id) card._id = card.id;
+                dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: card });
+            } catch (e) {
+                console.warn("Socket task:updated handler error:", e);
+            }
+        });
+
+        socket.on("task:moved", (data) => {
+            try {
+                const task = data?.task ?? data;
+                const toColumn = data?.toColumn ?? task?.column_id ?? task?.columnId;
+                if (!task || toColumn == null) return;
+                const cardId = task.id ?? task._id?.toString?.() ?? task._id;
+                dispatch({
+                    type: ACTION_TYPES.MOVE_CARD,
+                    payload: {
+                        cardId,
+                        columnId: toColumn,
+                        subcolumnId: task.subcolumn_id ?? task.subcolumnId ?? null,
+                        position: task.position,
+                    },
+                });
+            } catch (e) {
+                console.warn("Socket task:moved handler error:", e);
+            }
+        });
+
+        socket.on("task:deleted", (data) => {
+            try {
+                const taskId = data?.taskId ?? data?.task_id ?? data?.id ?? data?._id;
+                if (!taskId) return;
+                const id = typeof taskId === "string" ? taskId : taskId?.toString?.() ?? taskId;
+                dispatch({ type: ACTION_TYPES.DELETE_CARD, payload: id });
+            } catch (e) {
+                console.warn("Socket task:deleted handler error:", e);
+            }
+        });
+
+        const refetchCardAndUpdate = async (taskId) => {
+            try {
+                const res = await kanbanService.getTask(taskId);
+                const taskData = res?.data?.task ?? res?.data;
+                if (taskData) {
+                    const card = kanbanService.transformCardData(taskData);
+                    if (!card.id) card.id = card._id;
+                    if (!card._id) card._id = card.id;
+                    dispatch({ type: ACTION_TYPES.UPDATE_CARD, payload: card });
+                }
+            } catch (err) {
+                console.warn("refetchCardAndUpdate error:", err);
+            }
+        };
+
+        socket.on("comment:added", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("comment:updated", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("comment:deleted", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+
+        socket.on("column:created", (data) => {
+            const bid = state.board?.id ?? state.board?._id;
+            if (bid) {
+                kanbanService.getColumns(bid).then(refetchColumnsAndSet).catch(() => {});
+            }
+        });
+
+        socket.on("column:updated", (data) => {
+            try {
+                const column = data?.column ?? data;
+                if (!column) return;
+                const col = transformBackendColumnToFrontend(column, 0);
+                const existing = lastColumnsRef.current?.find(
+                    (c) => (c.id || c._id) === (col.id || col._id),
+                );
+                const payload = { ...col, cards: existing?.cards ?? col.cards ?? [] };
+                dispatch({ type: ACTION_TYPES.UPDATE_COLUMN, payload });
+            } catch (e) {
+                console.warn("Socket column:updated handler error:", e);
+            }
+        });
+
+        socket.on("column:deleted", () => {
+            const bid = state.board?.id ?? state.board?._id;
+            if (bid) {
+                kanbanService.getColumns(bid).then(refetchColumnsAndSet).catch(() => {});
+            }
+        });
+
+        socket.on("columns:reordered", (data) => {
+            try {
+                const columns = data?.columns ?? data;
+                if (!Array.isArray(columns)) return;
+                const transformed = columns.map((c, i) =>
+                    transformBackendColumnToFrontend(c, i),
+                );
+                const prev = lastColumnsRef.current || [];
+                const merged = transformed.map((col) => {
+                    const existing = prev.find(
+                        (c) => (c.id || c._id) === (col.id || col._id),
+                    );
+                    return {
+                        ...col,
+                        cards: existing?.cards ?? col.cards ?? [],
+                    };
+                });
+                dispatch({ type: ACTION_TYPES.SET_COLUMNS, payload: merged });
+            } catch (e) {
+                console.warn("Socket columns:reordered handler error:", e);
+            }
+        });
+
+        socket.on("board:updated", (data) => {
+            try {
+                const board = data?.board ?? data;
+                if (!board) return;
+                const b = {
+                    id: board.id ?? board._id,
+                    _id: board._id ?? board.id,
+                    name: board.name ?? state.board?.name,
+                    ...board,
+                };
+                dispatch({ type: ACTION_TYPES.SET_BOARD, payload: b });
+            } catch (e) {
+                console.warn("Socket board:updated handler error:", e);
+            }
+        });
+
+        socket.on("attachment:added", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("attachment:deleted", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+
+        socket.on("checklist:created", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("checklist:updated", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("checklist:item:toggled", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+        socket.on("checklist:deleted", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+
+        socket.on("custom_field:created", () => {
+            const bid = state.board?.id ?? state.board?._id;
+            if (bid) {
+                kanbanService.getBoard(bid).then((res) => {
+                    const board = res?.data?.board ?? res?.data;
+                    if (board) dispatch({ type: ACTION_TYPES.SET_BOARD, payload: { ...state.board, ...board } });
+                }).catch(() => {});
+            }
+        });
+        socket.on("custom_field:updated", (data) => {
+            const taskId = data?.taskId ?? data?.task_id;
+            if (taskId) refetchCardAndUpdate(taskId);
+        });
+
+        socket.on("subcolumn_user:toggled", () => {
+            const bid = state.board?.id ?? state.board?._id;
+            if (bid) {
+                kanbanService.getColumns(bid).then(refetchColumnsAndSet).catch(() => {});
+            }
+        });
+
+        return () => {
+            const prev = lastBoardIdRef.current;
+            if (socket && prev) socket.emit("leave:board", prev);
+            socket.disconnect();
+            boardSocketRef.current = null;
+            lastBoardIdRef.current = null;
+        };
+    }, [state.board?.id ?? state.board?._id]);
 
     // Refetch main cards and archived cards (e.g. after archive/unarchive or board settings change)
     const refetchCardsAndArchived = useCallback(

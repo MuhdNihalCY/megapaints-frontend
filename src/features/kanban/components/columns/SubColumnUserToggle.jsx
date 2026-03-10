@@ -3,7 +3,7 @@
  * Allows Office/Sales users to enable/disable users in sub-columns
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Tooltip, IconButton } from "@mui/material";
 import { UserCheck, UserX } from "lucide-react";
 import { kanbanService } from "../../services/kanbanService";
@@ -20,6 +20,11 @@ const SubColumnUserToggle = ({
 }) => {
     const [loading, setLoading] = useState(false);
     const [localEnabled, setLocalEnabled] = useState(isEnabled);
+
+    // Sync from server/WebSocket when isEnabled prop changes (e.g. another user toggled)
+    useEffect(() => {
+        setLocalEnabled(isEnabled);
+    }, [isEnabled]);
 
     // Only show toggle for Office/Sales users
     const canToggle =
