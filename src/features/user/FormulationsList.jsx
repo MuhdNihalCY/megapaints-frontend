@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import FormulaService from "../../formula/services/formulaService";
-import { FileText, Edit, Trash2, Plus, Loader2, ArrowUpDown, ShoppingCart } from "lucide-react";
+import { FileText, Edit, Trash2, Plus, Loader2, ArrowUpDown, ShoppingCart, Printer } from "lucide-react";
 import { fetchMastersFresh } from "../../formula/services/mastersService";
 
 const FormulationsList = () => {
@@ -342,6 +342,14 @@ const FormulationsList = () => {
                                                 {formatDate(f.updatedAt ?? f.updated_at)}
                                             </td>
                                             <td className="px-4 py-3 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => window.open(`/print-label/${r.fileNo}`, "_blank")}
+                                                    className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
+                                                    title="Print label"
+                                                >
+                                                    <Printer className="w-4 h-4" />
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => navigate(`/order?formula_id=${f._id || f.id}`)}

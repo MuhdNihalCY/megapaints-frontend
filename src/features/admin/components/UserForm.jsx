@@ -153,7 +153,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             errors.roles = "At least one role is required";
         }
 
-        if (formData.branches.length !== 1) {
+        const isAdminDesignation = formData.designation && String(formData.designation).trim().toLowerCase() === "admin";
+        if (!isAdminDesignation && formData.branches.length !== 1) {
             errors.branches = "Please select one branch";
         }
 
@@ -236,6 +237,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             };
 
             // Prepare data for API
+            const isAdminDesignation = formData.designation && String(formData.designation).trim().toLowerCase() === "admin";
             const submitData = {
                 username: formData.username.trim(),
                 email: formData.email.trim(),
@@ -244,7 +246,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: formData.phone.trim(),
                 designation: formData.designation.trim(),
                 roles: formData.roles,
-                branches: normalizeBranchIds(formData.branches).slice(0, 1),
+                branches: isAdminDesignation ? [] : normalizeBranchIds(formData.branches).slice(0, 1),
                 permissions: formData.permissions,
                 is_active: formData.is_active,
             };
@@ -645,7 +647,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                             </div>
                         </div>
 
-                        {/* Branch Section - single selection (one branch per user) */}
+                        {/* Branch Section - single selection (one branch per user); hidden for Admin */}
+                        {formData.designation && String(formData.designation).trim().toLowerCase() !== "admin" ? (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
                                 <Building2 className="w-4 h-4 mr-2 text-gray-500" />
@@ -683,6 +686,12 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                                 </p>
                             )}
                         </div>
+                        ) : formData.designation && String(formData.designation).trim().toLowerCase() === "admin" ? (
+                        <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                            <Building2 className="w-4 h-4 mr-2 text-gray-500" />
+                            Admin has access to all branches.
+                        </div>
+                        ) : null}
 
                         {/* Permissions */}
                         <div>

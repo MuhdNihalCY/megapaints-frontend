@@ -147,22 +147,15 @@ const CustomerDropdown = ({
         }
     }, [isOpen]);
 
-    // Auto-select customer if customerId matches a customer in the list
-    // This handles the case where we got a 403 error but the customer is actually in the accessible list
+    // Auto-select customer if customerId matches a customer in the list.
+    // Only runs when there is currently no selectedCustomer, to avoid overriding manual choices.
     useEffect(() => {
-        if (customerId && customers.length > 0 && onCustomerSelect) {
+        if (customerId && !selectedCustomer && customers.length > 0 && onCustomerSelect) {
             const foundCustomer = customers.find((c) => {
                 const cId = c._id || c.id;
                 return cId && cId.toString() === customerId.toString();
             });
-            // Only auto-select if we found the customer and it's not already selected
-            if (
-                foundCustomer &&
-                (!selectedCustomer ||
-                    selectedCustomer._id?.toString() !== customerId.toString())
-            ) {
-                // Auto-select the customer if found in the accessible list
-                // Use setTimeout to avoid state update during render
+            if (foundCustomer) {
                 setTimeout(() => {
                     onCustomerSelect(foundCustomer);
                 }, 0);

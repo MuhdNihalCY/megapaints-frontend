@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Check, Trash2, Edit2, ChevronDown, ChevronRight, Plus, X, ShoppingCart } from "lucide-react";
+import { Check, Trash2, Edit2, ChevronDown, ChevronRight, Plus, X, ShoppingCart, Printer } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import FormulaService from "../../../../formula/services/formulaService";
@@ -574,6 +574,15 @@ const ProductionItemsManager = ({ card, onUpdate, currentUser, cardId }) => {
                                                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 border-t border-gray-200/60 dark:border-gray-600/60 justify-end">
                                                                             {/* <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">Actions</span> */}
                                                                             <div className="flex items-center gap-1 flex-wrap">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => window.open(`/print-label/${f.file_no || f.FileNo || ""}`, "_blank")}
+                                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
+                                                                                    title="Print label"
+                                                                                >
+                                                                                    <Printer className="w-3.5 h-3.5" />
+                                                                                    Print label
+                                                                                </button>
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => navigate(`/order?formula_id=${formulaId}`)}

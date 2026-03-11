@@ -69,3 +69,53 @@
 .dark .board-horizontal-scroll::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+
+/* Print label: only #print-area visible; label fixed at 75mm × 35mm on page (no scale to A4) */
+@media print {
+    @page {
+        size: A4;
+        margin: 0;
+    }
+    html,
+    body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: white;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    body * {
+        visibility: hidden;
+    }
+    #print-area,
+    #print-area * {
+        visibility: visible;
+    }
+    /* Label stays exactly 75mm × 35mm at top-left, never scaled */
+    #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 75mm !important;
+        height: 35mm !important;
+        min-width: 75mm;
+        min-height: 35mm;
+        max-width: 75mm;
+        max-height: 35mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white;
+        box-sizing: border-box;
+    }
+    #print-area > div {
+        width: 75mm !important;
+        height: 35mm !important;
+        min-width: 75mm;
+        min-height: 35mm;
+        max-width: 75mm;
+        max-height: 35mm;
+    }
+}

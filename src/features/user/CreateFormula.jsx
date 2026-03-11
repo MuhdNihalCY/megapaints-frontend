@@ -488,35 +488,35 @@ const CreateFormula = () => {
                 // Parse categories as objects with id and name (handle both object arrays and legacy string arrays)
                 const cats = Array.isArray(data?.categories)
                     ? data.categories
-                          .map((c) => {
-                              if (typeof c === "string") {
-                                  // Legacy format: "id - name" or just name
-                                  const parts = c.split(" - ");
-                                  return parts.length > 1
-                                      ? {
-                                            id: parts[0],
-                                            name: parts.slice(1).join(" - "),
-                                        }
-                                      : { id: c, name: c };
-                              }
-                              // New format: object with id and name
-                              return {
-                                  id: c?.id || c?._id || c?.Category_Id || "",
-                                  name:
-                                      c?.name ||
-                                      c?.Category ||
-                                      c?.Category_Name ||
-                                      c?.label ||
-                                      "",
-                              };
-                          })
-                          .filter((c) => c.id && c.name)
+                        .map((c) => {
+                            if (typeof c === "string") {
+                                // Legacy format: "id - name" or just name
+                                const parts = c.split(" - ");
+                                return parts.length > 1
+                                    ? {
+                                        id: parts[0],
+                                        name: parts.slice(1).join(" - "),
+                                    }
+                                    : { id: c, name: c };
+                            }
+                            // New format: object with id and name
+                            return {
+                                id: c?.id || c?._id || c?.Category_Id || "",
+                                name:
+                                    c?.name ||
+                                    c?.Category ||
+                                    c?.Category_Name ||
+                                    c?.label ||
+                                    "",
+                            };
+                        })
+                        .filter((c) => c.id && c.name)
                     : [];
 
                 // Extract subcategory mappings and default values
                 const subByCat =
                     data?.subCategoriesByCategory &&
-                    typeof data.subCategoriesByCategory === "object"
+                        typeof data.subCategoriesByCategory === "object"
                         ? data.subCategoriesByCategory
                         : {};
                 const glossDefault =
@@ -534,7 +534,7 @@ const CreateFormula = () => {
                     : [];
                 const binderCfgBySub =
                     data?.binderConfigBySubCategory &&
-                    typeof data.binderConfigBySubCategory === "object"
+                        typeof data.binderConfigBySubCategory === "object"
                         ? data.binderConfigBySubCategory
                         : {};
                 const productsBySub = data?.productsBySubCategory || {};
@@ -574,19 +574,19 @@ const CreateFormula = () => {
                     tints: normalizeTints(data?.defaultTints),
                     binders: Array.isArray(data?.defaultBinders)
                         ? data.defaultBinders.map((b) => ({
-                              _id: b._id || cryptoRandomId(),
-                              name: b.name || "",
-                              grams: Number(b.grams || 0),
-                              volume: Number(b.volume || 0),
-                          }))
+                            _id: b._id || cryptoRandomId(),
+                            name: b.name || "",
+                            grams: Number(b.grams || 0),
+                            volume: Number(b.volume || 0),
+                        }))
                         : [],
                     additives: Array.isArray(data?.defaultAdditives)
                         ? data.defaultAdditives.map((a) => ({
-                              _id: a._id || cryptoRandomId(),
-                              name: a.name || "",
-                              percent: Number(a.percent || 0),
-                              grams: Number(a.grams || 0),
-                          }))
+                            _id: a._id || cryptoRandomId(),
+                            name: a.name || "",
+                            percent: Number(a.percent || 0),
+                            grams: Number(a.grams || 0),
+                        }))
                         : [],
                     remarks:
                         typeof data?.defaultRemarks === "string"
@@ -725,10 +725,10 @@ const CreateFormula = () => {
                 const tintList = Array.isArray(fd.tints) ? fd.tints : [];
                 const normalizedTints = tintList.length
                     ? tintList.map((t, i) => ({
-                          ...t,
-                          _id: t._id || cryptoRandomId(),
-                          sl: t.sl ?? i + 1,
-                      }))
+                        ...t,
+                        _id: t._id || cryptoRandomId(),
+                        sl: t.sl ?? i + 1,
+                    }))
                     : [createEmptyTint(1)];
                 setTints(normalizedTints);
                 const qtyFromTints = {};
@@ -740,9 +740,9 @@ const CreateFormula = () => {
                 if (Object.keys(qtyFromTints).length) setQtyInput(qtyFromTints);
                 const normalizedAdditives = Array.isArray(fd.additives)
                     ? fd.additives.map((a) => ({
-                          ...a,
-                          _id: a._id || cryptoRandomId(),
-                      }))
+                        ...a,
+                        _id: a._id || cryptoRandomId(),
+                    }))
                     : [];
                 setAdditives(normalizedAdditives);
                 const additiveInputs = {};
@@ -860,6 +860,10 @@ const CreateFormula = () => {
         // This ensures binders are set whenever subcategory changes
         if (subCategory) {
             autoSelectBindersForSubcategory(subCategory);
+            
+            const subCatConfig = binderConfigBySubCategory[subCategory];
+            const subCatRemarks = subCatConfig?.Remarks || subCatConfig?.remarks || "";
+            setRemarks(subCatRemarks);
         } else {
             setSelectedBinder1Id("");
             setSelectedBinder2Id("");
@@ -1232,8 +1236,7 @@ const CreateFormula = () => {
                 updateTint(tintId, "code", "");
 
                 alert(
-                    `Product ${value.trim()} is already selected in row ${
-                        existingTint.sl
+                    `Product ${value.trim()} is already selected in row ${existingTint.sl
                     }. Please use that row to enter quantities.`,
                 );
                 return;
@@ -1488,13 +1491,13 @@ const CreateFormula = () => {
             binder2: subcategoryConfig?.Binder2,
             configDetails: subcategoryConfig
                 ? {
-                      SubCategoryId: subcategoryConfig.SubCategoryId,
-                      SubCategory_Id: subcategoryConfig.SubCategory_Id,
-                      _id: subcategoryConfig._id,
-                      hasProducts: !!subcategoryConfig.Products,
-                      Binder1Avalue: subcategoryConfig.Binder1Avalue,
-                      Binder2Avalue: subcategoryConfig.Binder2Avalue,
-                  }
+                    SubCategoryId: subcategoryConfig.SubCategoryId,
+                    SubCategory_Id: subcategoryConfig.SubCategory_Id,
+                    _id: subcategoryConfig._id,
+                    hasProducts: !!subcategoryConfig.Products,
+                    Binder1Avalue: subcategoryConfig.Binder1Avalue,
+                    Binder2Avalue: subcategoryConfig.Binder2Avalue,
+                }
                 : null,
         };
         console.log(
@@ -1554,9 +1557,9 @@ const CreateFormula = () => {
             // Fallback: If rawBinders is empty, fetch binders individually
             if (rawBinders.length === 0 && (binder1Id || binder2Id)) {
                 console.log('[Binder Fallback] rawBinders empty, fetching individually...');
-                
+
                 const idsToFetch = [binder1Id, binder2Id].filter(id => id);
-                
+
                 fetchBindersByIds(idsToFetch)
                     .then(fetchedBinders => {
                         if (fetchedBinders.length > 0) {
@@ -2206,12 +2209,12 @@ const CreateFormula = () => {
                     loadingFormula
                         ? "Loading formula..."
                         : loadingMasters
-                          ? "Loading master data..."
-                          : isSaving
-                            ? "Saving formula..."
-                            : isUploading
-                              ? "Uploading attachment..."
-                              : "Loading..."
+                            ? "Loading master data..."
+                            : isSaving
+                                ? "Saving formula..."
+                                : isUploading
+                                    ? "Uploading attachment..."
+                                    : "Loading..."
                 }
             />
 
@@ -2319,11 +2322,10 @@ const CreateFormula = () => {
                                             value={meta.fileNo}
                                             readOnly
                                             onClick={openFileNumberModal}
-                                            className={`w-full px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer transition-colors ${
-                                                hasAccessKeyVerified
+                                            className={`w-full px-2 py-1 text-sm border border-gray-300 rounded cursor-pointer transition-colors ${hasAccessKeyVerified
                                                     ? "bg-gray-500 text-white hover:bg-gray-600"
                                                     : "bg-gray-400 text-white hover:bg-gray-500"
-                                            }`}
+                                                }`}
                                             title={
                                                 hasAccessKeyVerified
                                                     ? "Click to edit file number"
@@ -2833,34 +2835,34 @@ const CreateFormula = () => {
                                 {/* Matt/Gloss Level Input - Dynamic visibility based on subcategory */}
                                 {(selectedBinderConfig?.Matt ||
                                     selectedBinderConfig?.Gloss) && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            {selectedBinderConfig?.Matt
-                                                ? "Matt"
-                                                : "Gloss"}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={glossInput}
-                                            onChange={(e) => {
-                                                const v = sanitizeNumericInput(
-                                                    e.target.value,
-                                                    "float",
-                                                );
-                                                setGlossInput(v);
-                                                setGloss(
-                                                    v === "" ? 0 : Number(v),
-                                                );
-                                            }}
-                                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
-                                            placeholder={
-                                                selectedBinderConfig?.Matt
-                                                    ? "Enter Matt value"
-                                                    : "Enter Gloss value"
-                                            }
-                                        />
-                                    </div>
-                                )}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                {selectedBinderConfig?.Matt
+                                                    ? "Matt"
+                                                    : "Gloss"}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={glossInput}
+                                                onChange={(e) => {
+                                                    const v = sanitizeNumericInput(
+                                                        e.target.value,
+                                                        "float",
+                                                    );
+                                                    setGlossInput(v);
+                                                    setGloss(
+                                                        v === "" ? 0 : Number(v),
+                                                    );
+                                                }}
+                                                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-yellow-200 text-gray-900"
+                                                placeholder={
+                                                    selectedBinderConfig?.Matt
+                                                        ? "Enter Matt value"
+                                                        : "Enter Gloss value"
+                                                }
+                                            />
+                                        </div>
+                                    )}
                             </div>
                         </div>
 
@@ -2917,9 +2919,9 @@ const CreateFormula = () => {
                                                                     tint._id
                                                                 ] !== undefined
                                                                     ? productSearchInput[
-                                                                          tint
-                                                                              ._id
-                                                                      ]
+                                                                    tint
+                                                                        ._id
+                                                                    ]
                                                                     : tint.code
                                                             }
                                                             onChange={(e) => {
@@ -2935,9 +2937,9 @@ const CreateFormula = () => {
                                                                 handleProductSearch(
                                                                     tint._id,
                                                                     productSearchInput[
-                                                                        tint._id
+                                                                    tint._id
                                                                     ] ||
-                                                                        tint.code,
+                                                                    tint.code,
                                                                 );
                                                                 calculateDropdownPosition(
                                                                     tint._id,
@@ -2947,7 +2949,7 @@ const CreateFormula = () => {
                                                             onKeyDown={(e) => {
                                                                 if (
                                                                     showProductList[
-                                                                        tint._id
+                                                                    tint._id
                                                                     ]
                                                                 ) {
                                                                     handleProductDropdownKeyDown(
@@ -2978,214 +2980,207 @@ const CreateFormula = () => {
                                                         {showProductList[
                                                             tint._id
                                                         ] && (
-                                                            <div
-                                                                className="fixed z-[9999] w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg"
-                                                                data-product-dropdown
-                                                                data-tint-id={
-                                                                    tint._id
-                                                                }
-                                                                style={{
-                                                                    top:
-                                                                        dropdownPosition[
-                                                                            tint
-                                                                                ._id
-                                                                        ]
-                                                                            ?.top ||
-                                                                        0,
-                                                                    left:
-                                                                        dropdownPosition[
-                                                                            tint
-                                                                                ._id
-                                                                        ]
-                                                                            ?.left ||
-                                                                        0,
-                                                                    position:
-                                                                        "fixed",
-                                                                    zIndex: 9999,
-                                                                }}
-                                                            >
-                                                                {filteredProducts.length >
-                                                                0 ? (
-                                                                    <>
-                                                                        {/* Show selected product at the top if one is selected */}
-                                                                        {tint.code &&
-                                                                            tint.code.trim() && (
-                                                                                <div
-                                                                                    className={`px-3 py-2 border-b ${
-                                                                                        isTinterAvailableInSubcategory(
+                                                                <div
+                                                                    className="fixed z-[9999] w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg"
+                                                                    data-product-dropdown
+                                                                    data-tint-id={
+                                                                        tint._id
+                                                                    }
+                                                                    style={{
+                                                                        top:
+                                                                            dropdownPosition[
+                                                                                tint
+                                                                                    ._id
+                                                                            ]
+                                                                                ?.top ||
+                                                                            0,
+                                                                        left:
+                                                                            dropdownPosition[
+                                                                                tint
+                                                                                    ._id
+                                                                            ]
+                                                                                ?.left ||
+                                                                            0,
+                                                                        position:
+                                                                            "fixed",
+                                                                        zIndex: 9999,
+                                                                    }}
+                                                                >
+                                                                    {filteredProducts.length >
+                                                                        0 ? (
+                                                                        <>
+                                                                            {/* Show selected product at the top if one is selected */}
+                                                                            {tint.code &&
+                                                                                tint.code.trim() && (
+                                                                                    <div
+                                                                                        className={`px-3 py-2 border-b ${isTinterAvailableInSubcategory(
                                                                                             tint.code,
                                                                                         )
-                                                                                            ? "bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700"
-                                                                                            : "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
-                                                                                    }`}
-                                                                                >
-                                                                                    <div
-                                                                                        className={`text-xs font-medium mb-1 ${
-                                                                                            isTinterAvailableInSubcategory(
-                                                                                                tint.code,
-                                                                                            )
-                                                                                                ? "text-blue-600 dark:text-blue-300"
-                                                                                                : "text-yellow-600 dark:text-yellow-300"
-                                                                                        }`}
-                                                                                    >
-                                                                                        Selected
-                                                                                        Product:
-                                                                                        {!isTinterAvailableInSubcategory(
-                                                                                            tint.code,
-                                                                                        ) && (
-                                                                                            <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
-                                                                                                Not
-                                                                                                in
-                                                                                                current
-                                                                                                subcategory
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div
-                                                                                        className={`font-medium text-sm ${
-                                                                                            isTinterAvailableInSubcategory(
-                                                                                                tint.code,
-                                                                                            )
-                                                                                                ? "text-blue-800 dark:text-blue-100"
-                                                                                                : "text-yellow-800 dark:text-yellow-100"
-                                                                                        }`}
-                                                                                    >
-                                                                                        {tint.series ||
-                                                                                            tint.code}
-                                                                                    </div>
-                                                                                    <div
-                                                                                        className={`text-xs truncate ${
-                                                                                            isTinterAvailableInSubcategory(
-                                                                                                tint.code,
-                                                                                            )
-                                                                                                ? "text-blue-600 dark:text-blue-300"
-                                                                                                : "text-yellow-600 dark:text-yellow-300"
-                                                                                        }`}
-                                                                                    >
-                                                                                        {tint.name ||
-                                                                                            "N/A"}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-
-                                                                        {/* Show all available products */}
-                                                                        {filteredProducts.map(
-                                                                            (
-                                                                                product,
-                                                                                idx,
-                                                                            ) => {
-                                                                                const isSelected =
-                                                                                    product.Product_Id ===
-                                                                                    tint.code;
-                                                                                const isKeyboardSelected =
-                                                                                    idx ===
-                                                                                    (selectedDropdownIndex[
-                                                                                        tint
-                                                                                            ._id
-                                                                                    ] ||
-                                                                                        0);
-                                                                                return (
-                                                                                    <div
-                                                                                        key={
-                                                                                            product._id ||
-                                                                                            idx
-                                                                                        }
-                                                                                        data-product-index={
-                                                                                            idx
-                                                                                        }
-                                                                                        onClick={() =>
-                                                                                            selectProduct(
-                                                                                                tint._id,
-                                                                                                product,
-                                                                                            )
-                                                                                        }
-                                                                                        className={`px-3 py-2 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                                                                            isSelected
-                                                                                                ? "bg-green-50 dark:bg-green-900"
-                                                                                                : isKeyboardSelected
-                                                                                                  ? "bg-blue-50 dark:bg-blue-900"
-                                                                                                  : ""
-                                                                                        }`}
+                                                                                                ? "bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700"
+                                                                                                : "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
+                                                                                            }`}
                                                                                     >
                                                                                         <div
-                                                                                            className={`font-medium text-sm ${
-                                                                                                isSelected
-                                                                                                    ? "text-green-800 dark:text-green-100"
-                                                                                                    : isKeyboardSelected
-                                                                                                      ? "text-blue-800 dark:text-blue-100"
-                                                                                                      : "text-gray-900 dark:text-white"
-                                                                                            }`}
+                                                                                            className={`text-xs font-medium mb-1 ${isTinterAvailableInSubcategory(
+                                                                                                tint.code,
+                                                                                            )
+                                                                                                    ? "text-blue-600 dark:text-blue-300"
+                                                                                                    : "text-yellow-600 dark:text-yellow-300"
+                                                                                                }`}
                                                                                         >
-                                                                                            {product.Abbreviation ||
-                                                                                                "N/A"}
-                                                                                            {isSelected && (
-                                                                                                <span className="ml-2 text-xs text-green-600 dark:text-green-300">
-                                                                                                    ✓
-                                                                                                    Selected
-                                                                                                </span>
-                                                                                            )}
-                                                                                            {isKeyboardSelected &&
-                                                                                                !isSelected && (
-                                                                                                    <span className="ml-2 text-xs text-blue-600 dark:text-blue-300">
-                                                                                                        ←
-                                                                                                        Use
-                                                                                                        Enter
-                                                                                                        to
-                                                                                                        select
+                                                                                            Selected
+                                                                                            Product:
+                                                                                            {!isTinterAvailableInSubcategory(
+                                                                                                tint.code,
+                                                                                            ) && (
+                                                                                                    <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded">
+                                                                                                        Not
+                                                                                                        in
+                                                                                                        current
+                                                                                                        subcategory
                                                                                                     </span>
                                                                                                 )}
                                                                                         </div>
                                                                                         <div
-                                                                                            className={`text-xs truncate ${
-                                                                                                isSelected
-                                                                                                    ? "text-green-600 dark:text-green-300"
-                                                                                                    : isKeyboardSelected
-                                                                                                      ? "text-blue-600 dark:text-blue-300"
-                                                                                                      : "text-gray-600 dark:text-gray-400"
-                                                                                            }`}
+                                                                                            className={`font-medium text-sm ${isTinterAvailableInSubcategory(
+                                                                                                tint.code,
+                                                                                            )
+                                                                                                    ? "text-blue-800 dark:text-blue-100"
+                                                                                                    : "text-yellow-800 dark:text-yellow-100"
+                                                                                                }`}
                                                                                         >
-                                                                                            {product.Product_Name ||
+                                                                                            {tint.series ||
+                                                                                                tint.code}
+                                                                                        </div>
+                                                                                        <div
+                                                                                            className={`text-xs truncate ${isTinterAvailableInSubcategory(
+                                                                                                tint.code,
+                                                                                            )
+                                                                                                    ? "text-blue-600 dark:text-blue-300"
+                                                                                                    : "text-yellow-600 dark:text-yellow-300"
+                                                                                                }`}
+                                                                                        >
+                                                                                            {tint.name ||
                                                                                                 "N/A"}
                                                                                         </div>
                                                                                     </div>
-                                                                                );
-                                                                            },
-                                                                        )}
-                                                                    </>
-                                                                ) : (
-                                                                    <div className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
-                                                                        {tint.code ? (
-                                                                            `No products found for "${tint.code}"`
-                                                                        ) : (
-                                                                            <div>
-                                                                                <div>
-                                                                                    No
-                                                                                    products
-                                                                                    available
-                                                                                    for
-                                                                                    subcategory
-                                                                                </div>
-                                                                                <div className="text-xs mt-1">
-                                                                                    "
-                                                                                    {
-                                                                                        subCategory
-                                                                                    }
+                                                                                )}
 
-                                                                                    "
+                                                                            {/* Show all available products */}
+                                                                            {filteredProducts.map(
+                                                                                (
+                                                                                    product,
+                                                                                    idx,
+                                                                                ) => {
+                                                                                    const isSelected =
+                                                                                        product.Product_Id ===
+                                                                                        tint.code;
+                                                                                    const isKeyboardSelected =
+                                                                                        idx ===
+                                                                                        (selectedDropdownIndex[
+                                                                                            tint
+                                                                                                ._id
+                                                                                        ] ||
+                                                                                            0);
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={
+                                                                                                product._id ||
+                                                                                                idx
+                                                                                            }
+                                                                                            data-product-index={
+                                                                                                idx
+                                                                                            }
+                                                                                            onClick={() =>
+                                                                                                selectProduct(
+                                                                                                    tint._id,
+                                                                                                    product,
+                                                                                                )
+                                                                                            }
+                                                                                            className={`px-3 py-2 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 ${isSelected
+                                                                                                    ? "bg-green-50 dark:bg-green-900"
+                                                                                                    : isKeyboardSelected
+                                                                                                        ? "bg-blue-50 dark:bg-blue-900"
+                                                                                                        : ""
+                                                                                                }`}
+                                                                                        >
+                                                                                            <div
+                                                                                                className={`font-medium text-sm ${isSelected
+                                                                                                        ? "text-green-800 dark:text-green-100"
+                                                                                                        : isKeyboardSelected
+                                                                                                            ? "text-blue-800 dark:text-blue-100"
+                                                                                                            : "text-gray-900 dark:text-white"
+                                                                                                    }`}
+                                                                                            >
+                                                                                                {product.Abbreviation ||
+                                                                                                    "N/A"}
+                                                                                                {isSelected && (
+                                                                                                    <span className="ml-2 text-xs text-green-600 dark:text-green-300">
+                                                                                                        ✓
+                                                                                                        Selected
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {isKeyboardSelected &&
+                                                                                                    !isSelected && (
+                                                                                                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-300">
+                                                                                                            ←
+                                                                                                            Use
+                                                                                                            Enter
+                                                                                                            to
+                                                                                                            select
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                            </div>
+                                                                                            <div
+                                                                                                className={`text-xs truncate ${isSelected
+                                                                                                        ? "text-green-600 dark:text-green-300"
+                                                                                                        : isKeyboardSelected
+                                                                                                            ? "text-blue-600 dark:text-blue-300"
+                                                                                                            : "text-gray-600 dark:text-gray-400"
+                                                                                                    }`}
+                                                                                            >
+                                                                                                {product.Product_Name ||
+                                                                                                    "N/A"}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                },
+                                                                            )}
+                                                                        </>
+                                                                    ) : (
+                                                                        <div className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
+                                                                            {tint.code ? (
+                                                                                `No products found for "${tint.code}"`
+                                                                            ) : (
+                                                                                <div>
+                                                                                    <div>
+                                                                                        No
+                                                                                        products
+                                                                                        available
+                                                                                        for
+                                                                                        subcategory
+                                                                                    </div>
+                                                                                    <div className="text-xs mt-1">
+                                                                                        "
+                                                                                        {
+                                                                                            subCategory
+                                                                                        }
+
+                                                                                        "
+                                                                                    </div>
+                                                                                    <div className="text-xs mt-1 text-gray-400">
+                                                                                        Try
+                                                                                        selecting
+                                                                                        a
+                                                                                        different
+                                                                                        subcategory
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="text-xs mt-1 text-gray-400">
-                                                                                    Try
-                                                                                    selecting
-                                                                                    a
-                                                                                    different
-                                                                                    subcategory
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                     </div>
                                                     <div className="col-span-3">
                                                         <input
@@ -3241,11 +3236,11 @@ const CreateFormula = () => {
                                                             colIndex
                                                         ] !== undefined
                                                             ? qtyInput[
-                                                                  tint._id
-                                                              ][colIndex]
+                                                            tint._id
+                                                            ][colIndex]
                                                             : qty === 0
-                                                              ? ""
-                                                              : String(qty)
+                                                                ? ""
+                                                                : String(qty)
                                                     }
                                                     onChange={(e) => {
                                                         const v =
@@ -3257,16 +3252,16 @@ const CreateFormula = () => {
                                                             const prevRow =
                                                                 prev[tint._id]
                                                                     ? [
-                                                                          ...prev[
-                                                                              tint
-                                                                                  ._id
-                                                                          ],
-                                                                      ]
+                                                                        ...prev[
+                                                                        tint
+                                                                            ._id
+                                                                        ],
+                                                                    ]
                                                                     : Array(
-                                                                          6,
-                                                                      ).fill(
-                                                                          "",
-                                                                      );
+                                                                        6,
+                                                                    ).fill(
+                                                                        "",
+                                                                    );
                                                             prevRow[colIndex] =
                                                                 v;
                                                             return {
@@ -3475,44 +3470,44 @@ const CreateFormula = () => {
                                                                         String(
                                                                             a.Additive_Id,
                                                                         ) ===
-                                                                            String(
-                                                                                additiveId,
-                                                                            ) ||
+                                                                        String(
+                                                                            additiveId,
+                                                                        ) ||
                                                                         Number(
                                                                             a.Additive_Id,
                                                                         ) ===
-                                                                            Number(
-                                                                                additiveId,
-                                                                            ),
+                                                                        Number(
+                                                                            additiveId,
+                                                                        ),
                                                                 );
                                                             if (additive) {
                                                                 const newAdditive =
-                                                                    {
-                                                                        _id: cryptoRandomId(),
-                                                                        additiveId:
-                                                                            additiveId,
-                                                                        name:
-                                                                            additive.Additive_Name ||
-                                                                            "",
-                                                                        percent: 0,
-                                                                        grams: 0,
-                                                                        Additive_Density: Number(
-                                                                                additive.Additive_Density ||
-                                                                                additive.density ||
-                                                                                additive.Product_Density ||
-                                                                                additive.Binder_Density ||
-                                                                                    1000,
-                                                                            ),
-                                                                        SolidContent:
-                                                                            Number(
-                                                                                additive.SolidContent ||
-                                                                                    0,
-                                                                            ),
-                                                                        VOC: Number(
-                                                                            additive.VOC ||
-                                                                                0,
+                                                                {
+                                                                    _id: cryptoRandomId(),
+                                                                    additiveId:
+                                                                        additiveId,
+                                                                    name:
+                                                                        additive.Additive_Name ||
+                                                                        "",
+                                                                    percent: 0,
+                                                                    grams: 0,
+                                                                    Additive_Density: Number(
+                                                                        additive.Additive_Density ||
+                                                                        additive.density ||
+                                                                        additive.Product_Density ||
+                                                                        additive.Binder_Density ||
+                                                                        1000,
+                                                                    ),
+                                                                    SolidContent:
+                                                                        Number(
+                                                                            additive.SolidContent ||
+                                                                            0,
                                                                         ),
-                                                                    };
+                                                                    VOC: Number(
+                                                                        additive.VOC ||
+                                                                        0,
+                                                                    ),
+                                                                };
                                                                 setAdditives(
                                                                     (prev) => {
                                                                         const updated =
@@ -3580,7 +3575,7 @@ const CreateFormula = () => {
                                                             setAdditivePercentageInput(
                                                                 String(
                                                                     existingAdditive.percent ||
-                                                                        0,
+                                                                    0,
                                                                 ),
                                                             );
 
@@ -3689,11 +3684,11 @@ const CreateFormula = () => {
                                                                             additive.name,
                                                                         newPercent:
                                                                             v ===
-                                                                            ""
+                                                                                ""
                                                                                 ? 0
                                                                                 : Number(
-                                                                                      v,
-                                                                                  ),
+                                                                                    v,
+                                                                                ),
                                                                         additiveInternalId:
                                                                             additive._id,
                                                                     },
@@ -3708,51 +3703,51 @@ const CreateFormula = () => {
                                                                         String(
                                                                             a.Additive_Id,
                                                                         ) ===
-                                                                            String(
-                                                                                selectedAdditiveId,
-                                                                            ) ||
+                                                                        String(
+                                                                            selectedAdditiveId,
+                                                                        ) ||
                                                                         Number(
                                                                             a.Additive_Id,
                                                                         ) ===
-                                                                            Number(
-                                                                                selectedAdditiveId,
-                                                                            ),
+                                                                        Number(
+                                                                            selectedAdditiveId,
+                                                                        ),
                                                                 );
                                                             if (rawAdditive) {
                                                                 const newAdditive =
-                                                                    {
-                                                                        _id: cryptoRandomId(),
-                                                                        additiveId:
-                                                                            selectedAdditiveId,
-                                                                        name:
-                                                                            rawAdditive.Additive_Name ||
-                                                                            "",
-                                                                        percent:
-                                                                            v ===
+                                                                {
+                                                                    _id: cryptoRandomId(),
+                                                                    additiveId:
+                                                                        selectedAdditiveId,
+                                                                    name:
+                                                                        rawAdditive.Additive_Name ||
+                                                                        "",
+                                                                    percent:
+                                                                        v ===
                                                                             ""
-                                                                                ? 0
-                                                                                : Number(
-                                                                                      v,
-                                                                                  ),
-                                                                        grams: 0,
-                                                                        Additive_Density:
-                                                                            Number(
-                                                                                rawAdditive.Additive_Density ||
-                                                                                rawAdditive.density ||
-                                                                                rawAdditive.Product_Density ||
-                                                                                rawAdditive.Binder_Density ||
-                                                                                    1000,
+                                                                            ? 0
+                                                                            : Number(
+                                                                                v,
                                                                             ),
-                                                                        SolidContent:
-                                                                            Number(
-                                                                                rawAdditive.SolidContent ||
-                                                                                    0,
-                                                                            ),
-                                                                        VOC: Number(
-                                                                            rawAdditive.VOC ||
-                                                                                0,
+                                                                    grams: 0,
+                                                                    Additive_Density:
+                                                                        Number(
+                                                                            rawAdditive.Additive_Density ||
+                                                                            rawAdditive.density ||
+                                                                            rawAdditive.Product_Density ||
+                                                                            rawAdditive.Binder_Density ||
+                                                                            1000,
                                                                         ),
-                                                                    };
+                                                                    SolidContent:
+                                                                        Number(
+                                                                            rawAdditive.SolidContent ||
+                                                                            0,
+                                                                        ),
+                                                                    VOC: Number(
+                                                                        rawAdditive.VOC ||
+                                                                        0,
+                                                                    ),
+                                                                };
                                                                 setAdditives(
                                                                     (prev) => {
                                                                         const updated =
@@ -3776,11 +3771,11 @@ const CreateFormula = () => {
                                                                                         rawAdditive.Additive_Name,
                                                                                     newPercent:
                                                                                         v ===
-                                                                                        ""
+                                                                                            ""
                                                                                             ? 0
                                                                                             : Number(
-                                                                                                  v,
-                                                                                              ),
+                                                                                                v,
+                                                                                            ),
                                                                                     currentAdditives:
                                                                                         updated.length,
                                                                                 },

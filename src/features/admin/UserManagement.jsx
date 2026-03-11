@@ -605,7 +605,9 @@ const UserManagement = () => {
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white hidden lg:table-cell">
                                                     <span className="truncate block max-w-[150px]">
-                                                        {user.branchName || "-"}
+                                                        {user.designation && String(user.designation).trim().toLowerCase() === "admin" && !user.branchName
+                                                            ? "All branches"
+                                                            : (user.branchName || "-")}
                                                     </span>
                                                 </td>
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">

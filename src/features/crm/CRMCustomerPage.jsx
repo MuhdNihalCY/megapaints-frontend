@@ -841,7 +841,7 @@ const CRMCustomerPage = () => {
                                                 >
                                                     Year {purchaseDetails?.year2Label ?? ""} <PurchaseSortIcon columnKey="year2" />
                                                 </th>
-                                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Graph</th>
+                                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap" style={{ minWidth: 140 }}>Graph</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -856,12 +856,19 @@ const CRMCustomerPage = () => {
                                                     <td className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-white">{row.total_12m != null && row.total_12m !== 0 ? Number(row.total_12m).toLocaleString() : "—"}</td>
                                                     <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year1 != null && row.year1 !== 0 ? Number(row.year1).toLocaleString() : "—"}</td>
                                                     <td className="px-4 py-2 text-right text-sm text-gray-600 dark:text-gray-400">{row.year2 != null && row.year2 !== 0 ? Number(row.year2).toLocaleString() : "—"}</td>
-                                                    <td className="px-4 py-2 text-right">
+                                                    <td className="px-4 py-2 text-right align-middle" style={{ minWidth: 140, minHeight: 56 }}>
                                                         {(row.months || []).length > 0 ? (
-                                                            <div className="w-20 h-8 inline-block">
-                                                                <ResponsiveContainer width="100%" height="100%">
+                                                            <div style={{ width: 120, height: 48 }}>
+                                                                <ResponsiveContainer width={120} height={48}>
                                                                     <AreaChart data={(row.months || []).map((m) => ({ name: m.month?.slice(5) || "", value: m.value || 0 }))}>
-                                                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={1} />
+                                                                        <Area
+                                                                            type="monotone"
+                                                                            dataKey="value"
+                                                                            stroke="#2563eb"
+                                                                            fill="#3b82f6"
+                                                                            fillOpacity={0.35}
+                                                                            strokeWidth={2}
+                                                                        />
                                                                     </AreaChart>
                                                                 </ResponsiveContainer>
                                                             </div>

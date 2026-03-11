@@ -38,6 +38,7 @@ import UserProtectedRoute from "./components/UserProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import CreateFormula from "./features/user/CreateFormula";
 import FormulationsList from "./features/user/FormulationsList";
+import PrintLabel from "./features/user/PrintLabel";
 import Order from "./features/user/Order";
 import Orders from "./features/user/Orders";
 import UserInventory from "./features/user/UserInventory";
@@ -120,6 +121,14 @@ function App() {
                                         element={
                                             <UserProtectedRoute>
                                                 <FormulationsList />
+                                            </UserProtectedRoute>
+                                        }
+                                    />
+                                    <Route
+                                        path="/print-label/:fileNo"
+                                        element={
+                                            <UserProtectedRoute>
+                                                <PrintLabel />
                                             </UserProtectedRoute>
                                         }
                                     />

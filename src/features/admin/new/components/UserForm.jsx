@@ -127,7 +127,8 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             errors.roles = "At least one role is required";
         }
 
-        if (formData.branches.length === 0) {
+        const isAdminDesignation = formData.designation && String(formData.designation).trim().toLowerCase() === "admin";
+        if (!isAdminDesignation && formData.branches.length === 0) {
             errors.branches = "At least one branch is required";
         }
 
@@ -203,6 +204,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
             };
 
             // Prepare data for API
+            const isAdminDesignation = formData.designation && String(formData.designation).trim().toLowerCase() === "admin";
             const submitData = {
                 username: formData.username.trim(),
                 email: formData.email.trim(),
@@ -211,7 +213,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                 phone: formData.phone.trim(),
                 designation: formData.designation.trim(),
                 roles: formData.roles,
-                branches: normalizeBranchIds(formData.branches),
+                branches: isAdminDesignation ? [] : normalizeBranchIds(formData.branches),
                 permissions: formData.permissions,
                 is_active: formData.is_active,
             };
@@ -549,6 +551,7 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                         </div>
 
                         {/* Branches */}
+                        {formData.designation && String(formData.designation).trim().toLowerCase() !== "admin" ? (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Branches *
@@ -597,6 +600,11 @@ const UserForm = ({ user = null, onClose, onSuccess }) => {
                                 </p>
                             )}
                         </div>
+                        ) : formData.designation && String(formData.designation).trim().toLowerCase() === "admin" ? (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                            Admin has access to all branches.
+                        </div>
+                        ) : null}
 
                         {/* Permissions */}
                         <div>
