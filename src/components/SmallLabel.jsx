@@ -71,7 +71,7 @@ const SmallLabel = ({ data, autoPrint = true }) => {
     };
 
     const logoImgStyle = {
-        height: "15mm",
+        height: "12mm",
         width: "auto",
         objectFit: "contain",
     };
