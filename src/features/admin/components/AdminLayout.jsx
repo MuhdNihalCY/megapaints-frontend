@@ -1,4 +1,5 @@
 import { useState } from "react";
+import logo from "../../../../public/images/logo.svg";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
@@ -48,11 +49,11 @@ const menuItems = [
     { text: "Accessories", icon: Box, path: "/admin/accessories" },
     { text: "3P Products", icon: Truck, path: "/admin/third-party-products" },
     { text: "Branches", icon: Store, path: "/admin/branches" },
+    { text: "Orders", icon: ShoppingCart, path: "/admin/orders" },
     { text: "Inventory", icon: Warehouse, path: "/admin/inventory" },
     { text: "Inventory Summary", icon: BarChart3, path: "/admin/inventory/summary" },
     { text: "Users", icon: Users, path: "/admin/users" },
     { text: "Customers", icon: Users, path: "/admin/customers" },
-    { text: "Orders", icon: ShoppingCart, path: "/admin/orders" },
     { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns" },
     { text: "Controlled Access", icon: Key, path: "/admin/controlled-access" },
     { text: "Backup & Restore", icon: Database, path: "/admin/backup" },
@@ -117,11 +118,12 @@ export default function AdminLayout() {
                     >
                         {open ? (
                             <>
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                                {/* <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
                                     <span className="text-white font-bold text-lg">
                                         M
                                     </span>
-                                </div>
+                                </div> */}
+                                <img src={logo} className="w-10 h-10 mr-3" alt="megapaints" />
                                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                                     MegaPaints
                                 </span>
@@ -250,8 +252,9 @@ export default function AdminLayout() {
                                     }
                                     className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                 >
-                                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                                        <span className="text-white text-sm font-semibold">
+                                    {/* <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center"> */}
+                                    <div className="w-9 h-9 bg-gray-200 border border-gray-300 rounded-full flex items-center justify-center">
+                                        <span className="text-gray-600 text-sm font-semibold">
                                             {user?.username?.[0]?.toUpperCase() ||
                                                 "A"}
                                         </span>

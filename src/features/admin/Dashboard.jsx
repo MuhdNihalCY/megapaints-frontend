@@ -49,7 +49,7 @@ const Dashboard = () => {
                     ?.getCategories({ limit: 1 })
                     .catch(() => ({ data: { pagination: { total: 0 } } })),
                 adminServices?.productCatalog
-                    ?.getProducts({ limit: 1 })
+                    ?.getAllItems({ limit: 1 })
                     .catch(() => ({ data: { pagination: { total: 0 } } })),
                 adminServices?.businessManagement
                     ?.getUsers({ limit: 1 })
@@ -57,9 +57,8 @@ const Dashboard = () => {
                 adminServices?.businessManagement
                     ?.getBranches({ limit: 1 })
                     .catch(() => ({ data: { pagination: { total: 0 } } })),
-                // Customers API - use direct API call since it's not under /api/admin
-                fetch("/api/customers?limit=1")
-                    .then((res) => res.json())
+                // Customers API - use apiRequest to include auth token
+                adminServices?.admin?.apiRequest("/customers?limit=1")
                     .catch(() => ({ data: { pagination: { total: 0 } } })),
             ]);
 
