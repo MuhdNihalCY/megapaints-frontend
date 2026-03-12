@@ -568,7 +568,7 @@ const UserManagement = () => {
                                                 <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <div className="flex-shrink-0 h-10 w-10">
-                                                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                                                            <div className="h-10 w-10 rounded-full bg-gray-700 dark:bg-gray-600 flex items-center justify-center shadow-md">
                                                                 <span className="text-white font-semibold text-sm">
                                                                     {getInitials(
                                                                         user,

@@ -122,7 +122,7 @@ export default function AdminLayout() {
                     >
                         {open ? (
                             <>
-                                {/* <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                                {/* <div className="w-10 h-10 bg-gray-700 dark:bg-gray-600 rounded-lg flex items-center justify-center mr-3">
                                     <span className="text-white font-bold text-lg">
                                         M
                                     </span>
@@ -133,7 +133,7 @@ export default function AdminLayout() {
                                 </span>
                             </>
                         ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto">
+                            <div className="w-10 h-10 bg-gray-700 dark:bg-gray-600 rounded-lg flex items-center justify-center mx-auto">
                                 <span className="text-white font-bold text-lg">
                                     M
                                 </span>
@@ -258,7 +258,7 @@ export default function AdminLayout() {
                                     }
                                     className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                 >
-                                    {/* <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center"> */}
+                                    {/* <div className="w-9 h-9 bg-gray-700 dark:bg-gray-600 rounded-full flex items-center justify-center"> */}
                                     <div className="w-9 h-9 bg-gray-200 border border-gray-300 rounded-full flex items-center justify-center">
                                         <span className="text-gray-600 text-sm font-semibold">
                                             {user?.username?.[0]?.toUpperCase() ||

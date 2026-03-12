@@ -50,7 +50,7 @@ const UserDashboard = () => {
                             Quick Actions
                         </h3>
                         <div className="space-y-3">
-                            <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
+                            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
                                 Start New Project
                             </button>
                             <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
@@ -129,16 +129,16 @@ const UserDashboard = () => {
                             Available Tools
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
-                            <button className="bg-gradient-to-r from-pink-500 to-red-500 text-white py-2 px-3 rounded text-sm font-medium hover:from-pink-600 hover:to-red-600 transition-all">
+                            <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-3 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                                 Paint Brush
                             </button>
-                            <button className="bg-gradient-to-r from-green-500 to-teal-500 text-white py-2 px-3 rounded text-sm font-medium hover:from-green-600 hover:to-teal-600 transition-all">
+                            <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-3 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                                 Color Picker
                             </button>
-                            <button className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-2 px-3 rounded text-sm font-medium hover:from-yellow-600 hover:to-orange-600 transition-all">
+                            <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-3 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                                 Eraser
                             </button>
-                            <button className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-3 rounded text-sm font-medium hover:from-indigo-600 hover:to-purple-600 transition-all">
+                            <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-3 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                                 Layers
                             </button>
                         </div>

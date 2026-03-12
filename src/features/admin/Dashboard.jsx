@@ -99,45 +99,30 @@ const Dashboard = () => {
             title: "Categories",
             value: stats.categories,
             icon: Folder,
-            color: "from-purple-500 to-indigo-600",
-            bgColor: "bg-purple-50 dark:bg-purple-900/20",
-            iconColor: "text-purple-600 dark:text-purple-400",
             path: "/admin/categories",
         },
         {
             title: "Products",
             value: stats.products,
             icon: Package,
-            color: "from-blue-500 to-cyan-600",
-            bgColor: "bg-blue-50 dark:bg-blue-900/20",
-            iconColor: "text-blue-600 dark:text-blue-400",
             path: "/admin/products",
         },
         {
             title: "Users",
             value: stats.users,
             icon: Users,
-            color: "from-pink-500 to-rose-600",
-            bgColor: "bg-pink-50 dark:bg-pink-900/20",
-            iconColor: "text-pink-600 dark:text-pink-400",
             path: "/admin/users",
         },
         {
             title: "Branches",
             value: stats.branches,
             icon: Store,
-            color: "from-emerald-500 to-teal-600",
-            bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
-            iconColor: "text-emerald-600 dark:text-emerald-400",
             path: "/admin/branches",
         },
         {
             title: "Customers",
             value: stats.customers,
             icon: ShoppingCart,
-            color: "from-orange-500 to-amber-600",
-            bgColor: "bg-orange-50 dark:bg-orange-900/20",
-            iconColor: "text-orange-600 dark:text-orange-400",
             path: "/admin/customers",
         },
     ];
@@ -179,7 +164,7 @@ const Dashboard = () => {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center space-y-4">
-                    <Activity className="w-8 h-8 text-blue-500 animate-spin" />
+                    <Activity className="w-8 h-8 text-gray-400 dark:text-gray-500 animate-spin" />
                     <p className="text-gray-600 dark:text-gray-400">
                         Loading dashboard...
                     </p>
@@ -192,10 +177,10 @@ const Dashboard = () => {
         <div className="p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                     Dashboard Overview
                 </h1>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+                <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
                     Welcome to your MegaPaints Admin Dashboard
                 </p>
             </div>
@@ -215,26 +200,24 @@ const Dashboard = () => {
                         <div
                             key={index}
                             onClick={() => navigate(stat.path)}
-                            className={`relative overflow-hidden rounded-xl ${stat.bgColor} border border-gray-200 dark:border-gray-700 p-4 sm:p-6 cursor-pointer transition-colors hover:border-blue-300 dark:hover:border-blue-600 group`}
+                            className="relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors group"
                         >
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                    <div
-                                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-3 sm:mb-4 transition-colors`}
-                                    >
-                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3 sm:mb-4">
+                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
                                     </div>
                                     <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
                                         {stats.loading
                                             ? "..."
                                             : stat.value.toLocaleString()}
                                     </div>
-                                    <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    <div className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
                                         {stat.title}
                                     </div>
                                 </div>
                                 <ArrowRight
-                                    className={`w-5 h-5 ${stat.iconColor} opacity-0 group-hover:opacity-100 transition-opacity`}
+                                    className="w-5 h-5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 />
                             </div>
                         </div>
@@ -256,19 +239,19 @@ const Dashboard = () => {
                             <button
                                 key={index}
                                 onClick={() => navigate(action.path)}
-                                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left transition-colors hover:border-blue-300 dark:hover:border-blue-600"
+                                className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 text-left hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
                             >
                                 <div className="relative">
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-600 flex items-center justify-center mb-3 sm:mb-4 transition-colors">
-                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3 sm:mb-4">
+                                        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
                                     </div>
-                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 transition-colors">
+                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">
                                         {action.title}
                                     </h3>
-                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                                         {action.description}
                                     </p>
-                                    <div className="mt-4 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="mt-4 flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
                                         Go to page
                                         <ArrowRight className="w-4 h-4 ml-2" />
                                     </div>

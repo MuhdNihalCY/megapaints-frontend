@@ -1,3 +1,4 @@
+import { Sun, Moon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
@@ -112,16 +113,25 @@ const UserHeader = () => {
                             {user?.username || "User"}
                         </span>
                         <button
-                            onClick={toggleTheme}
-                            aria-label="Toggle theme"
-                            className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleTheme();
+                            }}
+                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                             title={
                                 isDark
-                                    ? "Switch to light mode"
-                                    : "Switch to dark mode"
+                                    ? "Switch to Light Mode"
+                                    : "Switch to Dark Mode"
                             }
+                            type="button"
+                            aria-label="Toggle theme"
                         >
-                            {isDark ? "Light" : "Dark"}
+                            {isDark ? (
+                                <Sun className="w-5 h-5" />
+                            ) : (
+                                <Moon className="w-5 h-5" />
+                            )}
                         </button>
                         <button
                             onClick={handleLogout}

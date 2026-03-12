@@ -431,7 +431,7 @@ const Branches = () => {
                                                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                                         <div className="flex items-center">
                                                             <div className="flex-shrink-0 h-10 w-10">
-                                                                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                                                                <div className="h-10 w-10 rounded-lg bg-gray-700 dark:bg-gray-600 flex items-center justify-center shadow-md">
                                                                     <Building2 className="w-5 h-5 text-white" />
                                                                 </div>
                                                             </div>
