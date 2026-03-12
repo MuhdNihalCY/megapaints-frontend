@@ -49,18 +49,14 @@ const menuItems = [
     { text: "3P Products", icon: Truck, path: "/admin/third-party-products" },
     { text: "Branches", icon: Store, path: "/admin/branches" },
     { text: "Inventory", icon: Warehouse, path: "/admin/inventory" },
-    {
-        text: "Inventory Summary",
-        icon: BarChart3,
-        path: "/admin/inventory/summary",
-    },
+    { text: "Inventory Summary", icon: BarChart3, path: "/admin/inventory/summary" },
     { text: "Users", icon: Users, path: "/admin/users" },
     { text: "Customers", icon: Users, path: "/admin/customers" },
     { text: "Orders", icon: ShoppingCart, path: "/admin/orders" },
     { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns" },
+    { text: "Controlled Access", icon: Key, path: "/admin/controlled-access" },
     { text: "Backup & Restore", icon: Database, path: "/admin/backup" },
     { text: "Data Migration", icon: RefreshCw, path: "/admin/migration" },
-    { text: "Controlled Access", icon: Key, path: "/admin/controlled-access" },
 ];
 
 export default function AdminLayout() {

@@ -346,7 +346,23 @@ const FormulationsList = () => {
                                                     type="button"
                                                     onClick={() => window.open(`/print-label/${r.fileNo}`, "_blank")}
                                                     className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-                                                    title="Print label"
+                                                    title="Print label 1 (75×35mm)"
+                                                >
+                                                    <Printer className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled
+                                                    className="p-2 text-gray-400 dark:text-gray-500 rounded cursor-not-allowed opacity-60"
+                                                    title="Print label 2 – coming soon"
+                                                >
+                                                    <Printer className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled
+                                                    className="p-2 text-gray-400 dark:text-gray-500 rounded cursor-not-allowed opacity-60"
+                                                    title="Print label 3 – coming soon"
                                                 >
                                                     <Printer className="w-4 h-4" />
                                                 </button>

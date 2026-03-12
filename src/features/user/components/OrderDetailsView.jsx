@@ -95,7 +95,7 @@ const OrderDetailsView = ({
         <div className="mx-auto">
             {message?.text && (
                 <div
-                    className={`mb-4 p-4 rounded-lg ${
+                    className={`mb-4 p-4 rounded-lg whitespace-pre-wrap ${
                         message.type === "error"
                             ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                             : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"

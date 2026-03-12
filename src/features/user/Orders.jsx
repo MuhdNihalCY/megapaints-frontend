@@ -178,15 +178,42 @@ const Orders = () => {
                 <p><span className="text-gray-500 dark:text-gray-400">Matt:</span> {fd.gloss != null ? fd.gloss : "—"}</p>
 
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                    <button
-                        type="button"
-                        disabled
-                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
-                        title="Print label – will implement later"
-                    >
-                        <Printer className="w-4 h-4" />
-                        Print Label
-                    </button>
+                    {(() => {
+                        const fileNo = fd.file_number ?? "";
+                        const hasFileNo = Boolean(String(fileNo).trim());
+                        return (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => hasFileNo && window.open(`/print-label/${fileNo}`, "_blank")}
+                                    disabled={!hasFileNo}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Print label 1 (75×35mm)"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    Print label 1
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
+                                    title="Print label 2 – coming soon"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    Print label 2
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm cursor-not-allowed"
+                                    title="Print label 3 – coming soon"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    Print label 3
+                                </button>
+                            </>
+                        );
+                    })()}
                     {onViewDetails && (
                         <button
                             type="button"

@@ -330,12 +330,20 @@ const Order = () => {
                 });
             }
         } catch (e) {
+            let errorText = e?.response?.data?.message || e?.message || "Failed to create order";
+            
+            if (e?.response?.status === 422 && e?.response?.data?.code === 'INSUFFICIENT_STOCK') {
+                const insufficient = e.response.data.data?.insufficient || [];
+                if (insufficient.length > 0) {
+                    errorText = "Cannot create order — insufficient stock:\n" + insufficient.map(
+                        item => `• ${item.name}: need ${item.required} ${item.unit}, have ${item.available} ${item.unit} (short ${item.shortfall} ${item.unit})`
+                    ).join('\n');
+                }
+            }
+
             setMessage({
                 type: "error",
-                text:
-                    e?.response?.data?.message ||
-                    e?.message ||
-                    "Failed to create order",
+                text: errorText,
             });
         } finally {
             setIsCreating(false);

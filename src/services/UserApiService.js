@@ -73,10 +73,15 @@ class UserApiService {
             }
 
             if (!response.ok) {
-                throw new Error(
+                const error = new Error(
                     data?.message ||
                         `HTTP ${response.status}: ${response.statusText}`,
                 );
+                error.response = {
+                    status: response.status,
+                    data: data,
+                };
+                throw error;
             }
 
             return data;
