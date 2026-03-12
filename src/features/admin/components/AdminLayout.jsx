@@ -54,15 +54,16 @@ const menuItems = [
     { text: "Inventory Summary", icon: BarChart3, path: "/admin/inventory/summary" },
     { text: "Users", icon: Users, path: "/admin/users" },
     { text: "Customers", icon: Users, path: "/admin/customers" },
-    { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns" },
     { text: "Controlled Access", icon: Key, path: "/admin/controlled-access" },
-    { text: "Backup & Restore", icon: Database, path: "/admin/backup" },
-    { text: "Data Migration", icon: RefreshCw, path: "/admin/migration" },
+    // Super-user only items
+    { text: "Kanban Columns", icon: Columns, path: "/admin/kanban-columns", superUserOnly: true },
+    { text: "Backup & Restore", icon: Database, path: "/admin/backup", superUserOnly: true },
+    { text: "Data Migration", icon: RefreshCw, path: "/admin/migration", superUserOnly: true },
 ];
 
 export default function AdminLayout() {
     const location = useLocation();
-    const { user, logout } = useAuth();
+    const { user, logout, isSuperUser } = useAuth();
     const { isDark, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [open, setOpen] = useState(true);
@@ -93,7 +94,10 @@ export default function AdminLayout() {
 
     // Get current page title and icon based on active route
     const getCurrentPageInfo = () => {
-        const activeItem = menuItems.find((item) =>
+        const visibleItems = menuItems.filter(
+            (item) => !item.superUserOnly || isSuperUser
+        );
+        const activeItem = visibleItems.find((item) =>
             isMenuItemActive(item.path),
         );
         return activeItem || { text: "Admin Dashboard", icon: Home };
@@ -149,7 +153,9 @@ export default function AdminLayout() {
                 {/* Menu Items */}
                 <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 min-h-0">
                     <div className="px-2 space-y-1">
-                        {menuItems.map((item) => {
+                        {menuItems
+                            .filter((item) => !item.superUserOnly || isSuperUser)
+                            .map((item) => {
                             const Icon = item.icon;
                             const isActive = isMenuItemActive(item.path);
                             return (

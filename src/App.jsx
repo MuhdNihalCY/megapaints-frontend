@@ -36,6 +36,7 @@ import Migration from "./features/admin/Migration";
 import ControlledAccess from "./features/admin/new/ControlledAccess";
 import UserProtectedRoute from "./components/UserProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import SuperUserProtectedRoute from "./components/SuperUserProtectedRoute";
 import CreateFormula from "./features/user/CreateFormula";
 import FormulationsList from "./features/user/FormulationsList";
 import PrintLabel from "./features/user/PrintLabel";
@@ -261,15 +262,27 @@ function App() {
                                         />
                                         <Route
                                             path="kanban-columns"
-                                            element={<KanbanColumns />}
+                                            element={
+                                                <SuperUserProtectedRoute>
+                                                    <KanbanColumns />
+                                                </SuperUserProtectedRoute>
+                                            }
                                         />
                                         <Route
                                             path="backup"
-                                            element={<BackupRestore />}
+                                            element={
+                                                <SuperUserProtectedRoute>
+                                                    <BackupRestore />
+                                                </SuperUserProtectedRoute>
+                                            }
                                         />
                                         <Route
                                             path="migration"
-                                            element={<Migration />}
+                                            element={
+                                                <SuperUserProtectedRoute>
+                                                    <Migration />
+                                                </SuperUserProtectedRoute>
+                                            }
                                         />
                                         <Route
                                             path="controlled-access"

@@ -21,6 +21,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isSuperUser, setIsSuperUser] = useState(false);
     const [loading, setLoading] = useState(true);
 
     // Check if user is already logged in on mount
@@ -49,6 +50,8 @@ export const AuthProvider = ({ children }) => {
                         // Set user immediately from localStorage
                         setUser(currentUser);
                         setIsAdmin(authService.isAdmin());
+                        const superUserRoles = currentUser?.roles || [];
+                        setIsSuperUser(superUserRoles.includes('super_user'));
                         console.log("✅ User restored from localStorage");
 
                         // Validate session in background (non-blocking) - but don't clear on failure
@@ -60,7 +63,9 @@ export const AuthProvider = ({ children }) => {
                                 await authService.getCurrentProfile();
                             // Update user data with fresh profile if available
                             if (profile.admin || profile.user) {
-                                setUser(profile.admin || profile.user);
+                                const profileData = profile.admin || profile.user;
+                                setUser(profileData);
+                                setIsSuperUser((profileData.roles || []).includes('super_user'));
                                 console.log(
                                     "✅ Session validated, user data updated",
                                 );
@@ -82,13 +87,16 @@ export const AuthProvider = ({ children }) => {
                             const profile =
                                 await authService.getCurrentProfile();
                             if (profile.admin || profile.user) {
-                                setUser(profile.admin || profile.user);
+                                const profileData = profile.admin || profile.user;
+                                setUser(profileData);
                                 setIsAdmin(authService.isAdmin());
+                                setIsSuperUser((profileData.roles || []).includes('super_user'));
                                 console.log("✅ User profile loaded from API");
                             } else {
                                 console.log("❌ No valid profile found");
                                 setUser(null);
                                 setIsAdmin(false);
+                                setIsSuperUser(false);
                                 authService.clearTokens();
                             }
                         } catch (error) {
@@ -107,6 +115,7 @@ export const AuthProvider = ({ children }) => {
                                 );
                                 setUser(null);
                                 setIsAdmin(false);
+                                setIsSuperUser(false);
                                 authService.clearTokens();
                             } else {
                                 // Keep the session for other types of errors
@@ -118,11 +127,13 @@ export const AuthProvider = ({ children }) => {
                     console.log("❌ No tokens found");
                     setUser(null);
                     setIsAdmin(false);
+                    setIsSuperUser(false);
                 }
             } catch (error) {
                 console.error("❌ Auth check failed:", error);
                 setUser(null);
                 setIsAdmin(false);
+                setIsSuperUser(false);
                 authService.clearTokens();
             } finally {
                 setLoading(false);
@@ -177,6 +188,7 @@ export const AuthProvider = ({ children }) => {
 
                 setUser(userData);
                 setIsAdmin(type === "admin");
+                setIsSuperUser((userData.roles || []).includes('super_user'));
 
                 // Store user data
                 const storageKey = type === "admin" ? "adminUser" : "user";
@@ -218,6 +230,7 @@ export const AuthProvider = ({ children }) => {
         } finally {
             setUser(null);
             setIsAdmin(false);
+            setIsSuperUser(false);
             setLoading(false);
         }
     }, [isAdmin]);
@@ -289,6 +302,7 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         isAdmin,
+        isSuperUser,
         loading,
         login,
         register,
