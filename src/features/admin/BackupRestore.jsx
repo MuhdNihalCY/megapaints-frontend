@@ -412,6 +412,7 @@ const BackupRestore = () => {
                                             <p>Format: {validationResult.summary?.format}</p>
                                             <p>Collections: {validationResult.summary?.totalCollections}</p>
                                             <p>Documents: {validationResult.summary?.totalDocuments}</p>
+                                            <p>Media/Uploads: {validationResult.summary?.uploadsCount || 0} files</p>
                                             <p>Created: {formatDate(validationResult.summary?.timestamp)}</p>
                                         </div>
                                     </div>
@@ -520,7 +521,7 @@ const BackupRestore = () => {
                                                         Size
                                                     </th>
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                        Collections
+                                                        Contents
                                                     </th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                                         Actions
@@ -554,7 +555,10 @@ const BackupRestore = () => {
                                                             {backup.sizeFormatted}
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                                            {backup.collectionCount} ({backup.documentCount} docs)
+                                                            <div>{backup.collectionCount} collections</div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                {backup.documentCount} docs, {backup.uploadsCount || 0} files
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-right">
                                                             <div className="flex justify-end gap-2">
